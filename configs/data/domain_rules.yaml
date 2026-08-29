@@ -1,0 +1,45 @@
+# URL 호스트 -> 도메인 라벨 (docs/DATA_SOURCES.md 5절 2단계).
+# FineWeb-2 에는 도메인 라벨이 없다. 이 규칙이 없으면 스펙 §16 의 도메인별 평가가
+# 불가능하다. 규칙을 바꾸면 manifest 가 바뀌고 manifest_sha256 도 바뀐다.
+#
+# 검증: 무작위 200개 문서를 손으로 라벨링해 이 규칙의 정확도를 재고 리포트에 적는다.
+# 규칙 기반 분류의 오류율을 모른 채 도메인별 결과를 주장하면 안 된다.
+
+version: v1
+
+rules:
+  news:
+    host_suffix: [".news.naver.com", "yna.co.kr", "chosun.com", "hani.co.kr",
+                  "khan.co.kr", "mk.co.kr", "hankyung.com", "sbs.co.kr", "kbs.co.kr"]
+    host_contains: ["news", "press", "media"]
+  encyclopedia:
+    host_suffix: ["wikipedia.org", "namu.wiki", "terms.naver.com"]
+  blog:
+    host_suffix: ["blog.naver.com", "tistory.com", "brunch.co.kr", "velog.io", "medium.com"]
+  community:
+    host_suffix: ["dcinside.com", "fmkorea.com", "clien.net", "ruliweb.com",
+                  "ppomppu.co.kr", "bobaedream.co.kr", "inven.co.kr", "reddit.com"]
+    host_contains: ["cafe.", "forum", "board", "gall"]
+  technical:
+    host_suffix: ["stackoverflow.com", "github.io", "readthedocs.io", "docs.python.org"]
+    host_contains: ["docs.", "developer.", "wiki.", "manual"]
+  code:
+    host_suffix: ["github.com", "gitlab.com", "bitbucket.org"]
+
+# 규칙에 걸리지 않으면 여기로 간다. 비율이 너무 크면 규칙을 보강한다.
+fallback: web_general
+
+# 문서 내 한글/라틴 문자 비율로 판정한다 (호스트와 무관).
+# docs/DATA_SOURCES.md 3.2 — 비한국어 문서를 버리지 않고 이 도메인으로 라벨링한다.
+ko_en_mixed:
+  hangul_ratio_min: 0.15
+  hangul_ratio_max: 0.70
+
+# 한글 비율이 이보다 낮으면 한국어 코퍼스에서 제외한다
+drop_if_hangul_ratio_below: 0.15
+
+# docs/DATA_SOURCES.md 3.1 — 자격증 SEO 스팸 대응
+spam_filter:
+  max_docs_per_host: 5000
+  max_ngram_repeat_ratio: 0.30
+  hplt_doc_score_min: 7.0

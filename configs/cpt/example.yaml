@@ -1,0 +1,56 @@
+# CPT run 설정 예시 (스펙 §58). 이 파일을 복사해서 쓴다.
+# 여기 적힌 값 전체의 정규화 JSON sha256 이 config_sha256 이 되어 원장에 박힌다.
+# 따라서 값을 하나라도 바꾸면 다른 실험이다.
+
+run:
+  phase: cpt
+  # run_id 는 make_run_id("cpt", tokenizer, init, budget, seed=...) 로 만든다
+  tokenizer: kosub          # qwen_original | koext | kosub | konew
+  init: mean                # original | random | mean | weighted | distill
+  budget: 50m
+  seed: 42
+
+model:
+  name: qwen2.5-0.5b
+  repo_id: Qwen/Qwen2.5-0.5B
+  # experiments/models.tsv 에서 가져온다. HF 저장소가 갱신돼도 계보가 유지된다.
+  revision: 060db6499f32faf8b98477b0a26969ef7d8b9987
+  attn_implementation: sdpa   # Windows/sm_120 이라 flash-attn 대신 SDPA (docs/ENVIRONMENT.md)
+  # 검토 C1: LM head 가 임베딩과 묶여 있다. mean 초기화가 출력 projection 까지
+  # 동시에 정한다는 뜻이므로, 이 값을 바꾸는 것 자체가 실험 축이다.
+  untie_word_embeddings: false
+
+tokenizer:
+  version: kosub_v1
+  sha256: TOKENIZER_SHA256_HERE
+  # 검토 C3: byte fallback 256개와 special token 은 절대 pruning 하지 않는다.
+  # src/tokenizer/protected.py 가 강제하고, pruning 후 왕복 검사를 돌린다.
+  protect_byte_fallback: true
+
+data:
+  manifest_sha256: MANIFEST_SHA256_HERE
+  train_split: train
+  dev_split: dev
+  domains: [news, encyclopedia, blog, community, conversational, technical, ko_en_mixed, code, noisy]
+
+training:
+  precision: bf16
+  optimizer: adamw_8bit
+  learning_rate: 1.0e-4
+  # 검토 A4: 스케줄의 x축을 원문 바이트로 둔다. 토크나이저가 다르면 같은 원문에
+  # 대해 step 수가 달라져서, step 기준 스케줄은 두 run 에 다른 곡선을 준다.
+  schedule_axis: raw_bytes      # raw_bytes | tokens | steps
+  warmup_raw_bytes: 15_000_000
+  total_raw_bytes: 155_000_000
+  sequence_length: 1024
+  micro_batch_size: 1
+  gradient_accumulation_steps: 16
+  gradient_checkpointing: true
+
+  # 스펙 §31 Equal Raw Data / §32 Equal Token Budget — 어느 조건인지 명시한다
+  control: equal_raw_data       # equal_raw_data | equal_token_budget
+
+evaluation:
+  # 스펙 §82 — 이 지점들에서만 dev 평가한다
+  eval_at_tokens: [1_000_000, 2_000_000, 5_000_000, 10_000_000, 20_000_000, 50_000_000]
+  checkpoint_selection: dev_bpb   # Final Test 로 고르지 않는다 (docs/RULES.md 2번)

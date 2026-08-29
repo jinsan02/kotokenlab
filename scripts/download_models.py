@@ -34,6 +34,8 @@ os.environ.setdefault("HF_HOME", str(ROOT / ".hf_cache"))
 
 from huggingface_hub import snapshot_download  # noqa: E402
 
+from src.utils import ledger  # noqa: E402
+
 TOKENIZER_ONLY = [
     "tokenizer.json", "tokenizer_config.json", "tokenizer.model",
     "vocab.json", "merges.txt", "special_tokens_map.json",
@@ -58,6 +60,62 @@ def download(repo_id: str, full: bool) -> Path:
     return Path(path)
 
 
+def describe(repo_id: str, path: Path) -> dict:
+    """받은 모델의 구조를 읽어 레지스트리 한 행으로 만든다 (검토 D1).
+
+    revision 은 snapshot 디렉토리 이름이 곧 커밋 해시다. 스펙 §58 이 요구하는
+    model.revision 이 여기서 확정된다 — HF 저장소는 갱신되므로 repo_id 만으로는
+    나중에 같은 것을 다시 가져올 수 없다.
+
+    embedding_share 를 함께 기록하는 이유는 검토 A2 다. 임베딩이 전체에서
+    차지하는 비중이 스케일마다 크게 달라서, 토크나이저 수술 결과의 유효 범위가
+    이 값에 달려 있다.
+    """
+    from transformers import AutoConfig, AutoTokenizer
+
+    row: dict = {"repo_id": repo_id, "revision": path.name,
+                 "name": repo_id.split("/")[-1]}
+    try:
+        cfg = AutoConfig.from_pretrained(str(path))
+        tok = AutoTokenizer.from_pretrained(str(path))
+        V, H, L = cfg.vocab_size, cfg.hidden_size, cfg.num_hidden_layers
+        heads = cfg.num_attention_heads
+        kvh = getattr(cfg, "num_key_value_heads", heads)
+        hd = getattr(cfg, "head_dim", H // heads)
+        tied = bool(getattr(cfg, "tie_word_embeddings", False))
+        emb = V * H
+        inter = cfg.intermediate_size
+        per_layer = 2 * H * H + 2 * H * (kvh * hd) + 3 * H * inter
+        total = emb + L * per_layer + (0 if tied else emb)
+        row.update({
+            "vocab_size": V, "tokenizer_len": len(tok),
+            "hidden_size": H, "n_layers": L, "n_heads": heads,
+            "n_kv_heads": kvh, "head_dim": hd,
+            "embedding_params": emb, "total_params": total,
+            "embedding_share": round(emb / total, 4),
+            "tie_word_embeddings": tied,
+            # bf16 기준: 2(K,V) x layers x kv_heads x head_dim x 2 bytes
+            "kv_bytes_per_token": 2 * L * kvh * hd * 2,
+        })
+    except Exception as exc:
+        row["note"] = f"config 해석 실패: {type(exc).__name__}"
+    return row
+
+
+def register(repo_id: str, path: Path, role: str, full: bool) -> None:
+    """이미 같은 (repo_id, revision) 이 있으면 다시 적지 않는다 (append-only 이지만 중복은 막는다)."""
+    known = {(r.get("repo_id"), r.get("revision"))
+             for r in ledger.read_rows("models")}
+    if (repo_id, path.name) in known:
+        return
+    row = describe(repo_id, path)
+    row["role"] = role
+    row["scope"] = "full" if full else "tokenizer_only"
+    size = sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+    row["files_mb"] = round(size / 1024 / 1024, 1)
+    ledger.append_row("models", row)
+
+
 def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(description="모델·토크나이저 다운로드")
     parser.add_argument("--only", action="append", default=None,
@@ -78,7 +136,8 @@ def main(argv: list | None = None) -> int:
         try:
             path = download(repo_id, full)
             size = sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
-            print(f"   OK  {size / 1024 / 1024:.0f} MB  {path}\n")
+            register(repo_id, path, role, full)
+            print(f"   OK  {size / 1024 / 1024:.0f} MB  rev={path.name[:12]}\n")
         except Exception as exc:
             print(f"   FAIL  {type(exc).__name__}: {exc}\n", file=sys.stderr)
             failed.append(repo_id)
@@ -86,7 +145,7 @@ def main(argv: list | None = None) -> int:
     if failed:
         print(f"실패: {failed}", file=sys.stderr)
         return 1
-    print("모든 대상 다운로드 완료")
+    print(f"모든 대상 다운로드 완료 -> {ledger.table_path('models')}")
     return 0
 
 

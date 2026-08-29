@@ -8,8 +8,12 @@
     - sha256 컬럼은 64자리 hex 또는 'NA'
     - git_commit 은 40자리 hex 또는 'NA'
     - 참조 무결성: 메트릭 TSV 의 run_id 는 LEDGER.tsv 에 존재해야 한다
+    - 죽은 run: status=start 만 있고 종료 행이 없는 run (REVIEW D2)
+    - 중복 행: merge=union 이 같은 행을 두 번 남긴 경우 (REVIEW D3)
 
-마지막 항목이 핵심이다. 원장에 없는 run 의 메트릭은 계보가 끊긴 숫자다.
+참조 무결성이 핵심이다. 원장에 없는 run 의 메트릭은 계보가 끊긴 숫자다.
+죽은 run 탐지가 그다음이다 — OOM 이나 정전으로 죽은 run 이 원장에서 성공한
+것처럼 보이면, 그 결과를 나중에 진짜라고 믿게 된다.
 """
 
 from __future__ import annotations
@@ -22,8 +26,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.utils import ledger  # noqa: E402
-
-PHASES = ("data", "tok", "surgery", "align", "cpt", "eval", "sys")
 
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
@@ -88,6 +90,39 @@ def _check_table(path: Path, expected: tuple, label: str) -> tuple:
     return errors, rows
 
 
+def _check_run_lifecycle(rows: list) -> list:
+    """start 만 있고 끝나지 않은 run 을 찾는다 (REVIEW D2).
+
+    OOM·정전으로 프로세스가 죽으면 종료 행이 남지 않는다. 그대로 두면 원장이
+    성공한 실험처럼 보인다. 의도적으로 중단했다면 status=abort 행을 직접 붙여라.
+    """
+    started, ended = {}, set()
+    for row in rows:
+        rid, status = row.get("run_id"), row.get("status")
+        if status == "start":
+            started.setdefault(rid, row.get("ts_utc", "NA"))
+        elif status in ledger.TERMINAL_STATUSES:
+            ended.add(rid)
+    return [
+        f"LEDGER.tsv: run {rid!r} 이 start({ts}) 이후 끝나지 않았다. "
+        "죽은 run 이면 status=abort 행을 붙여라"
+        for rid, ts in started.items() if rid not in ended
+    ]
+
+
+def _check_duplicates(rows: list, label: str, keys: tuple) -> list:
+    """merge=union 이 같은 행을 두 번 남긴 경우를 잡는다 (REVIEW D3)."""
+    seen, dups = set(), []
+    for n, row in enumerate(rows, start=2):
+        key = tuple(row.get(k, "") for k in keys)
+        if all(v in ("", "NA") for v in key):
+            continue
+        if key in seen:
+            dups.append(f"{label}:{n}: 중복 행 {keys} = {key}")
+        seen.add(key)
+    return dups
+
+
 def validate(root: Path | str | None = None) -> list:
     root = Path(root or ledger.repo_root())
     errors: list = []
@@ -100,10 +135,13 @@ def validate(root: Path | str | None = None) -> list:
         errors += errs
         run_ids = {r["run_id"] for r in rows if r.get("run_id") not in (None, "", "NA")}
         for n, row in enumerate(rows, start=2):
-            if row.get("phase") not in PHASES:
+            if row.get("phase") not in ledger.PHASES:
                 errors.append(f"LEDGER.tsv:{n}: 알 수 없는 phase {row.get('phase')!r}")
-            if row.get("status") not in ("start", "ok", "fail", "abort"):
+            if row.get("status") not in ledger.RUN_STATUSES:
                 errors.append(f"LEDGER.tsv:{n}: 알 수 없는 status {row.get('status')!r}")
+        errors += _check_run_lifecycle(rows)
+        errors += _check_duplicates(rows, "LEDGER.tsv",
+                                    ("run_id", "status", "ts_utc"))
 
     # 2) 나머지 테이블
     for table, (rel, cols) in ledger.TABLES.items():
@@ -114,6 +152,8 @@ def validate(root: Path | str | None = None) -> list:
             continue
         errs, rows = _check_table(path, cols, Path(rel).name)
         errors += errs
+        if table == "models":
+            errors += _check_duplicates(rows, "models.tsv", ("repo_id", "revision"))
         if table in ledger.METRIC_TABLES and run_ids:
             for n, row in enumerate(rows, start=2):
                 rid = row.get("run_id")

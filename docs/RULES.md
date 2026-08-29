@@ -50,6 +50,12 @@ HCX / A.X 는 **External Reference / Industry Baseline** 이지 인과 실험이
 
 허용되는 주장: *"HCX 토크나이저는 본 corpus 에서 Qwen 대비 한국어 compression 이 X% 높았다"*
 
+**이 규칙은 시스템 지표에도 그대로 적용된다.** 예를 들어 KV cache 는
+`experiments/models.tsv` 기준 Qwen2.5-0.5B 가 12,288 B/token, HCX-SEED 가
+98,304 B/token 으로 **8배** 차이 난다. GQA 설정(KV head 2개 vs 8개, head_dim 64 vs 128)이
+다르기 때문이다. 두 모델의 VRAM 을 비교하면 그 차이의 대부분은 아키텍처지
+토크나이저가 아니다.
+
 ## 5. 토크나이저의 인과 효과는 같은 Qwen backbone 에서만 검증한다
 
 `Qwen Original` vs `Qwen + Korean Tokenizer`. 이것만이 인과 실험이다.
@@ -87,10 +93,20 @@ peak VRAM 은 `max_memory_allocated` 와 `max_memory_reserved` 를 둘 다 남�
 - **강제**: `system_bench.tsv` 에 `n_warmup`, `n_runs`, `*_p95`, `total_ms_std`,
   `peak_alloc_mb`, `peak_reserved_mb` 가 컬럼으로 있다. 비워두면 눈에 띈다.
 
-## 10. Exploration 은 1 seed, Final 만 multi-seed
+## 10. Exploration 은 1 seed, Final 만 multi-seed — 단, 노이즈 플로어를 먼저 잰다
 
 탐색 단계는 `seed=42` 하나. 상위 1~2개 후보만 `42 / 123 / 2026` 으로 반복하고
 `1.103 ± 0.008` 형태로 보고한다. 단일 GPU 에서 처음부터 3 seed 는 낭비다.
+
+**그러나 단일 시드 비교는 노이즈 플로어를 알기 전까지 해석할 수 없다.**
+seed 분산을 모르면 "BPB 1.207 vs 1.198" 이 의미 있는 차이인지 알 수 없고,
+§17 Candidate Gate 가 노이즈로 후보를 탈락시킬 수 있다.
+
+- **강제**: 가장 먼저 하는 CPT 실험은 **동일 config 를 seed 42/123/2026 으로 3회**
+  돌려 `σ_BPB` 를 재는 것이다. 이 run 들의 `run_id` 는 `noise_*` 로 시작한다.
+- 이후 모든 비교는 **`Δ > 2σ` 일 때만 "차이 있음"** 으로 보고한다.
+  그 미만은 결과 표에 **"구별 불가"** 로 적는다. 유리한 쪽으로 반올림하지 않는다.
+- 비용은 Stage 1 예산의 3배(≈15M 토큰)로, 잘못된 후보 선택 한 번보다 싸다.
 
 ## 11. 모든 실험을 hash 와 version 으로 추적한다
 
@@ -102,11 +118,44 @@ peak VRAM 은 `max_memory_allocated` 와 `max_memory_reserved` 를 둘 다 남�
   `manifest_sha256`, `env_sha256` 를 갖는다. `tools/validate_ledger.py` 가
   메트릭 행의 `run_id` 가 `LEDGER.tsv` 에 실재하는지 확인한다.
 
-## 12. 0.5B 에서 깊게, 1.5B 에서 scale validation
+## 12. 0.5B 에서 깊게, 1.5B 에서 scale validation — 결론에 스케일을 명시한다
 
 0.5B(Qwen2.5-0.5B Base)는 full-parameter CPT 와 ablation 의 무대다.
 1.5B 는 0.5B 에서 이미 결론 난 항목을 반복하지 않고, `Original vs Best KoTokenizer`
 하나만 Embedding Alignment + LoRA/QLoRA 로 확인한다. (16GB VRAM 제약)
+
+**임베딩 비중이 스케일마다 크게 다르다** (`experiments/models.tsv` 실측):
+
+```
+Qwen2.5-0.5B  27.6%      Qwen2.5-1.5B  15.1%      A.X-4.0-Light(7B)  5.1%
+```
+
+토크나이저 수술이 건드리는 파라미터의 비중이 5배 차이 난다. 따라서
+**0.5B 에서 잰 "얼마나 무너지고 얼마나 회복되는가" 는 큰 모델보다 체계적으로
+과대 측정된다.** 1.5B 검증은 확인이 아니라 **보정**이다.
+
+- **강제**: `LEDGER.tsv` 에 `embedding_share` 컬럼이 있다. 결과 표와 결론 문장에
+  스케일을 반드시 병기한다. 스케일 외삽을 주장하지 않는다.
+
+## 12b. 학습 스케줄의 x축은 원문 바이트다
+
+같은 원문을 학습해도 토크나이저가 다르면 토큰 수가 다르고 → **optimizer step 수가
+다르다.** 스케줄을 step 기준으로 정의하면 두 run 이 서로 다른 warmup 비율과 decay
+곡선을 받아, §31 Equal Raw Data 가 재려는 것이 오염된다.
+
+- **강제**: config 의 `training.schedule_axis` 를 `raw_bytes` 로 둔다
+  (`configs/cpt/example.yaml` 참조). 다르게 하려면 config 에 명시해서
+  `config_sha256` 에 들어가게 한다.
+
+## 12c. byte fallback 토큰은 절대 pruning 하지 않는다
+
+BBPE 는 임의 바이트열을 표현하기 위해 **256개 바이트 토큰**을 바닥에 깔아둔다.
+개별 빈도가 낮아 §19 의 pruning 조건에 그대로 걸리는데, 하나라도 지우면 처음 보는
+입력에서 토크나이저가 실패한다 — 그리고 그 실패는 한참 뒤에야 드러난다.
+
+- **강제**: `src/tokenizer/protected.py` 의 `protected_token_ids()` 를 pruning 후보에서
+  제외하고, pruning·치환 직후 `assert_byte_roundtrip()` 을 호출한다.
+  `tests/test_protected_tokens.py` 가 이를 검사한다.
 
 ---
 

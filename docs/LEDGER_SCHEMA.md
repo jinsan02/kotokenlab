@@ -24,6 +24,7 @@
 | `experiments/capability.tsv` | (run × checkpoint × benchmark × metric) | §40, §52 |
 | `experiments/system_bench.tsv` | (모델 × 입력조건 × mode) | §49, §50 |
 | `experiments/train_curve.tsv` | 평가 지점 하나 | §26, §84 |
+| `experiments/models.tsv` | 내려받은 외부 모델 하나 | §58 |
 | `data/manifests/<split>.tsv` | 문서 하나 | §7 |
 | `env/ENV_SNAPSHOT.tsv` | 환경 변경 하나 | §60 |
 
@@ -59,6 +60,8 @@ run 하나가 `start` 행 하나와 `ok`/`fail` 행 하나를 남긴다. `start`
 | `env_sha256` | 환경 스냅샷 해시 → `ENV_SNAPSHOT.tsv` 로 연결 |
 | `argv` | 명령행 인자 |
 | `note` | 자유 메모. 실패 시 예외 메시지가 자동으로 들어간다 |
+| `model_revision` | HF snapshot 해시. `models.tsv` 로 연결된다 (검토 D1) |
+| `embedding_share` | 임베딩이 전체 파라미터에서 차지하는 비율. 결론의 유효 범위 (검토 A2) |
 
 ### `run_id` 명명 (스펙 §61)
 
@@ -129,6 +132,30 @@ long format 이다. 지표 하나가 한 행. bootstrap CI 는 문제 단위로 
 - 모듈별 gradient norm 은 "어느 모듈에 적응 압력이 걸리는가"에 답한다 (스펙 §72)
 - `raw_bytes_per_s` 는 토크나이저가 다른 run 사이에서 공정한 처리량 지표다 (스펙 §79)
 
+## `models.tsv` — 외부 모델 레지스트리
+
+`name` `repo_id` `revision` `role` `scope` `vocab_size` `tokenizer_len`
+`hidden_size` `n_layers` `n_heads` `n_kv_heads` `head_dim`
+`embedding_params` `total_params` `embedding_share`
+`tie_word_embeddings` `kv_bytes_per_token` `files_mb`
+
+`scripts/download_models.py` 가 자동으로 채운다. 두 가지 이유로 존재한다:
+
+1. **`revision`** — HF 저장소는 갱신된다. `model: qwen2.5-0.5b` 만으로는 나중에
+   같은 것을 다시 가져올 수 없다 (스펙 §58 `model.revision`).
+2. **`embedding_share`, `kv_bytes_per_token`, `tie_word_embeddings`** — 결과 해석에
+   직접 쓰이는 구조 사실이다. 매번 config 를 다시 뜯지 않도록 한 곳에 못 박는다.
+
+현재 값 (실측):
+
+| name | revision | emb share | KV B/tok | tied |
+|---|---|---:|---:|---:|
+| Qwen2.5-0.5B | `060db6499f32` | 27.6% | 12,288 | 1 |
+| Qwen2.5-1.5B | `8faed761d45a` | 15.1% | 28,672 | 1 |
+| HyperCLOVAX-SEED-0.5B | `3da5046fb019` | 21.9% | 98,304 | 1 |
+| A.X-4.0-Light | `ba21c20ea1b3` | 5.1% | 57,344 | 0 |
+| A.X-4.0 | `a3393fd67bf0` | 1.2% | 327,680 | 0 |
+
 ## `data/manifests/<split>.tsv` — 문서 manifest
 
 `doc_id` `source` `domain` `date` `language` `sha256` `split` `char_count` `byte_count`
@@ -144,6 +171,17 @@ long format 이다. 지표 하나가 한 행. bootstrap CI 는 문제 단위로 
 자세한 내용은 [ENVIRONMENT.md](ENVIRONMENT.md).
 
 ---
+
+## 검사기가 잡는 것
+
+`tools/validate_ledger.py` (pre-commit 과 CI 가 호출):
+
+- CRLF · 헤더 불일치 · 컬럼 수 · 빈 필드 · sha256/git_commit/ts_utc 형식
+- **참조 무결성** — 메트릭 행의 `run_id` 가 `LEDGER.tsv` 에 실재하는가
+- **죽은 run** — `status=start` 만 있고 종료 행이 없는 run (검토 D2).
+  OOM·정전으로 죽은 run 이 성공한 것처럼 보이면 안 된다.
+  의도적으로 중단했다면 `status=abort` 행을 직접 붙인다.
+- **중복 행** — `merge=union` 이 같은 행을 두 번 남긴 경우 (검토 D3)
 
 ## 쓰는 법
 

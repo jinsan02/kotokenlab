@@ -5,6 +5,31 @@
 
 우선순위: **A(방법론) > B(시스템 평가) > C(구현 함정) > D(인프라) > E(신규성) > F(범위)**
 
+## 처리 현황
+
+| 항목 | 상태 |
+|---|---|
+| A1 노이즈 플로어 정책 | ✅ `RULES.md` 10번에 강제 규칙으로 |
+| A2 임베딩 비중 명시 | ✅ `RULES.md` 12번 + `LEDGER.embedding_share` + `models.tsv` |
+| A4 스케줄 x축 = 원문 바이트 | ✅ `RULES.md` 12b + `configs/cpt/example.yaml` |
+| B3 시스템 지표에도 규칙 4 적용 | ✅ `RULES.md` 4번 확장 |
+| C3 byte fallback 보호 | ✅ `src/tokenizer/protected.py` + 테스트 8개 + `RULES.md` 12c |
+| D1 model_revision | ✅ `LEDGER.model_revision` + `experiments/models.tsv` |
+| D2 죽은 run 탐지 | ✅ `validate_ledger._check_run_lifecycle` |
+| D3 중복 행 탐지 | ✅ `validate_ledger._check_duplicates` |
+| D4 CI 백스톱 | ✅ `.github/workflows/ci.yml` |
+| D5 예시 config | ✅ `configs/{cpt,evaluation,data}/*.yaml` |
+| D6 LICENSE | ✅ MIT |
+| A3 T1 파라미터 오염 명시 | 📋 결과 표에 `Δparams` 병기 — 구현 시점에 |
+| A5 dev 과적합 정책 | 📋 dev 크기 하한 — 데이터 파이프라인에서 |
+| A6 사전학습 중복 | 📋 결과 해석 문단에 한계로 기술 |
+| A7 fertility 분석기 | ⏸ **결정 필요** (아래 F 절) |
+| B1 KV/VRAM 을 1.5B 에서 | ⏸ **결정 필요** |
+| B2 벤치마크 길이 확장 | ⏸ **결정 필요** |
+| C1 tied embedding 방침 | ⏸ **결정 필요** |
+| E T2a/T2b 대조 | ⏸ **결정 필요** |
+| F1 코어/옵션 분리 | ⏸ **결정 필요** |
+
 ---
 
 ## 측정된 사실 — 검토의 근거
@@ -20,9 +45,14 @@
 | KV heads (GQA) | **2** | **2** | **8** |
 | 임베딩 파라미터 | 136.1M | 233.4M | 113.2M |
 | 전체 파라미터 | 494.0M | 1543.6M | 490.7M |
-| **임베딩 비중** | **27.6%** | **15.1%** | **23.1%** |
-| KV cache | **12.0 KB/tok** | 28.0 KB/tok | 48.0 KB/tok |
-| KV @ 4096 tok | 48 MB | 112 MB | 192 MB |
+| **임베딩 비중** | **27.6%** | **15.1%** | **21.9%** |
+| KV cache | **12.0 KB/tok** | 28.0 KB/tok | **96.0 KB/tok** |
+| KV @ 4096 tok | 48 MB | 112 MB | 384 MB |
+
+> **정정**: 최초 계산에서 HCX 의 `head_dim` 을 `hidden/heads = 64` 로 가정했으나
+> config 에 `head_dim=128` 이 명시되어 있다. KV cache 는 96 KB/tok, 임베딩 비중은
+> 21.9% 다. Qwen 대비 KV cache 차이는 4배가 아니라 **8배**이며, B3 의 논지는
+> 더 강해진다. 이 값들은 이제 `experiments/models.tsv` 에 자동 기록된다.
 
 ---
 
@@ -167,7 +197,8 @@ n=30,000 → 20,800 : 44% 감소  (선형이면 30.7%)
 
 ## B3. HCX 와의 VRAM 비교는 토크나이저가 아니라 GQA 를 재는 것
 
-HCX-SEED 는 KV head 가 **8개** — Qwen(2개)의 4배다. KV cache 가 48 KB/tok 대 12 KB/tok.
+HCX-SEED 는 KV head 8개 + head_dim 128 이고 Qwen 은 KV head 2개 + head_dim 64 다.
+KV cache 가 **96 KB/tok 대 12 KB/tok — 8배** 차이 난다.
 두 모델의 VRAM 을 비교하면 그 차이의 대부분은 아키텍처지 토크나이저가 아니다.
 
 `docs/RULES.md` 4번(HCX/A.X 를 인과 실험으로 쓰지 않는다)을 **시스템 지표에도 명시적으로

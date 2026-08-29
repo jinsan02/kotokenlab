@@ -37,6 +37,19 @@ LEDGER_COLUMNS: tuple[str, ...] = (
     "wall_sec", "peak_vram_mb",
     "git_commit", "git_dirty", "config_sha256", "manifest_sha256", "env_sha256",
     "argv", "note",
+    # ── 아래는 검토(docs/REVIEW.md) 이후 추가된 컬럼. 뒤에만 붙인다 ──────────
+    "model_revision",    # HF snapshot 해시. 저장소가 갱신돼도 계보가 끊기지 않게 (§58)
+    "embedding_share",   # 임베딩이 전체 파라미터에서 차지하는 비율. 결론의 유효 범위 (REVIEW A2)
+)
+
+# 외부 모델·토크나이저 레지스트리 (REVIEW D1).
+# 어떤 revision 을 무슨 구성으로 받았는지 못 박는다. 검토에서 쓴 숫자들의 출처다.
+MODELS_COLUMNS: tuple[str, ...] = (
+    "ts_utc", "name", "repo_id", "revision", "role", "scope",
+    "vocab_size", "tokenizer_len", "hidden_size", "n_layers",
+    "n_heads", "n_kv_heads", "head_dim",
+    "embedding_params", "total_params", "embedding_share",
+    "tie_word_embeddings", "kv_bytes_per_token", "files_mb", "note",
 )
 
 TOKENIZER_METRICS_COLUMNS: tuple[str, ...] = (
@@ -105,6 +118,7 @@ TABLES: dict[str, tuple[str, tuple[str, ...]]] = {
     "system_bench":      ("experiments/system_bench.tsv",      SYSTEM_BENCH_COLUMNS),
     "train_curve":       ("experiments/train_curve.tsv",       TRAIN_CURVE_COLUMNS),
     "env_snapshot":      ("env/ENV_SNAPSHOT.tsv",              ENV_SNAPSHOT_COLUMNS),
+    "models":            ("experiments/models.tsv",            MODELS_COLUMNS),
 }
 
 # 테이블별로 반드시 호출자가 채워야 하는 컬럼.
@@ -116,12 +130,20 @@ REQUIRED: dict[str, frozenset] = {
     "system_bench":      frozenset({"run_id", "model", "mode"}),
     "train_curve":       frozenset({"run_id", "tokens_seen"}),
     "env_snapshot":      frozenset({"env_sha256"}),
+    "models":            frozenset({"name", "repo_id", "revision"}),
 }
 
 # 메트릭 테이블의 run_id 는 LEDGER.tsv 에 존재해야 한다 (참조 무결성).
 METRIC_TABLES: tuple[str, ...] = (
     "tokenizer_metrics", "lm_metrics", "capability", "system_bench", "train_curve",
 )
+
+
+# run 의 상태. start 이후 반드시 종료 상태 행이 하나 더 붙어야 한다 (REVIEW D2).
+RUN_STATUSES: tuple[str, ...] = ("start", "ok", "fail", "abort")
+TERMINAL_STATUSES: tuple[str, ...] = ("ok", "fail", "abort")
+
+PHASES: tuple[str, ...] = ("data", "tok", "surgery", "align", "cpt", "eval", "sys")
 
 
 class LedgerError(ValueError):

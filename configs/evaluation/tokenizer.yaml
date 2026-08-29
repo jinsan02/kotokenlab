@@ -1,0 +1,38 @@
+# Level 1 intrinsic 토크나이저 벤치마크 (스펙 §14~16, §35).
+# 실행: .conda/python.exe -m src.evaluation.tokenizer_eval --config configs/evaluation/tokenizer.yaml
+
+tokenizers:
+  - name: qwen_original
+    repo_id: Qwen/Qwen2.5-0.5B
+    revision: 060db6499f32faf8b98477b0a26969ef7d8b9987
+  - name: hcx_seed
+    repo_id: naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-0.5B
+    revision: 3da5046fb0195d14f2497de198136987d35fd644
+  - name: ax_4_0_light
+    repo_id: skt/A.X-4.0-Light
+    revision: ba21c20ea1b31ded1ec3e2fb432335077dc4be98
+  # 우리가 만든 후보는 학습 후 여기에 추가한다
+  # - name: kosub_v1
+  #   path: artifacts/tokenizers/kosub_v1
+
+data:
+  manifest_sha256: MANIFEST_SHA256_HERE
+  split: dev
+  # 전체 평균 하나만 내지 않는다. 도메인별로 행을 남긴다 (스펙 §16).
+  domains: [news, encyclopedia, blog, community, conversational, technical, ko_en_mixed, code, noisy]
+
+metrics:
+  compression: [tok_per_char, tok_per_byte, bytes_per_tok, tok_per_eojeol]
+  length_percentiles: [50, 90, 95, 99]
+  # 검토 A7: fertility 는 "정답 분절"이 있어야 계산된다. 분석기와 버전을 고정한다.
+  # 정하기 전에는 fertility_mean 을 NA 로 둔다 — 비워두는 것이 임의 정의보다 낫다.
+  fertility:
+    enabled: false
+    analyzer: null          # kiwipiepy | mecab-ko
+    analyzer_version: null
+
+# 스펙 §17 Candidate Gate — 이 조건을 통과한 후보만 GPU 로 보낸다
+gate:
+  korean_tok_per_char_improvement_min: 0.15
+  english_degradation_max: 0.05
+  code_degradation_max: 0.10

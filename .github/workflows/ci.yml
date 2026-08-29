@@ -1,0 +1,53 @@
+# 훅은 로컬 전용이라 --no-verify, 다른 머신, 웹 UI 편집, core.hooksPath 를 잊은
+# 클론에서는 아무것도 잡히지 않는다. 이 워크플로가 그 백스톱이다 (docs/REVIEW.md D4).
+#
+# torch 는 설치하지 않는다. 원장·커밋 규칙·보호 토큰 검사는 GPU 없이 돌아가야 하고,
+# 모델 캐시가 필요한 테스트는 스스로 skip 한다.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치 (GPU 없이 도는 것만)
+        run: python -m pip install --quiet pytest tokenizers
+
+      - name: 테스트
+        run: python -m pytest tests/ -q
+
+      - name: 원장 무결성
+        run: python tools/validate_ledger.py
+
+      - name: 커밋 메시지 규칙
+        shell: bash
+        run: |
+          set -u
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          elif [ -n "${{ github.event.before }}" ] && \
+               git cat-file -e "${{ github.event.before }}^{commit}" 2>/dev/null; then
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          else
+            RANGE="HEAD~1..HEAD"   # 첫 push 등 이전 커밋을 알 수 없는 경우
+          fi
+          echo "검사 범위: $RANGE"
+          FAIL=0
+          for sha in $(git rev-list "$RANGE" 2>/dev/null); do
+            git log -1 --format=%B "$sha" > /tmp/msg.txt
+            echo "── $(git log -1 --format='%h %s' "$sha")"
+            python tools/check_commit_msg.py /tmp/msg.txt || FAIL=1
+          done
+          exit $FAIL
