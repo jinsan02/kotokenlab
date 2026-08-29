@@ -39,3 +39,6 @@ wandb/
 *.log
 Thumbs.db
 desktop.ini
+
+# HuggingFace 캐시 (모델 가중치). 커밋하지 않는다.
+.hf_cache/
