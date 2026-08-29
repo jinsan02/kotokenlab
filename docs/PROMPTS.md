@@ -11,7 +11,7 @@ Codex / Claude Code 에 그대로 붙여 넣는 프롬프트다.
 C:\llm_tokenizer 프로젝트를 이어서 작업한다.
 
 먼저 이 순서로 읽고 현재 상태를 복원해라.
-1. docs/RULES.md        하드룰 18개 — 매 세션 읽는다
+1. docs/RULES.md        하드룰 17개 — 매 세션 읽는다
 2. docs/HANDOFF.md      지금까지 된 것과 다음 할 일
 3. docs/PLAN.md         범위·일정·사전 등록 질문 6개
 
@@ -53,7 +53,7 @@ python 은 항상 C:\llm_tokenizer\.conda\python.exe 절대경로로 부른다.
 - 탈락 사유 분포가 파일럿과 비슷한가 (too_short ~2.6%, repeated_lines ~2.2%)
 - ko_en_mixed 도메인이 3~6% 인가. 40% 가 나오면 도메인 규칙이 깨진 것이다
   (한글 비율이 아니라 latin/(hangul+latin) 을 봐야 한다 — src/data/domain.py 참조)
-- web_general 비율. 지금 66% 이고, 규칙을 보강했다면 줄어야 한다
+- web_general 비율. 파일럿은 문서 수 기준 약 73% 이고, 규칙을 보강했다면 줄어야 한다
 - Level 1 의 tok/char 가 파일럿과 비슷한가
   (Qwen 0.687 / HCX 0.516 -24.9% / A.X 0.416 -39.4% 근방)
 
@@ -75,7 +75,7 @@ Step 1 데이터 파이프라인을 전체 규모로 돌린다. docs/HANDOFF.md 
    반드시 --shards 4 로 여러 샤드에 걸쳐 뽑아라.
 
 2) 그 결과를 보고 configs/data/domain_rules.yaml 의 호스트 규칙을 보강해라.
-   지금 web_general 이 66% 다. 목표는 40% 이하다.
+   파일럿의 web_general 은 문서 수 기준 약 73% 다. 목표는 40% 이하다.
    규칙을 바꾸면 manifest 가 바뀌므로 upgrade(data) 로 먼저 커밋해라.
 
 3) scripts/audit_domain_rules.py 를 만들어라.

@@ -47,7 +47,8 @@ Level 1 결과는 `experiments/tokenizer_metrics.tsv` (커밋됨, run_id `tok_be
 예상: 다운로드 수 GB, 처리 1~2시간. 끝나면 `manifest_sha256` 을 `PLAN.md` 에 적고
 `data(data):` 커밋 (트레일러 `Manifest-SHA256:` 필수).
 
-**해결해야 할 것**: 파일럿에서 `web_general` 이 66% 였다. `configs/data/domain_rules.yaml`
+**해결해야 할 것**: 파일럿에서 `web_general` 이 문서 수 기준 약 73% 였다.
+`configs/data/domain_rules.yaml`
 에 호스트 규칙을 보강하되, **편향된 표본으로 과적합하지 마라.** 전체 규모 표본의
 상위 호스트를 먼저 뽑아보고 결정한다.
 
