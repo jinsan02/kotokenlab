@@ -45,3 +45,11 @@ desktop.ini
 
 # 원장 마이그레이션 백업
 *.tsv.bak
+
+# 매니페스트 본체는 커밋하지 않는다. 전체 규모에서 수백 MB 가 되고, 파이프라인이
+# 결정론적으로 재생성한다. 계보는 LEDGER 의 manifest_sha256 이 잡고, 검토용으로는
+# data/manifests/SUMMARY.tsv 만 커밋한다.
+# Final Test 매니페스트는 그 위에 docs/RULES.md 2번으로도 금지된다 — 분할 자체가
+# doc_id 해시로 결정론적이라 알고리즘만으로 재현된다 (src/data/split.py).
+data/manifests/*.tsv
+!data/manifests/SUMMARY.tsv

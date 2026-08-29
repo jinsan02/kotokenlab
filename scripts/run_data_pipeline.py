@@ -228,6 +228,25 @@ def main(argv: list | None = None) -> int:
                          "text": d["text"]}, ensure_ascii=False) + "\n")
             print(f"      {path.name:<16} {len(group):>7,}행  sha={manifest_shas[sp][:12]}")
 
+        # 매니페스트 본체는 커밋하지 않는다 (전체 규모에서 수백 MB).
+        # 사람이 검토할 수 있는 요약만 남긴다. 계보는 manifest_sha256 이 잡는다.
+        summary = ROOT / "data" / "manifests" / "SUMMARY.tsv"
+        agg: dict = defaultdict(lambda: [0, 0, 0])
+        for sp, group in by_split.items():
+            for d in group:
+                cell = agg[(sp, d["domain"])]
+                cell[0] += 1
+                cell[1] += len(d["text"])
+                cell[2] += byte_len(d["text"])
+        with summary.open("w", encoding="utf-8", newline="
+") as fh:
+            fh.write("split	domain	n_docs	n_chars	n_bytes	manifest_sha256
+")
+            for (sp, dom), (nd, nc, nb) in sorted(agg.items()):
+                fh.write(f"{sp}	{dom}	{nd}	{nc}	{nb}	{manifest_shas[sp]}
+")
+        print(f"      SUMMARY.tsv       {len(agg)}행 (커밋 대상)")
+
         combined = sha256_obj(manifest_shas)
         run.raw_bytes_seen = sum(byte_len(d["text"]) for d in docs)
         run.extra["manifest_sha256"] = combined

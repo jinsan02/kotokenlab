@@ -166,6 +166,8 @@ def validate(root: Path | str | None = None) -> list:
     manifest_dir = Path(root) / "data" / "manifests"
     if manifest_dir.is_dir():
         for path in sorted(manifest_dir.glob("*.tsv")):
+            if path.name == "SUMMARY.tsv":
+                continue          # 요약은 다른 스키마다 (커밋되는 유일한 매니페스트 파일)
             errs, _ = _check_table(path, ledger.MANIFEST_COLUMNS, path.name)
             errors += errs
 
