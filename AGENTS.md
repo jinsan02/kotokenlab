@@ -21,6 +21,7 @@ git log --oneline -20
 git status
 tail -n 15 experiments/LEDGER.tsv
 .conda/python.exe -m src.utils.env --check
+.conda/python.exe tools/check_clock.py --record
 ```
 
 Claude Code 가 직전 세션을 돌렸을 수도 있다. **앞선 대화를 알고 있다고 가정하지
@@ -39,7 +40,7 @@ Claude Code 가 직전 세션을 돌렸을 수도 있다. **앞선 대화를 알
 
 ### 샌드박스·승인
 
-- 네트워크가 필요한 작업은 모델 다운로드(HuggingFace)와 `pip` 뿐이다.
+- 네트워크가 필요한 작업은 모델 다운로드(HuggingFace), HTTPS 시간 검증과 `pip` 뿐이다.
   그 외에는 네트워크 없이 진행할 수 있어야 한다
 - 파일 쓰기는 저장소 안으로 제한한다. `C:\aimers` 는 **읽기 전용**으로 취급한다
   (다른 프로젝트다)

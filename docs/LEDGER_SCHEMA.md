@@ -20,6 +20,7 @@
   값은 절대 바꾸지 않는다. 뒤에 `NA` 를 덧대기만 하고 `.bak` 을 남긴다.
   헤더 순서가 바뀐 경우는 자동으로 손대지 않고 보고만 한다
 - `ts_utc`, `git_commit`, `git_dirty` 는 생략하면 **자동으로 채워진다**
+- 새 run 의 `clock_check_sha256` 는 24시간 이내의 성공한 시간 검증에서 자동으로 채운다
 - `.gitattributes` 가 `*.tsv` 에 `merge=union` 을 걸어둬서, 서로 다른 브랜치에서
   붙인 행들은 충돌 없이 합쳐진다
 
@@ -34,6 +35,8 @@
 | `experiments/system_bench.tsv` | (모델 × 입력조건 × mode) | §49, §50 |
 | `experiments/train_curve.tsv` | 평가 지점 하나 | §26, §84 |
 | `experiments/models.tsv` | 내려받은 외부 모델 하나 | §58 |
+| `experiments/clock_checks.tsv` | 외부 시각 대조 한 번 | §59 |
+| `experiments/artifacts.tsv` | 프로젝트가 만든 산출물 하나 | §59 |
 | `data/manifests/<split>.tsv` | 문서 하나 | §7 |
 | `env/ENV_SNAPSHOT.tsv` | 환경 변경 하나 | §60 |
 
@@ -71,6 +74,7 @@ run 하나가 `start` 행 하나와 `ok`/`fail` 행 하나를 남긴다. `start`
 | `note` | 자유 메모. 실패 시 예외 메시지가 자동으로 들어간다 |
 | `model_revision` | HF snapshot 해시. `models.tsv` 로 연결된다 (검토 D1) |
 | `embedding_share` | 임베딩이 전체 파라미터에서 차지하는 비율. 결론의 유효 범위 (검토 A2) |
+| `clock_check_sha256` | 실행 전 시간 검증 해시. `clock_checks.tsv` 로 연결 |
 
 ### `run_id` 명명 (스펙 §61)
 
@@ -165,6 +169,37 @@ long format 이다. 지표 하나가 한 행. bootstrap CI 는 문제 단위로 
 | A.X-4.0-Light | `ba21c20ea1b3` | 5.1% | 57,344 | 0 |
 | A.X-4.0 | `a3393fd67bf0` | 1.2% | 327,680 | 0 |
 
+## `clock_checks.tsv` — 호스트 시각 검증
+
+`clock_check_sha256` `status` `server` `server_utc` `local_midpoint_utc`
+`offset_ms` `rtt_ms` `windows_source` `method` `git_commit` `note`
+
+Windows Time 원본만 믿지 않고 캐시되지 않은 HTTPS 응답의 `Date`와 요청 왕복 구간의
+중간값을 비교한다. HTTP Date는 초 단위이므로 기본 통과 기준은 절대 오차 5초 이하다.
+성공 기록은 24시간 동안 유효하며 `RunContext`가 새 run에 해시를 자동 연결한다.
+
+```bash
+C:/llm_tokenizer/.conda/python.exe tools/check_clock.py --record
+```
+
+이 명령은 시계를 바꾸지 않는다. `windows_source=local_cmos_clock`이면 관리자 권한의
+Windows 시간 동기화가 별도로 필요하지만, 해당 시점의 실제 오차는 HTTPS로 검증된다.
+
+## `artifacts.tsv` — 로컬 산출물 레지스트리
+
+`artifact_id` `run_id` `kind` `name` `path` `artifact_sha256` `size_bytes`
+`model_revision` `tokenizer_version` `manifest_sha256` `git_commit` `note`
+
+외부에서 받은 모델의 revision·구조는 `models.tsv`에 남긴다. 이 표는 프로젝트가 만든
+토크나이저, 체크포인트, adapter, 매니페스트 요약, 표·그림·리포트의 내용 해시와
+생성 run을 연결한다. 같은 artifact ID는 두 번 기록하지 않으며 `final_test` 경로는
+개봉 태그 전까지 등록을 거부한다.
+
+```bash
+C:/llm_tokenizer/.conda/python.exe tools/register_artifact.py reports/table.tsv \
+  --kind table --run-id cpt_kosub_mean_50m_seed42
+```
+
 ## `data/manifests/<split>.tsv` — 문서 manifest
 
 `doc_id` `source` `domain` `date` `language` `sha256` `split` `char_count` `byte_count`
@@ -187,6 +222,8 @@ long format 이다. 지표 하나가 한 행. bootstrap CI 는 문제 단위로 
 
 - CRLF · 헤더 불일치 · 컬럼 수 · 빈 필드 · sha256/git_commit/ts_utc 형식
 - **참조 무결성** — 메트릭 행의 `run_id` 가 `LEDGER.tsv` 에 실재하는가
+- run 의 `clock_check_sha256` 가 `clock_checks.tsv` 에 실재하는가
+- 산출물의 `run_id` 가 `LEDGER.tsv` 에 실재하는가
 - **죽은 run** — `status=start` 만 있고 종료 행이 없는 run (검토 D2).
   OOM·정전으로 죽은 run 이 성공한 것처럼 보이면 안 된다.
   의도적으로 중단했다면 `status=abort` 행을 직접 붙인다.

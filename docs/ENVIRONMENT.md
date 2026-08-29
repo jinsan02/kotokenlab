@@ -131,6 +131,20 @@ with sdpa_kernel(EFFICIENT_SDPA):
 스펙 §120 의 Flash Attention 역할은 이 조합이 대신한다.
 `flash-attn` 은 Windows/sm_120 휠이 없어 설치하지 않는다.
 
+## 시간 검증은 환경 해시와 분리한다
+
+패키지·GPU 환경은 비교적 고정되지만 시계 동기화 상태는 매일 바뀐다. 따라서
+`env_sha256` 에 시간을 넣지 않고 `experiments/clock_checks.tsv` 에 별도로 기록한다.
+실험 전 아래 명령으로 외부 HTTPS 시각과의 오차를 확인해야 한다.
+
+```bash
+C:/llm_tokenizer/.conda/python.exe tools/check_clock.py --record
+```
+
+성공한 검사는 24시간 유효하고 이후 `RunContext` 행의 `clock_check_sha256`로 연결된다.
+Windows Time 서비스가 Local CMOS Clock을 원본으로 쓰더라도 HTTPS 오차 검사는 가능하지만,
+운영체제 자체 재동기화는 관리자 권한으로 별도 수행한다.
+
 ## 다른 환경과 섞지 않는다
 
 `C:\aimers\.conda` 는 이전 프로젝트(KBO 예측)의 환경이다. 거기서 검증된

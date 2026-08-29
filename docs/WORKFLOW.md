@@ -5,7 +5,7 @@
 ```
    1. config 작성            configs/<phase>/<name>.yaml
             ↓
-   2. RunContext 진입        환경 검증 → run_id → LEDGER status=start
+   2. RunContext 진입        시간·환경 검증 → run_id → LEDGER status=start
             ↓
    3. 실행                   run.log(...) 로 메트릭 TSV append
             ↓
@@ -137,6 +137,9 @@ tail -n 15 experiments/LEDGER.tsv
 ## 자주 쓰는 명령
 
 ```bash
+# 실험 전 하루 한 번: 외부 시각과 로컬 시계 대조 + 기록
+.conda/python.exe tools/check_clock.py --record
+
 # 테스트
 .conda/python.exe -m pytest tests/ -q
 

@@ -115,6 +115,10 @@ experiments/  TSV 원장 + runs/<run_id>/
 reports/      figures · tables
 ```
 
+외부 모델 원본은 `experiments/models.tsv`, 프로젝트가 만든 토크나이저·체크포인트·
+리포트는 `experiments/artifacts.tsv`에 기록한다. 실험 시각은
+`experiments/clock_checks.tsv`의 외부 HTTPS 대조 결과와 연결된다.
+
 ---
 
 ## 하드웨어

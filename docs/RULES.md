@@ -143,6 +143,10 @@ seed 분산을 모르면 "BPB 1.207 vs 1.198" 이 의미 있는 차이인지 알
   (`src/utils/ledger.py` 가 채운다). run 행은 `config_sha256`, `tokenizer_sha256`,
   `manifest_sha256`, `env_sha256` 를 갖는다. `tools/validate_ledger.py` 가
   메트릭 행의 `run_id` 가 `LEDGER.tsv` 에 실재하는지 확인한다.
+- 실험 전 24시간 이내에 외부 HTTPS 시각 검증을 기록한다. 모든 새 run 은
+  `clock_check_sha256` 으로 `clock_checks.tsv` 의 성공 행을 참조한다.
+- 외부 모델 원본은 `models.tsv`, 프로젝트가 만든 토크나이저·체크포인트·리포트는
+  `artifacts.tsv` 에 내용 SHA256 과 생성 `run_id` 를 기록한다.
 
 ## 12. 0.5B 에서 깊게, 1.5B 에서 scale validation — 결론에 스케일을 명시한다
 

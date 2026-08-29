@@ -21,6 +21,7 @@ git log --oneline -20
 git status
 tail -n 15 experiments/LEDGER.tsv
 .conda/python.exe -m src.utils.env --check
+.conda/python.exe tools/check_clock.py --record
 ```
 
 **앞 세션의 대화를 기억하고 있다고 가정하지 않는다.** 상태는 커밋과

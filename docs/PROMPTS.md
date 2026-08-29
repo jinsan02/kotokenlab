@@ -20,6 +20,7 @@ C:\llm_tokenizer 프로젝트를 이어서 작업한다.
   git status
   tail -n 15 experiments/LEDGER.tsv
   .conda\python.exe -m src.utils.env --check
+  .conda\python.exe tools/check_clock.py --record
   .conda\python.exe -m pytest tests/ -q
 
 python 은 항상 C:\llm_tokenizer\.conda\python.exe 절대경로로 부른다.
