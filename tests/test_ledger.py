@@ -228,3 +228,14 @@ def test_migration_is_noop_when_current(tmp_path):
     path = tmp_path / "cur.tsv"
     path.write_text("a\tb\nx\ty\n", encoding="utf-8", newline="\n")
     assert migrate_file(path, ("a", "b"), dry_run=False) == "이미 최신"
+
+
+def test_migration_skips_summary_manifest(tmp_path):
+    from tools.migrate_ledger import manifest_paths
+
+    manifest_dir = tmp_path / "data" / "manifests"
+    manifest_dir.mkdir(parents=True)
+    (manifest_dir / "train.tsv").write_text("x\n", encoding="utf-8")
+    (manifest_dir / "SUMMARY.tsv").write_text("summary\n", encoding="utf-8")
+
+    assert [path.name for path in manifest_paths(tmp_path)] == ["train.tsv"]

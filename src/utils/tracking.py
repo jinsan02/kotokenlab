@@ -2,7 +2,7 @@
 
 RunContext 로 감싸면 아래가 자동으로 일어난다.
 
-    진입   환경 등록 확인 -> config_sha256 계산 -> run_id 생성
+    진입   최근 시간 검증 -> 환경 등록 확인 -> config_sha256 계산 -> run_id 생성
            -> experiments/runs/<run_id>/ 생성 (config.json, env.json)
            -> LEDGER.tsv 에 status=start 행
     본문   run.log(...) 로 메트릭 TSV 에 append (run_id/config_sha256 자동 주입)
@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 from typing import Any, Mapping
 
+from . import clock as clock_mod
 from . import env as env_mod
 from . import ledger
 from .hashing import sha256_obj
@@ -91,6 +92,7 @@ class RunContext:
         self.set_seeds = set_seeds
         self.config_sha256 = sha256_obj(self.config) if self.config else ledger.NA
         self.env_sha256 = ledger.NA
+        self.clock_check_sha256 = ledger.NA
         self.extra = dict(ledger_fields)
 
         # 본문에서 갱신하면 종료 행에 반영된다.
@@ -112,6 +114,7 @@ class RunContext:
 
     # ── 수명 ──────────────────────────────────────────────────────────
     def __enter__(self) -> "RunContext":
+        self.clock_check_sha256 = clock_mod.require_recent_check(self.root)
         if self.skip_env_check:
             self.env_sha256 = env_mod.env_sha256()
         else:
@@ -150,6 +153,7 @@ class RunContext:
             "seed": self.seed,
             "config_sha256": self.config_sha256,
             "env_sha256": self.env_sha256,
+            "clock_check_sha256": self.clock_check_sha256,
             "argv": " ".join(sys.argv[1:]),
         }
         row.update(self.extra)

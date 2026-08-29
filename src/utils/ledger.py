@@ -40,6 +40,7 @@ LEDGER_COLUMNS: tuple[str, ...] = (
     # ── 아래는 검토(docs/REVIEW.md) 이후 추가된 컬럼. 뒤에만 붙인다 ──────────
     "model_revision",    # HF snapshot 해시. 저장소가 갱신돼도 계보가 끊기지 않게 (§58)
     "embedding_share",   # 임베딩이 전체 파라미터에서 차지하는 비율. 결론의 유효 범위 (REVIEW A2)
+    "clock_check_sha256",  # 실행 직전 외부 시각 검증. clock_checks.tsv 로 연결된다 (§59)
 )
 
 # 외부 모델·토크나이저 레지스트리 (REVIEW D1).
@@ -50,6 +51,20 @@ MODELS_COLUMNS: tuple[str, ...] = (
     "n_heads", "n_kv_heads", "head_dim",
     "embedding_params", "total_params", "embedding_share",
     "tie_word_embeddings", "kv_bytes_per_token", "files_mb", "note",
+)
+
+# 외부 HTTPS 시각과 호스트 시계를 대조한 증거. OS 시계 자체를 바꾸지 않는다.
+CLOCK_CHECKS_COLUMNS: tuple[str, ...] = (
+    "ts_utc", "clock_check_sha256", "status", "server", "server_utc",
+    "local_midpoint_utc", "offset_ms", "rtt_ms", "windows_source",
+    "method", "git_commit", "note",
+)
+
+# 저장소가 만든 산출물 레지스트리. 외부 모델 원본은 models.tsv 가 담당한다.
+ARTIFACTS_COLUMNS: tuple[str, ...] = (
+    "ts_utc", "artifact_id", "run_id", "kind", "name", "path",
+    "artifact_sha256", "size_bytes", "model_revision", "tokenizer_version",
+    "manifest_sha256", "git_commit", "note",
 )
 
 TOKENIZER_METRICS_COLUMNS: tuple[str, ...] = (
@@ -121,6 +136,8 @@ TABLES: dict[str, tuple[str, tuple[str, ...]]] = {
     "train_curve":       ("experiments/train_curve.tsv",       TRAIN_CURVE_COLUMNS),
     "env_snapshot":      ("env/ENV_SNAPSHOT.tsv",              ENV_SNAPSHOT_COLUMNS),
     "models":            ("experiments/models.tsv",            MODELS_COLUMNS),
+    "clock_checks":      ("experiments/clock_checks.tsv",      CLOCK_CHECKS_COLUMNS),
+    "artifacts":         ("experiments/artifacts.tsv",         ARTIFACTS_COLUMNS),
 }
 
 # 테이블별로 반드시 호출자가 채워야 하는 컬럼.
@@ -133,6 +150,9 @@ REQUIRED: dict[str, frozenset] = {
     "train_curve":       frozenset({"run_id", "tokens_seen"}),
     "env_snapshot":      frozenset({"env_sha256"}),
     "models":            frozenset({"name", "repo_id", "revision"}),
+    "clock_checks":      frozenset({"clock_check_sha256", "status", "server"}),
+    "artifacts":         frozenset({"artifact_id", "kind", "name", "path",
+                                     "artifact_sha256"}),
 }
 
 # 메트릭 테이블의 run_id 는 LEDGER.tsv 에 존재해야 한다 (참조 무결성).

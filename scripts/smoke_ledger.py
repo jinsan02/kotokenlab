@@ -14,7 +14,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from src.utils import ledger  # noqa: E402
 from src.utils.tracking import RunContext, make_run_id  # noqa: E402
@@ -22,7 +23,9 @@ from tools.validate_ledger import validate  # noqa: E402
 
 
 def main() -> int:
-    with tempfile.TemporaryDirectory(prefix="kotokenlab_smoke_") as tmp:
+    temp_root = ROOT / "data" / "interim"
+    temp_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="kotokenlab_smoke_", dir=temp_root) as tmp:
         root = Path(tmp)
         run_id = make_run_id("cpt", "kosub", "mean", "50m", seed=42)
         config = {
@@ -32,6 +35,15 @@ def main() -> int:
             "precision": "bf16",
             "target_tokens": 50_000_000,
         }
+
+        # 실제 run 은 tools/check_clock.py --record가 만든 행을 참조한다. smoke에서는
+        # 네트워크를 쓰지 않고 같은 참조 무결성만 합성 행으로 검증한다.
+        ledger.append_row(
+            "clock_checks",
+            {"clock_check_sha256": "c" * 64, "status": "ok",
+             "server": "https://smoke.invalid", "git_commit": "NA"},
+            root=root,
+        )
 
         with RunContext(
             run_id, phase="cpt", config=config, seed=42, root=root,
@@ -72,6 +84,7 @@ def main() -> int:
         )
 
         print(f"run_id = {run_id}\n")
+        print(f"  {'clock_checks.tsv':<24} 1 rows")
         for table in ("ledger", *ledger.METRIC_TABLES):
             path = ledger.table_path(table, root)
             n = len(ledger.read_rows(table, root))

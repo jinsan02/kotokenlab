@@ -33,6 +33,7 @@ TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 SHA_COLUMNS = (
     "config_sha256", "tokenizer_sha256", "manifest_sha256", "env_sha256", "sha256",
+    "clock_check_sha256", "artifact_id", "artifact_sha256",
 )
 
 
@@ -127,12 +128,15 @@ def validate(root: Path | str | None = None) -> list:
     root = Path(root or ledger.repo_root())
     errors: list = []
     run_ids: set = set()
+    ledger_rows: list = []
+    clock_check_ids: set = set()
 
     # 1) LEDGER 먼저 — 다른 테이블의 참조 대상이다.
     ledger_path = ledger.table_path("ledger", root)
     if ledger_path.exists():
         errs, rows = _check_table(ledger_path, ledger.LEDGER_COLUMNS, "LEDGER.tsv")
         errors += errs
+        ledger_rows = rows
         run_ids = {r["run_id"] for r in rows if r.get("run_id") not in (None, "", "NA")}
         for n, row in enumerate(rows, start=2):
             if row.get("phase") not in ledger.PHASES:
@@ -154,13 +158,36 @@ def validate(root: Path | str | None = None) -> list:
         errors += errs
         if table == "models":
             errors += _check_duplicates(rows, "models.tsv", ("repo_id", "revision"))
-        if table in ledger.METRIC_TABLES and run_ids:
+        if table == "clock_checks":
+            clock_check_ids = {
+                r.get("clock_check_sha256") for r in rows
+                if r.get("clock_check_sha256") not in (None, "", "NA")
+            }
+            errors += _check_duplicates(
+                rows, "clock_checks.tsv", ("clock_check_sha256",)
+            )
+            for n, row in enumerate(rows, start=2):
+                if row.get("status") not in ("ok", "fail"):
+                    errors.append(
+                        f"clock_checks.tsv:{n}: 알 수 없는 status {row.get('status')!r}"
+                    )
+        if table == "artifacts":
+            errors += _check_duplicates(rows, "artifacts.tsv", ("artifact_id",))
+        if (table in ledger.METRIC_TABLES or table == "artifacts") and run_ids:
             for n, row in enumerate(rows, start=2):
                 rid = row.get("run_id")
                 if rid and rid != "NA" and rid not in run_ids:
                     errors.append(
                         f"{Path(rel).name}:{n}: run_id {rid!r} 가 LEDGER.tsv 에 없다"
                     )
+
+    for n, row in enumerate(ledger_rows, start=2):
+        check_id = row.get("clock_check_sha256")
+        if check_id not in (None, "", "NA") and check_id not in clock_check_ids:
+            errors.append(
+                f"LEDGER.tsv:{n}: clock_check_sha256 {check_id!r} 가 "
+                "clock_checks.tsv 에 없다"
+            )
 
     # 3) manifest
     manifest_dir = Path(root) / "data" / "manifests"

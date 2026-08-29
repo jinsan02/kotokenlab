@@ -74,6 +74,17 @@ def migrate_file(path: Path, expected: tuple, dry_run: bool) -> str:
     return f"완료: 컬럼 +{added}, 행 {padded}개 패딩 (.bak 보관)"
 
 
+def manifest_paths(root: Path) -> list[Path]:
+    """문서 매니페스트만 반환한다. SUMMARY.tsv 는 집계 스키마라 제외한다."""
+    manifest_dir = root / "data" / "manifests"
+    if not manifest_dir.is_dir():
+        return []
+    return [
+        path for path in sorted(manifest_dir.glob("*.tsv"))
+        if path.name != "SUMMARY.tsv"
+    ]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="원장 스키마 마이그레이션")
     ap.add_argument("--dry-run", action="store_true", help="바꾸지 않고 보고만 한다")
@@ -87,13 +98,11 @@ def main() -> int:
         if "수동" in result:
             problems += 1
 
-    manifest_dir = root / "data" / "manifests"
-    if manifest_dir.is_dir():
-        for path in sorted(manifest_dir.glob("*.tsv")):
-            result = migrate_file(path, ledger.MANIFEST_COLUMNS, args.dry_run)
-            print(f"  {path.name:<24} {result}")
-            if "수동" in result:
-                problems += 1
+    for path in manifest_paths(root):
+        result = migrate_file(path, ledger.MANIFEST_COLUMNS, args.dry_run)
+        print(f"  {path.name:<24} {result}")
+        if "수동" in result:
+            problems += 1
 
     if problems:
         print(f"\n{problems}개 파일은 수동 확인이 필요하다", file=sys.stderr)
