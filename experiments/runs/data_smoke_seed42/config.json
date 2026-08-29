@@ -1,0 +1,34 @@
+{
+  "config": "kor_Hang",
+  "dataset": "HuggingFaceFW/fineweb-2",
+  "domain_rules_sha256": "fa5028bea0c0a3a12c210ba27e885fb9a82b3652d6f8f75bfb26172d767c3b51",
+  "domain_rules_version": "v1",
+  "max_bytes": 5000000,
+  "max_docs": 400,
+  "minhash": {
+    "bands": 16,
+    "max_shingles": 512,
+    "num_perm": 64,
+    "seed": 42,
+    "shingle": 8,
+    "threshold": 0.8
+  },
+  "quality": {
+    "max_chars": 200000,
+    "max_digit_ratio": 0.3,
+    "max_line_repeat_ratio": 0.3,
+    "max_ngram_repeat_ratio": 0.2,
+    "min_chars": 200,
+    "min_hangul_ratio": 0.15,
+    "min_language_score": 0.6,
+    "min_mean_line_chars": 10.0,
+    "ngram_n": 5
+  },
+  "seed": 42,
+  "split": {
+    "dev": 0.05,
+    "final_test": 0.05,
+    "seed": 42,
+    "train": 0.9
+  }
+}
