@@ -146,5 +146,6 @@ peak VRAM 은 `max_memory_allocated` 와 `max_memory_reserved` 를 둘 다 남�
 | [`WORKFLOW.md`](WORKFLOW.md) | 실험 1건의 수명주기 |
 | [`DATA_SOURCES.md`](DATA_SOURCES.md) | 데이터셋 조사와 Step 1 적용 계획 |
 | [`RELATED_WORK.md`](RELATED_WORK.md) | 선행 연구와 이 프로젝트의 차별점 |
+| [`REVIEW.md`](REVIEW.md) | 설계·인프라 검토와 보강 항목 |
 | [`ENVIRONMENT.md`](ENVIRONMENT.md) | 가상환경과 그 버전 관리 |
 | [`SPEC_KoTokenLab.md`](SPEC_KoTokenLab.md) | 원본 연구 설계 (변경하지 않는다) |
