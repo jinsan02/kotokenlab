@@ -4,42 +4,62 @@
 #
 # 검증: 무작위 200개 문서를 손으로 라벨링해 이 규칙의 정확도를 재고 리포트에 적는다.
 # 규칙 기반 분류의 오류율을 모른 채 도메인별 결과를 주장하면 안 된다.
+#
+# host_suffix 는 정확 일치 또는 ".<suffix>" 로 끝나는 경우만 잡는다 (부분 문자열 아님).
+# host_contains 가 부분 문자열 매칭이다.
 
-version: v1
+version: v2
 
 rules:
   news:
-    host_suffix: [".news.naver.com", "yna.co.kr", "chosun.com", "hani.co.kr",
-                  "khan.co.kr", "mk.co.kr", "hankyung.com", "sbs.co.kr", "kbs.co.kr"]
-    host_contains: ["news", "press", "media"]
+    host_suffix: ["yna.co.kr", "chosun.com", "hani.co.kr", "khan.co.kr", "mk.co.kr",
+                  "hankyung.com", "sbs.co.kr", "kbs.co.kr", "mbc.co.kr", "donga.com",
+                  "joongang.co.kr", "ohmynews.com", "newsis.com", "newswire.co.kr",
+                  "yonhapnews.co.kr", "etnews.com", "zdnet.co.kr"]
+    host_contains: ["news.", ".news", "press.", "media."]
   encyclopedia:
-    host_suffix: ["wikipedia.org", "namu.wiki", "terms.naver.com"]
+    host_suffix: ["wikipedia.org", "namu.wiki", "wikimedia.org", "wiktionary.org",
+                  "terms.naver.com", "britannica.com"]
   blog:
-    host_suffix: ["blog.naver.com", "tistory.com", "brunch.co.kr", "velog.io", "medium.com"]
+    host_suffix: ["blog.naver.com", "blog.daum.net", "tistory.com", "brunch.co.kr",
+                  "velog.io", "medium.com", "egloos.com", "postype.com"]
+    host_contains: ["blog."]
   community:
     host_suffix: ["dcinside.com", "fmkorea.com", "clien.net", "ruliweb.com",
-                  "ppomppu.co.kr", "bobaedream.co.kr", "inven.co.kr", "reddit.com"]
-    host_contains: ["cafe.", "forum", "board", "gall"]
+                  "ppomppu.co.kr", "bobaedream.co.kr", "inven.co.kr", "reddit.com",
+                  "82cook.com", "mlbpark.donga.com", "theqoo.net", "instiz.net"]
+    host_contains: ["cafe.", "forum", "board", "gall", "community"]
   technical:
-    host_suffix: ["stackoverflow.com", "github.io", "readthedocs.io", "docs.python.org"]
-    host_contains: ["docs.", "developer.", "wiki.", "manual"]
+    host_suffix: ["stackoverflow.com", "stackexchange.com", "readthedocs.io",
+                  "docs.python.org", "debian.org", "php.net", "mozilla.org",
+                  "kernel.org", "ubuntu.com", "apache.org", "w3.org"]
+    host_contains: ["docs.", "developer.", "developers.", "support.", "manual",
+                    "wiki.", "help."]
   code:
-    host_suffix: ["github.com", "gitlab.com", "bitbucket.org"]
+    host_suffix: ["github.com", "gitlab.com", "bitbucket.org", "github.io",
+                  "sourceforge.net", "npmjs.com", "pypi.org"]
 
-# 규칙에 걸리지 않으면 여기로 간다. 비율이 너무 크면 규칙을 보강한다.
+# 규칙에 걸리지 않으면 여기로 간다. 파일럿에서 38% 였다 — 여행·숙박·쇼핑 사이트가
+# 많았다. 전체 규모에서는 여러 샤드에 걸쳐 표본을 뽑으므로 분포가 달라진다.
+# 이 비율이 계속 크면 규칙을 보강하되, 편향된 표본으로 규칙을 과적합하지 않는다.
 fallback: web_general
 
-# 문서 내 한글/라틴 문자 비율로 판정한다 (호스트와 무관).
-# docs/DATA_SOURCES.md 3.2 — 비한국어 문서를 버리지 않고 이 도메인으로 라벨링한다.
+# 문서 내 라틴 문자 비중으로 판정한다 (호스트와 무관).
+# docs/DATA_SOURCES.md 3.2 — 비한국어 혼용 문서를 버리지 않고 이 도메인으로 라벨링.
+#
+# latin_share = latin / (hangul + latin)
+# FineWeb-2 kor_Hang 2,868건 실측: 중앙값 0.131, p75 0.259, p90 0.390, p95 0.498.
+# 실제 한영 혼용(ko.urbandictionary.com 영어 표제어 사전)은 0.77 이었다.
+# 0.35 는 관측 분포의 약 p88 이다. 한글 비율(중앙값 0.589, p10~p90 = 0.43~0.70)을
+# 쓰면 순수 한국어 문서까지 전부 걸린다 — 첫 시도에서 41% 가 그렇게 잘못 분류됐다.
 ko_en_mixed:
-  hangul_ratio_min: 0.15
-  hangul_ratio_max: 0.70
+  latin_share_min: 0.35
 
-# 한글 비율이 이보다 낮으면 한국어 코퍼스에서 제외한다
+# 한글 비율이 이보다 낮으면 한국어 코퍼스에서 제외한다 (quality.py 가 강제)
 drop_if_hangul_ratio_below: 0.15
 
 # docs/DATA_SOURCES.md 3.1 — 자격증 SEO 스팸 대응
 spam_filter:
   max_docs_per_host: 5000
-  max_ngram_repeat_ratio: 0.30
+  max_ngram_repeat_ratio: 0.20
   hplt_doc_score_min: 7.0
