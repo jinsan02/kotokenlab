@@ -238,13 +238,10 @@ def main(argv: list | None = None) -> int:
                 cell[0] += 1
                 cell[1] += len(d["text"])
                 cell[2] += byte_len(d["text"])
-        with summary.open("w", encoding="utf-8", newline="
-") as fh:
-            fh.write("split	domain	n_docs	n_chars	n_bytes	manifest_sha256
-")
+        with summary.open("w", encoding="utf-8", newline="\n") as fh:
+            fh.write("split\tdomain\tn_docs\tn_chars\tn_bytes\tmanifest_sha256\n")
             for (sp, dom), (nd, nc, nb) in sorted(agg.items()):
-                fh.write(f"{sp}	{dom}	{nd}	{nc}	{nb}	{manifest_shas[sp]}
-")
+                fh.write(f"{sp}\t{dom}\t{nd}\t{nc}\t{nb}\t{manifest_shas[sp]}\n")
         print(f"      SUMMARY.tsv       {len(agg)}행 (커밋 대상)")
 
         combined = sha256_obj(manifest_shas)

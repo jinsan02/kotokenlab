@@ -198,3 +198,9 @@ def test_split_membership_survives_adding_documents():
 def test_split_rejects_bad_ratios():
     with pytest.raises(ValueError, match="비율 합"):
         SplitConfig(train=0.9, dev=0.2, final_test=0.05).ratios()
+
+
+def test_pipeline_driver_compiles():
+    """단위 모듈만 통과하고 실행 드라이버가 문법 오류인 회귀를 막는다."""
+    path = ROOT / "scripts" / "run_data_pipeline.py"
+    compile(path.read_text(encoding="utf-8"), str(path), "exec")
