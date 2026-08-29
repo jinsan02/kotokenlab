@@ -7,7 +7,7 @@
 
 ## 세션 시작할 때 이 순서로 읽는다
 
-1. [`docs/RULES.md`](docs/RULES.md) — 하드룰 15개. **매 세션 읽는다**
+1. [`docs/RULES.md`](docs/RULES.md) — 하드룰 17개. **매 세션 읽는다**
 2. [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — 실험 수명주기, 개발 순서, 현재 위치
 3. [`docs/COMMIT_CONVENTION.md`](docs/COMMIT_CONVENTION.md) — 커밋할 일이 있으면
 4. [`docs/LEDGER_SCHEMA.md`](docs/LEDGER_SCHEMA.md) — 결과를 기록할 일이 있으면

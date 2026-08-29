@@ -73,7 +73,7 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 
 | | |
 |---|---|
-| **하드룰 15개** | [`docs/RULES.md`](docs/RULES.md) — 단일 진실 공급원 |
+| **하드룰 17개** | [`docs/RULES.md`](docs/RULES.md) — 단일 진실 공급원 |
 | **커밋 규칙** | [`docs/COMMIT_CONVENTION.md`](docs/COMMIT_CONVENTION.md) — `record` / `fix` / `upgrade` … |
 | **원장 스키마** | [`docs/LEDGER_SCHEMA.md`](docs/LEDGER_SCHEMA.md) — TSV 8종 |
 | **작업 흐름** | [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — 실험 수명주기, 개발 순서 |
