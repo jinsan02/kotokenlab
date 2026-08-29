@@ -33,11 +33,17 @@ _HASH_KEYS: tuple[str, ...] = (
     "transformers", "tokenizers", "datasets", "accelerate",
     "bitsandbytes", "peft", "numpy",
     "driver", "gpu_name", "vram_mb",
+    # kiwipiepy 는 fertility(스펙 §14)의 "정답 분절" 기준이다. 버전이 바뀌면
+    # 형태소 분절이 달라지고 지표 정의가 달라진다 -> 환경 해시에 반드시 포함한다.
+    "kiwipiepy",
+    # 이 환경의 SDPA 디스패처는 MATH 로 폴백한다. 어느 백엔드로 쟀는지가
+    # 지연·메모리 수치를 완전히 바꾸므로 환경의 일부로 취급한다 (docs/RULES.md 9번).
+    "attn_backend",
 )
 
 _PACKAGES: tuple[str, ...] = (
     "transformers", "tokenizers", "datasets", "accelerate",
-    "bitsandbytes", "peft", "numpy",
+    "bitsandbytes", "peft", "numpy", "kiwipiepy", "psutil",
 )
 
 
@@ -71,6 +77,34 @@ def _nvidia_driver() -> str:
     return out.stdout.strip().splitlines()[0].strip()
 
 
+def _attn_backend() -> str:
+    """실제로 쓸 수 있는 attention 백엔드.
+
+    이 기계에서는 FLASH 가 torch 빌드에 없어서 디스패처가 MATH 로 떨어진다.
+    8192 토큰에서 메모리 7배, 시간 10배 차이가 나므로 환경의 일부로 기록한다.
+    """
+    try:
+        import torch
+        from torch.nn.attention import SDPBackend, sdpa_kernel
+
+        if not torch.cuda.is_available():
+            return ledger.NA
+        q = torch.randn(1, 2, 64, 64, device="cuda", dtype=torch.bfloat16)
+        ok = []
+        for name, be in (("flash", SDPBackend.FLASH_ATTENTION),
+                         ("mem_efficient", SDPBackend.EFFICIENT_ATTENTION),
+                         ("cudnn", SDPBackend.CUDNN_ATTENTION)):
+            try:
+                with sdpa_kernel(be):
+                    torch.nn.functional.scaled_dot_product_attention(q, q, q, is_causal=True)
+                ok.append(name)
+            except Exception:
+                pass
+        return "+".join(ok) if ok else "math_only"
+    except Exception:
+        return ledger.NA
+
+
 def collect() -> dict:
     """지금 이 인터프리터가 보고 있는 환경을 수집한다."""
     snapshot = {
@@ -81,6 +115,7 @@ def collect() -> dict:
         "gpu_name": ledger.NA,
         "vram_mb": ledger.NA,
         "driver": _nvidia_driver(),
+        "attn_backend": _attn_backend(),
     }
     for pkg in _PACKAGES:
         snapshot[pkg] = _pkg_version(pkg)

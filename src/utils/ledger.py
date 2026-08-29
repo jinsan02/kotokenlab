@@ -102,6 +102,8 @@ ENV_SNAPSHOT_COLUMNS: tuple[str, ...] = (
     "bitsandbytes", "peft", "numpy",
     "driver", "gpu_name", "vram_mb",
     "change_note",
+    # 검토 A7 이후 추가. kiwipiepy 버전이 바뀌면 fertility 정의가 바뀐다.
+    "kiwipiepy", "psutil", "attn_backend",
 )
 
 MANIFEST_COLUMNS: tuple[str, ...] = (

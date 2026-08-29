@@ -195,3 +195,36 @@ def test_make_run_id():
     assert make_run_id("tok", "qwen", "original", "v1") == "tok_qwen_original_v1"
     with pytest.raises(ValueError, match="알 수 없는 phase"):
         make_run_id("없는단계", "x")
+
+
+# ── 스키마 진화 (컬럼 추가 후 마이그레이션) ───────────────────────────────
+def test_migration_pads_old_rows(tmp_path):
+    """컬럼을 뒤에 추가했을 때 기존 파일이 자동으로 맞춰지는지."""
+    from tools.migrate_ledger import migrate_file
+
+    path = tmp_path / "old.tsv"
+    path.write_text("a\tb\nx\ty\n", encoding="utf-8", newline="\n")
+
+    assert "변경 예정" in migrate_file(path, ("a", "b", "c"), dry_run=True)
+    assert path.read_text(encoding="utf-8") == "a\tb\nx\ty\n"  # dry-run 은 안 건드린다
+
+    assert "완료" in migrate_file(path, ("a", "b", "c"), dry_run=False)
+    assert path.read_text(encoding="utf-8") == "a\tb\tc\nx\ty\tNA\n"
+    assert (tmp_path / "old.tsv.bak").exists()
+
+
+def test_migration_refuses_reordered_header(tmp_path):
+    """컬럼 순서가 바뀐 경우는 자동으로 손대지 않는다 — 사람이 봐야 한다."""
+    from tools.migrate_ledger import migrate_file
+
+    path = tmp_path / "reordered.tsv"
+    path.write_text("b\ta\nx\ty\n", encoding="utf-8", newline="\n")
+    assert "수동 확인 필요" in migrate_file(path, ("a", "b", "c"), dry_run=False)
+
+
+def test_migration_is_noop_when_current(tmp_path):
+    from tools.migrate_ledger import migrate_file
+
+    path = tmp_path / "cur.tsv"
+    path.write_text("a\tb\nx\ty\n", encoding="utf-8", newline="\n")
+    assert migrate_file(path, ("a", "b"), dry_run=False) == "이미 최신"

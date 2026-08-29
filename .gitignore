@@ -42,3 +42,6 @@ desktop.ini
 
 # HuggingFace 캐시 (모델 가중치). 커밋하지 않는다.
 .hf_cache/
+
+# 원장 마이그레이션 백업
+*.tsv.bak

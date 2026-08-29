@@ -93,6 +93,32 @@ peak VRAM 은 `max_memory_allocated` 와 `max_memory_reserved` 를 둘 다 남�
 - **강제**: `system_bench.tsv` 에 `n_warmup`, `n_runs`, `*_p95`, `total_ms_std`,
   `peak_alloc_mb`, `peak_reserved_mb` 가 컬럼으로 있다. 비워두면 눈에 띈다.
 
+### 그리고 attention 백엔드를 반드시 강제한다
+
+`attn_implementation="sdpa"` 만 주면 이 환경의 디스패처는 **MATH 로 폴백한다.**
+FLASH 는 이 Windows torch 빌드에 컴파일되어 있지 않다 (`No available kernel`).
+
+```
+8,192 토큰 prefill (Qwen2.5-0.5B)
+  기본 디스패처              9,561 MB / 1,892 ms
+  mem_efficient+cudnn 강제   1,430 MB /   183 ms      메모리 7.1배, 시간 10.3배
+```
+
+MATH 는 `n×n` attention 행렬을 실제로 만든다. 강제하지 않으면 16k 토큰 이상은
+전부 OOM 이고, 측정된 지연은 커널 비효율이지 토크나이저 효과가 아니다.
+
+- **강제**: 학습·평가·벤치마크의 모든 forward 를 아래로 감싼다.
+
+  ```python
+  from torch.nn.attention import SDPBackend, sdpa_kernel
+  EFFICIENT_SDPA = [SDPBackend.EFFICIENT_ATTENTION, SDPBackend.CUDNN_ATTENTION]
+  with sdpa_kernel(EFFICIENT_SDPA):
+      ...
+  ```
+
+- `attn_backend` 가 `env_sha256` 에 포함된다. 백엔드가 달라지면 다른 환경이다.
+- 토크나이저 비교는 **같은 백엔드에서** 한다. 구현이 섞이면 지연 차이의 원인을 알 수 없다.
+
 ## 10. Exploration 은 1 seed, Final 만 multi-seed — 단, 노이즈 플로어를 먼저 잰다
 
 탐색 단계는 `seed=42` 하나. 상위 1~2개 후보만 `42 / 123 / 2026` 으로 반복하고
@@ -195,6 +221,7 @@ BBPE 는 임의 바이트열을 표현하기 위해 **256개 바이트 토큰**�
 | [`WORKFLOW.md`](WORKFLOW.md) | 실험 1건의 수명주기 |
 | [`DATA_SOURCES.md`](DATA_SOURCES.md) | 데이터셋 조사와 Step 1 적용 계획 |
 | [`RELATED_WORK.md`](RELATED_WORK.md) | 선행 연구와 이 프로젝트의 차별점 |
+| [`PLAN.md`](PLAN.md) | 범위·일정·사전 등록 질문 (시작과 끝) |
 | [`REVIEW.md`](REVIEW.md) | 설계·인프라 검토와 보강 항목 |
 | [`ENVIRONMENT.md`](ENVIRONMENT.md) | 가상환경과 그 버전 관리 |
 | [`SPEC_KoTokenLab.md`](SPEC_KoTokenLab.md) | 원본 연구 설계 (변경하지 않는다) |

@@ -29,6 +29,8 @@ httpx==0.28.1
 huggingface_hub==1.29.0
 idna==3.19
 iniconfig==2.3.0
+kiwipiepy==0.23.2
+kiwipiepy_model==0.23.0
 kiwisolver==1.5.1
 markdown-it-py==4.2.0
 matplotlib==3.11.1

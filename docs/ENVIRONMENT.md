@@ -84,22 +84,52 @@ python 3.11.15   cuda 12.8   cudnn 90701   driver 610.88
 | `peft` | 0.20.0 | 1.5B LoRA / QLoRA (스펙 §55) |
 | `bitsandbytes` | 0.50.2 | 8bit AdamW, NF4 4-bit 추론 (스펙 §27) |
 | `sentencepiece` | 0.2.2 | 외부 토크나이저 비교 (HCX / A.X) |
+| `kiwipiepy` | 0.23.2 | fertility 의 "정답 분절" 기준 (스펙 §14). **`env_sha256` 에 포함** |
+| `psutil` | 7.2.2 | RAM 계측 |
 | `numpy` `pandas` `scipy` `matplotlib` `tqdm` `pyyaml` `pytest` | — | 분석·리포트·테스트 |
 
 전체 목록은 `env/requirements-lock.txt`, 변경 이력은 `env/ENV_SNAPSHOT.tsv`.
 
-## Flash Attention 을 쓰지 않는 이유
+## attention 백엔드 — 이 환경에서 가장 위험한 함정
 
-스펙 §120 이 Flash Attention 을 다루지만, Windows 에서 `flash-attn` 빌드는
-불안정하고 sm_120 휠도 갖춰져 있지 않다. 대신 PyTorch 내장 SDPA 를 쓴다.
+측정 결과 이 torch 빌드에서 사용 가능한 백엔드는 이렇다:
 
-```python
-model = AutoModelForCausalLM.from_pretrained(..., attn_implementation="sdpa")
+```
+FLASH          X   "Torch was not compiled with flash attention"
+MEM_EFFICIENT  O   1.01 ms /   21 MB
+CUDNN          O   0.50 ms /   21 MB
+MATH           O  16.85 ms / 2,158 MB      (1x14x4096x64, bf16, causal)
 ```
 
-시스템 벤치마크([RULES.md](RULES.md) 9번)는 **attention 구현을 고정한 채**
-토크나이저만 바꿔서 비교한다. 구현이 섞이면 지연 차이가 무엇 때문인지 알 수 없다.
-사용한 구현은 run config 에 적어 `config_sha256` 에 포함시킨다.
+문제는 **`attn_implementation="sdpa"` 만 주면 transformers 경로에서 디스패처가
+MATH 로 떨어진다**는 것이다:
+
+| 8,192 토큰 prefill | VRAM | 시간 |
+|---|---:|---:|
+| 기본 | 9,561 MB | 1,892 ms |
+| `mem_efficient+cudnn` 강제 | **1,430 MB** | **183 ms** |
+
+메모리 7.1배, 시간 10.3배. MATH 는 `n×n` attention 행렬을 실제로 만들기 때문이다.
+이걸 모르고 진행했으면 16k 토큰 이상은 전부 OOM 이고, 측정한 지연은 커널 비효율을
+잰 것이지 토크나이저 효과가 아니게 된다.
+
+**그래서 모든 forward 를 감싼다:**
+
+```python
+from torch.nn.attention import SDPBackend, sdpa_kernel
+
+EFFICIENT_SDPA = [SDPBackend.EFFICIENT_ATTENTION, SDPBackend.CUDNN_ATTENTION]
+
+model = AutoModelForCausalLM.from_pretrained(..., attn_implementation="sdpa")
+with sdpa_kernel(EFFICIENT_SDPA):
+    out = model(input_ids=ids)
+```
+
+`attn_backend` 는 `env_sha256` 에 포함된다 (현재 `mem_efficient+cudnn`).
+백엔드가 달라지면 다른 환경이고, `RunContext` 가 실행을 막는다.
+
+스펙 §120 의 Flash Attention 역할은 이 조합이 대신한다.
+`flash-attn` 은 Windows/sm_120 휠이 없어 설치하지 않는다.
 
 ## 다른 환경과 섞지 않는다
 
