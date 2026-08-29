@@ -78,6 +78,8 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 | **원장 스키마** | [`docs/LEDGER_SCHEMA.md`](docs/LEDGER_SCHEMA.md) — TSV 8종 |
 | **작업 흐름** | [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — 실험 수명주기, 개발 순서 |
 | **환경** | [`docs/ENVIRONMENT.md`](docs/ENVIRONMENT.md) — 가상환경도 버전 관리한다 |
+| **데이터셋** | [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) — 무엇을 쓰고 왜 그것인가 |
+| **선행 연구** | [`docs/RELATED_WORK.md`](docs/RELATED_WORK.md) — 이미 답이 나온 것과 열려 있는 것 |
 
 특히:
 

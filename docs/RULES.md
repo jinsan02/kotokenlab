@@ -144,5 +144,7 @@ peak VRAM 은 `max_memory_allocated` 와 `max_memory_reserved` 를 둘 다 남�
 | [`COMMIT_CONVENTION.md`](COMMIT_CONVENTION.md) | 커밋 타입·트레일러·브랜치·태그 |
 | [`LEDGER_SCHEMA.md`](LEDGER_SCHEMA.md) | TSV 원장 전체 스키마 |
 | [`WORKFLOW.md`](WORKFLOW.md) | 실험 1건의 수명주기 |
+| [`DATA_SOURCES.md`](DATA_SOURCES.md) | 데이터셋 조사와 Step 1 적용 계획 |
+| [`RELATED_WORK.md`](RELATED_WORK.md) | 선행 연구와 이 프로젝트의 차별점 |
 | [`ENVIRONMENT.md`](ENVIRONMENT.md) | 가상환경과 그 버전 관리 |
 | [`SPEC_KoTokenLab.md`](SPEC_KoTokenLab.md) | 원본 연구 설계 (변경하지 않는다) |
