@@ -1,0 +1,27 @@
+# 선언적 재현 스펙. 정확한 버전은 env/requirements-lock.txt 를 본다.
+# 환경을 바꿨다면 ENV_SNAPSHOT.tsv 에 등록하고 chore(infra) 로 커밋한다.
+# 자세한 내용: docs/ENVIRONMENT.md
+name: kotokenlab
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      # sm_120 (RTX 5070 Ti) 은 cu128 이상 빌드가 필요하다.
+      # --index-url https://download.pytorch.org/whl/cu128
+      - torch==2.7.1+cu128
+      - transformers>=4.51
+      - tokenizers>=0.21
+      - datasets
+      - accelerate
+      - sentencepiece
+      - peft
+      - bitsandbytes
+      - pyyaml
+      - numpy
+      - pandas
+      - scipy
+      - matplotlib
+      - tqdm
+      - pytest

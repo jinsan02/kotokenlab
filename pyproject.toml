@@ -1,0 +1,20 @@
+[project]
+name = "kotokenlab"
+version = "0.1.0"
+description = "Korean tokenizer surgery and LLM adaptation on a single RTX 5070 Ti 16GB"
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["src*", "tools*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

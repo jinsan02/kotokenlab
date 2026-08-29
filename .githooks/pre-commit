@@ -1,0 +1,25 @@
+#!/bin/sh
+# 저장소에 들어가면 안 되는 것을 막는다. 본체는 tools/precheck.py.
+set -e
+ROOT="$(git rev-parse --show-toplevel)"
+
+for PY in "$ROOT/.conda/python.exe" "$ROOT/.conda/bin/python" python python3; do
+    if command -v "$PY" >/dev/null 2>&1 || [ -x "$PY" ]; then
+        exec "$PY" "$ROOT/tools/precheck.py"
+    fi
+done
+
+echo "  (python 없음 — 경로 규칙만 검사한다)" >&2
+FILES="$(git diff --cached --name-only --diff-filter=ACMR)"
+FAIL=0
+for f in $FILES; do
+    case "$f" in
+        *final_test*)
+            echo "  $f: Final Test 는 커밋할 수 없다" >&2; FAIL=1 ;;
+        .conda/*|data/raw/*|data/interim/*|artifacts/*)
+            echo "  $f: 커밋 금지 경로" >&2; FAIL=1 ;;
+        *.pt|*.pth|*.bin|*.ckpt|*.safetensors|*.npz|*.model)
+            echo "  $f: 모델 바이너리는 커밋하지 않는다" >&2; FAIL=1 ;;
+    esac
+done
+exit $FAIL

@@ -1,0 +1,2 @@
+ts_utc	env_sha256	python	torch	cuda	cudnn	transformers	tokenizers	datasets	accelerate	bitsandbytes	peft	numpy	driver	gpu_name	vram_mb	change_note
+2026-08-29T11:44:27Z	6b03dffe5ba1a24143e55927f16d8ee8373a4f6155c6cf520784c79b9a1cae09	3.11.15	2.7.1+cu128	12.8	90701	5.16.1	0.23.1	5.0.1	1.14.0	0.50.2	0.20.0	2.4.6	610.88	NVIDIA GeForce RTX 5070 Ti	16302	초기 구성: torch 2.7.1+cu128 (sm_120), transformers/tokenizers 최신, bitsandbytes 0.50.2

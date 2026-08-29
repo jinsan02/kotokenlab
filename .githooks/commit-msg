@@ -1,0 +1,25 @@
+#!/bin/sh
+# 커밋 메시지 규칙 집행. 본체는 tools/check_commit_msg.py.
+# python 이 없으면 최소한의 제목 형식만 sh 로 검사한다.
+set -e
+ROOT="$(git rev-parse --show-toplevel)"
+
+for PY in "$ROOT/.conda/python.exe" "$ROOT/.conda/bin/python" python python3; do
+    if command -v "$PY" >/dev/null 2>&1 || [ -x "$PY" ]; then
+        exec "$PY" "$ROOT/tools/check_commit_msg.py" "$1"
+    fi
+done
+
+echo "  (python 없음 — 제목 형식만 검사한다)" >&2
+HEAD_LINE="$(head -n 1 "$1")"
+case "$HEAD_LINE" in
+    "Merge "*|"Revert "*|"fixup!"*|"squash!"*) exit 0 ;;
+esac
+if ! printf '%s' "$HEAD_LINE" | grep -qE '^(record|fix|upgrade|feat|data|tok|docs|chore|revert)\((data|tok|surgery|align|cpt|eval|system|infra|docs)\): .+'; then
+    echo "" >&2
+    echo "  커밋 거부 — 제목 형식: <type>(<scope>): <제목>" >&2
+    echo "  규칙: docs/COMMIT_CONVENTION.md" >&2
+    echo "" >&2
+    exit 1
+fi
+exit 0

@@ -1,0 +1,41 @@
+# ── 가상환경 (env/ 의 선언 파일만 커밋한다. docs/ENVIRONMENT.md 참조) ────────
+.conda/
+.venv/
+venv/
+
+# ── 데이터 (원본은 절대 커밋하지 않는다. data/manifests/*.tsv 만 커밋) ───────
+data/raw/
+data/interim/
+data/final_test/
+!data/manifests/
+!data/manifests/*.tsv
+
+# ── 산출물 (체크포인트·토크나이저 바이너리. sha256 만 원장에 기록) ──────────
+artifacts/
+*.pt
+*.bin
+*.ckpt
+*.safetensors
+*.npz
+*.model
+
+# ── run 작업 디렉토리: config/env/metrics 는 커밋, 로그·중간산출물은 제외 ────
+experiments/runs/**/log.txt
+experiments/runs/**/checkpoints/
+experiments/runs/**/*.npz
+
+# ── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+build/
+dist/
+
+# ── 기타 ──────────────────────────────────────────────────────────────────
+wandb/
+.env
+*.log
+Thumbs.db
+desktop.ini

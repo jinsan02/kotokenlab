@@ -1,0 +1,26 @@
+# 줄바꿈은 저장소 안에서 항상 LF. Windows 체크아웃에서도 TSV 가 CRLF 로 오염되지 않는다.
+* text=auto eol=lf
+
+# 실험 원장: append-only 이므로 병렬 브랜치의 추가 행은 충돌 없이 합쳐야 한다.
+*.tsv  text eol=lf merge=union
+
+*.py   text eol=lf
+*.md   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.json text eol=lf
+
+# git hook 은 Git Bash 가 실행하므로 반드시 LF.
+.githooks/* text eol=lf
+
+# PowerShell 러너는 Windows 도구가 읽으므로 CRLF 허용.
+*.ps1  text eol=crlf
+
+# 바이너리 (원칙적으로 커밋 금지지만, 실수로 들어와도 diff 를 오염시키지 않게)
+*.safetensors binary
+*.bin  binary
+*.pt   binary
+*.ckpt binary
+*.npz  binary
+*.png  binary
+*.pdf  binary
