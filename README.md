@@ -81,6 +81,8 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 | **데이터셋** | [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) — 무엇을 쓰고 왜 그것인가 |
 | **선행 연구** | [`docs/RELATED_WORK.md`](docs/RELATED_WORK.md) — 이미 답이 나온 것과 열려 있는 것 |
 | **계획** | [`docs/PLAN.md`](docs/PLAN.md) — 범위·일정·사전 등록 질문 |
+| **인수인계** | [`docs/HANDOFF.md`](docs/HANDOFF.md) — 현재 상태와 다음 할 일 |
+| **프롬프트** | [`docs/PROMPTS.md`](docs/PROMPTS.md) — 에이전트에 붙여 넣는 지시문 |
 | **검토** | [`docs/REVIEW.md`](docs/REVIEW.md) — 결함·헛점과 보강 우선순위 |
 
 특히:

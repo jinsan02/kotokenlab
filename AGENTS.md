@@ -11,7 +11,8 @@
 2. [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — 실험 수명주기, 개발 순서, 현재 위치
 3. [`docs/COMMIT_CONVENTION.md`](docs/COMMIT_CONVENTION.md) — 커밋할 일이 있으면
 4. [`docs/LEDGER_SCHEMA.md`](docs/LEDGER_SCHEMA.md) — 결과를 기록할 일이 있으면
-5. [`docs/SPEC_KoTokenLab.md`](docs/SPEC_KoTokenLab.md) — 연구 설계 원본. 필요한 절만
+5. [`docs/HANDOFF.md`](docs/HANDOFF.md) — 지금까지 된 것과 다음 할 일
+6. [`docs/SPEC_KoTokenLab.md`](docs/SPEC_KoTokenLab.md) — 연구 설계 원본. 필요한 절만
 
 그리고 현재 상태를 복원한다:
 
