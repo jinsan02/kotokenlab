@@ -1,0 +1,183 @@
+# 실험 원장 스키마
+
+정의는 [`src/utils/ledger.py`](../src/utils/ledger.py) 에 있고, 이 문서는 그 설명이다.
+컬럼을 바꾸면 **양쪽을 함께** 고친다. 검사는 [`tools/validate_ledger.py`](../tools/validate_ledger.py).
+
+## 공통 규약
+
+- 탭 구분, 헤더 1행, **UTF-8(BOM 없음)**, **LF**
+- 결측은 빈칸이 아니라 **`NA`**
+- 필드 안의 탭/개행은 리터럴 두 글자(`\t`, `\n`)로 이스케이프
+- **append-only** — 이미 쓴 행은 고치지 않는다. 정정도 새 행이다
+- 컬럼은 **뒤에만** 추가한다. 중간 삽입·순서 변경 금지 (기존 파일이 깨진다)
+- `ts_utc`, `git_commit`, `git_dirty` 는 생략하면 **자동으로 채워진다**
+- `.gitattributes` 가 `*.tsv` 에 `merge=union` 을 걸어둬서, 서로 다른 브랜치에서
+  붙인 행들은 충돌 없이 합쳐진다
+
+## 파일
+
+| 파일 | 행 하나의 단위 | 스펙 |
+|---|---|---|
+| `experiments/LEDGER.tsv` | run 의 상태 전이 (start / ok / fail) | §58 |
+| `experiments/tokenizer_metrics.tsv` | (토크나이저 × split × domain) | §16, §35 |
+| `experiments/lm_metrics.tsv` | (run × checkpoint × split × domain) | §37~39 |
+| `experiments/capability.tsv` | (run × checkpoint × benchmark × metric) | §40, §52 |
+| `experiments/system_bench.tsv` | (모델 × 입력조건 × mode) | §49, §50 |
+| `experiments/train_curve.tsv` | 평가 지점 하나 | §26, §84 |
+| `data/manifests/<split>.tsv` | 문서 하나 | §7 |
+| `env/ENV_SNAPSHOT.tsv` | 환경 변경 하나 | §60 |
+
+---
+
+## `LEDGER.tsv` — run 마스터
+
+다른 모든 테이블의 `run_id` 는 여기에 있어야 한다 (참조 무결성).
+run 하나가 `start` 행 하나와 `ok`/`fail` 행 하나를 남긴다. `start` 행을 고치지 않고
+새 행을 붙이는 이유는, 죽은 run 의 흔적을 지우지 않기 위해서다.
+
+| 컬럼 | 설명 |
+|---|---|
+| `ts_utc` | ISO-8601 UTC (`2026-08-29T11:22:33Z`). 로컬 타임존은 쓰지 않는다 |
+| `run_id` | 스펙 §61 명명 규칙 (아래 참조) |
+| `phase` | `data` `tok` `surgery` `align` `cpt` `eval` `sys` |
+| `status` | `start` `ok` `fail` `abort` |
+| `tokenizer_version` | `qwen_original`, `koext_v1`, `kosub_v3`, `konew_v1` … |
+| `vocab_size` | 정수 |
+| `tokenizer_sha256` | 토크나이저 산출물 디렉토리 해시 |
+| `model` | `qwen2.5-0.5b`, `qwen2.5-1.5b`, `hcx-seed-0.5b` … |
+| `init_method` | `original` `random` `mean` `weighted` `distill` (스펙 §21~23) |
+| `seed` | 정수 |
+| `target_tokens` | 계획된 학습 토큰 예산 |
+| `tokens_seen` | 실제 학습한 토큰 수 |
+| `raw_bytes_seen` | 실제 학습한 **원문 바이트 수** — 토크나이저가 다른 run 을 비교하는 축 |
+| `wall_sec` | 벽시계 초 |
+| `peak_vram_mb` | `torch.cuda.max_memory_allocated()` |
+| `git_commit` | HEAD 전체 해시 (자동) |
+| `git_dirty` | `1` 이면 커밋되지 않은 변경이 있는 상태에서 돌았다는 뜻 (자동) |
+| `config_sha256` | config dict 의 정규화 JSON 해시 |
+| `manifest_sha256` | 사용한 dataset manifest 해시 |
+| `env_sha256` | 환경 스냅샷 해시 → `ENV_SNAPSHOT.tsv` 로 연결 |
+| `argv` | 명령행 인자 |
+| `note` | 자유 메모. 실패 시 예외 메시지가 자동으로 들어간다 |
+
+### `run_id` 명명 (스펙 §61)
+
+```
+<phase>_<tokenizer>_<init>_<budget>_seed<seed>
+```
+
+```
+tok_qwen_original_v1
+tok_kosub_v1
+align_kosub_mean_5m_seed42
+cpt_original_mean_50m_seed42
+cpt_kosub_mean_50m_seed42
+sys_kosub_rawprompt_10k_v1
+```
+
+이름만 보고 어떤 실험인지 알 수 있어야 한다.
+생성은 `src.utils.tracking.make_run_id()`.
+
+---
+
+## `tokenizer_metrics.tsv` — Level 1 intrinsic
+
+GPU 를 쓰기 전, CPU 단계에서 후보를 거르는 데 쓴다 (스펙 §17 Candidate Gate).
+**domain 별로 한 행씩** 쓴다. 전체 평균 하나만 남기면 "한국어 -30%, code +17%"를 놓친다.
+
+`split` `domain` `n_docs` `n_chars` `n_bytes` `n_eojeol` `n_tokens`
+`tok_per_char` `tok_per_byte` `bytes_per_tok` `tok_per_eojeol` `fertility_mean`
+`p50_len` `p90_len` `p95_len` `p99_len` `max_len`
+
+P95/P99 를 남기는 이유는 평균이 아니라 꼬리가 context overflow 와 긴 입력 지연을
+만들기 때문이다 (스펙 §15).
+
+## `lm_metrics.tsv` — Level 2 language modeling
+
+`checkpoint` `tokens_seen` `raw_bytes_seen` `split` `domain` `n_bytes`
+`total_nll` `bpb` `bpc` `token_ppl`
+
+- `bpb` 가 **필수**. 교차 토크나이저 비교는 이것으로만 한다 ([RULES.md](RULES.md) 3번)
+- `token_ppl` 은 같은 토크나이저 내부 학습 곡선용
+- `n_bytes` 와 `total_nll` 이 함께 있으므로 BPB 를 언제든 재계산·검증할 수 있다
+
+## `capability.tsv` — Level 3
+
+`checkpoint` `benchmark` `lang` `n_items` `n_shot` `metric` `value` `ci_lo` `ci_hi`
+
+long format 이다. 지표 하나가 한 행. bootstrap CI 는 문제 단위로 구한다 (스펙 §52).
+
+## `system_bench.tsv` — Level 4 GPU 시스템
+
+`mode` `raw_chars` `raw_bytes` `input_tokens` `gen_tokens` `n_warmup` `n_runs`
+`tokenize_ms_mean` `prefill_ms_mean` `prefill_ms_p95` `ttft_ms_mean` `ttft_ms_p95`
+`decode_tok_s_mean` `total_ms_mean` `total_ms_std`
+`kv_cache_mb_est` `peak_alloc_mb` `peak_reserved_mb`
+
+- `mode` = `raw_prompt` (같은 원문, 스펙 §46) 또는 `equal_tokens` (같은 토큰 수, §47).
+  **둘 다 재야** 차이가 compression 때문이라고 말할 수 있다
+- `kv_cache_mb_est` 는 **추정값**, `peak_*` 는 **실측값**. 섞지 않는다 (스펙 §77)
+- 총 지연 하나만 적지 않는다. tokenize / prefill / decode 를 나눈다 (스펙 §48)
+
+## `train_curve.tsv` — 학습 곡선
+
+`step` `tokens_seen` `raw_bytes_seen` `train_loss` `dev_loss` `dev_bpb` `lr`
+`grad_norm` `grad_norm_emb` `grad_norm_attn` `grad_norm_ffn`
+`peak_vram_mb` `tok_per_s` `raw_bytes_per_s` `elapsed_sec`
+
+- x축은 `step` 이 아니라 `tokens_seen` / `raw_bytes_seen` 이다 (스펙 §26)
+- 모듈별 gradient norm 은 "어느 모듈에 적응 압력이 걸리는가"에 답한다 (스펙 §72)
+- `raw_bytes_per_s` 는 토크나이저가 다른 run 사이에서 공정한 처리량 지표다 (스펙 §79)
+
+## `data/manifests/<split>.tsv` — 문서 manifest
+
+`doc_id` `source` `domain` `date` `language` `sha256` `split` `char_count` `byte_count`
+
+프로젝트 전체 데이터의 기준점이다 (스펙 §7). 문서 단위 분할이 여기서 확정된다.
+
+## `env/ENV_SNAPSHOT.tsv` — 환경 이력
+
+`env_sha256` `python` `torch` `cuda` `cudnn` `transformers` `tokenizers` `datasets`
+`accelerate` `bitsandbytes` `peft` `numpy` `driver` `gpu_name` `vram_mb` `change_note`
+
+현재 환경의 `env_sha256` 가 이 파일에 없으면 `RunContext` 가 실행을 거부한다.
+자세한 내용은 [ENVIRONMENT.md](ENVIRONMENT.md).
+
+---
+
+## 쓰는 법
+
+```python
+from src.utils.tracking import RunContext, make_run_id
+
+run_id = make_run_id("cpt", "kosub", "mean", "50m", seed=42)
+
+with RunContext(run_id, phase="cpt", config=cfg, seed=42,
+                model="qwen2.5-0.5b", tokenizer_version="kosub_v3",
+                init_method="mean", target_tokens=50_000_000) as run:
+    ...
+    run.log("train_curve", step=1000, tokens_seen=1_000_000,
+            raw_bytes_seen=3_100_000, train_loss=2.41, dev_bpb=1.207)
+    run.log("lm_metrics", split="dev", domain="news",
+            n_bytes=8_412_003, total_nll=7.1e6, bpb=1.207)
+    run.tokens_seen = 50_000_000
+    run.raw_bytes_seen = 155_000_000
+```
+
+`run_id`, `config_sha256`, `git_commit`, `ts_utc` 는 자동으로 붙는다.
+사람이 적는 단계를 없앤다.
+
+## 읽는 법
+
+```bash
+# 최근 run 10개
+tail -n 10 experiments/LEDGER.tsv | cut -f1,2,4,12,13
+
+# 도메인별 BPB
+awk -F'\t' 'NR==1 || $2=="cpt_kosub_mean_50m_seed42"' experiments/lm_metrics.tsv | column -t -s$'\t'
+```
+
+```python
+import pandas as pd
+df = pd.read_csv("experiments/lm_metrics.tsv", sep="\t", na_values=["NA"])
+```
