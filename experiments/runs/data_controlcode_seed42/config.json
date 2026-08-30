@@ -1,0 +1,44 @@
+{
+  "domain": "code",
+  "lang": "code",
+  "max_bytes": 60000000,
+  "max_docs": 8000,
+  "minhash": {
+    "bands": 16,
+    "max_shingles": 512,
+    "num_perm": 64,
+    "seed": 42,
+    "shingle": 8,
+    "threshold": 0.8
+  },
+  "paths": [
+    "data/train-00000-of-00880.parquet",
+    "data/train-00220-of-00880.parquet",
+    "data/train-00440-of-00880.parquet",
+    "data/train-00660-of-00880.parquet"
+  ],
+  "prefix": "data/train-",
+  "purpose": "regression_control_only",
+  "quality": {
+    "check_line_repeat": false,
+    "check_ngram": false,
+    "max_chars": 200000,
+    "max_digit_ratio": 0.6,
+    "max_line_repeat_ratio": 0.3,
+    "min_chars": 120,
+    "min_distinct_ngram_ratio": 0.25,
+    "min_hangul_ratio": 0.0,
+    "min_language_score": 0.0,
+    "min_latin_ratio": 0.0,
+    "min_mean_line_chars": 3.0,
+    "ngram_n": 5
+  },
+  "repo": "codeparrot/github-code-clean",
+  "seed": 42,
+  "split": {
+    "dev": 0.05,
+    "final_test": 0.05,
+    "seed": 42,
+    "train": 0.9
+  }
+}
