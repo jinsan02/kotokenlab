@@ -32,6 +32,7 @@ class DomainRules:
     ko_en_mixed: dict
     drop_below: float
     spam: dict
+    use_content: bool = True
 
     @classmethod
     def load(cls, path: Path | str) -> "DomainRules":
@@ -45,6 +46,7 @@ class DomainRules:
             ko_en_mixed=raw.get("ko_en_mixed", {}) or {},
             drop_below=float(raw.get("drop_if_hangul_ratio_below", 0.15)),
             spam=raw.get("spam_filter", {}) or {},
+            use_content=bool(raw.get("use_content_signals", True)),
         )
 
 
@@ -106,6 +108,18 @@ def classify(url: str, text: str, rules: DomainRules) -> tuple:
     by_host = classify_host(host, rules)
     if by_host:
         return by_host, host
+
+    # 호스트가 아무것도 못 잡으면 본문을 본다 (v5).
+    # 블라인드 감사에서 technical 재현율 8%, community/ko_en_mixed 0% 였다.
+    # 호스트에 docs. 나 cafe. 가 없으면 규칙이 아무것도 못 잡기 때문이다.
+    # 호스트 규칙이 먼저인 이유는 그쪽 정밀도가 더 높기 때문이다 (news 86%).
+    if rules.use_content:
+        from .content import classify_content
+
+        by_content = classify_content(text)
+        if by_content:
+            return by_content, host
+
     threshold = float(rules.ko_en_mixed.get("latin_share_min", 0.35))
     if latin_share(text) >= threshold:
         return "ko_en_mixed", host

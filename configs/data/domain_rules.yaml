@@ -8,7 +8,7 @@
 # host_suffix 는 정확 일치 또는 ".<suffix>" 로 끝나는 경우만 잡는다 (부분 문자열 아님).
 # host_contains 가 부분 문자열 매칭이다.
 
-version: v4
+version: v5
 
 rules:
   encyclopedia:
@@ -92,3 +92,14 @@ spam_filter:
   max_docs_per_host: 400
   max_ngram_repeat_ratio: 0.20
   hplt_doc_score_min: 7.0
+
+# 호스트 규칙이 못 잡을 때 본문 신호로 보정한다 (src/data/content.py).
+#
+# **기본값 false 다.** dev 105건에서 58.1% -> 70.5% 로 크게 올랐지만 holdout
+# 45건에서는 55.6% -> 53.3% 로 오히려 내려갔다. dev-holdout 격차 17%p 는
+# 손으로 맞춘 정규식이 105건에 과적합한 전형적인 모습이다. holdout 차이는
+# 1건이라 노이즈이고, 개선을 주장할 근거가 없다.
+#
+# 코드와 신호는 남겨둔다 — 라벨이 더 모이면 다시 평가할 수 있고,
+# 무엇을 시도했고 왜 채택하지 않았는지가 기록이다.
+use_content_signals: false
