@@ -51,22 +51,43 @@ NL = chr(10)
 
 def mine_pairs(tokenizer, path: Path, max_bytes: int, vocab_size: int,
                batch: int = 512) -> tuple:
-    """인접 토큰 쌍의 빈도를 센다. 쌍을 int64 하나로 눌러서 numpy 로 집계한다."""
+    """**pretokenizer 세그먼트 안쪽** 인접 토큰 쌍의 빈도를 센다.
+
+    경계를 넘는 쌍은 세면 안 된다. Qwen 의 Split 정규식은 숫자를 한 자씩
+    고립시키고(`\\p{N}`) 글자와 구두점을 다른 세그먼트로 가른다. 그래서
+    " 1", "20", "다." 같은 쌍은 merge rank 를 어떻게 줘도 **절대 발화하지
+    않는다** — BPE 는 세그먼트 안에서만 병합하기 때문이다.
+
+    처음에는 이 확인 없이 세었고, 채굴 빈도 10만회 이상인 최상위 기증자 6개가
+    발화율 0% 였다. 슬롯 30,000개 중 12,311개가 그렇게 낭비됐다.
+
+    토큰의 문자 오프셋과 세그먼트 시작 위치를 대조해서 거른다.
+    """
+    pre = tokenizer.backend_tokenizer.pre_tokenizer
     chunks: list = []
     seen_bytes = 0
-    n_docs = n_tokens = 0
+    n_docs = n_tokens = n_cross = 0
     buf: list = []
 
     def flush() -> None:
-        nonlocal n_tokens
+        nonlocal n_tokens, n_cross
         if not buf:
             return
-        for ids in tokenizer(buf, add_special_tokens=False)["input_ids"]:
+        enc = tokenizer(buf, add_special_tokens=False, return_offsets_mapping=True)
+        for text, ids, offs in zip(buf, enc["input_ids"], enc["offset_mapping"]):
             if len(ids) < 2:
                 continue
             arr = np.asarray(ids, dtype=np.int64)
             n_tokens += arr.size
-            chunks.append(arr[:-1] * vocab_size + arr[1:])
+            starts = {span[0] for _, span in pre.pre_tokenize_str(text)}
+            # 쌍 (i, i+1) 은 i+1 이 새 세그먼트를 열지 않을 때만 유효하다
+            keep = np.fromiter(
+                (offs[j + 1][0] not in starts for j in range(len(ids) - 1)),
+                dtype=bool, count=len(ids) - 1)
+            n_cross += int((~keep).sum())
+            pairs = (arr[:-1] * vocab_size + arr[1:])[keep]
+            if pairs.size:
+                chunks.append(pairs)
         buf.clear()
 
     with path.open("r", encoding="utf-8") as fh:
@@ -91,7 +112,9 @@ def mine_pairs(tokenizer, path: Path, max_bytes: int, vocab_size: int,
     keys = np.concatenate(chunks)
     del chunks
     uniq, counts = np.unique(keys, return_counts=True)
-    print(f"      인접쌍 {keys.size:,}개, 서로 다른 쌍 {uniq.size:,}개")
+    print(f"      세그먼트 내 인접쌍 {keys.size:,}개, 서로 다른 쌍 {uniq.size:,}개")
+    print(f"      경계를 넘어 버린 쌍 {n_cross:,}개 "
+          f"({n_cross / max(n_cross + keys.size, 1):.1%}) — 발화 불가능한 것들이다")
     return uniq, counts, n_docs, seen_bytes, n_tokens
 
 
