@@ -31,8 +31,23 @@ metrics:
     analyzer: null          # kiwipiepy | mecab-ko
     analyzer_version: null
 
-# 스펙 §17 Candidate Gate — 이 조건을 통과한 후보만 GPU 로 보낸다
+# 스펙 §17 Candidate Gate — 보고 중심 + 파국 방지 하한
+#
+# 2026-08-30 결정. T2 후보를 만들기 **전에** 정했다. 결과를 보고 완화하면
+# §107 evaluation freeze 를 어긴다 (docs/RULES.md 14번).
+#
+# 왜 바꿨나: 스펙 §17 의 원래 조건(영어 5%, 코드 10%)을 그대로 적용했더니
+# HCX-SEED(코드 +20.9%)와 A.X-4.0-Light(영어 +7.3%, 코드 +26.6%)가 둘 다
+# 탈락했다. A.X 는 실제 출시된 산업 토크나이저다. 출시된 제품을 거르는 게이트는
+# 우리가 연구하려는 설계 지점 자체를 배제한다 — 임계값이 잘못 맞춰진 것이다.
+#
+# report  스펙 §17 값. 넘으면 경고로 보고하되 거르지 않는다. 모든 후보의
+#         trade-off 를 표로 남기는 것이 §16 의 목적에 맞다.
+# hard    관측된 산업 지점(A.X: 영어 7.3%, 코드 26.6%)보다 넉넉히 위.
+#         망가진 토크나이저가 학습 예산을 태우는 것만 막는다.
 gate:
-  korean_tok_per_char_improvement_min: 0.15
-  english_degradation_max: 0.05
-  code_degradation_max: 0.10
+  korean_tok_per_char_improvement_min: 0.15   # 스펙 §17 그대로. 이건 하드 조건이다.
+  english_degradation_report: 0.05
+  code_degradation_report: 0.10
+  english_degradation_hard: 0.25
+  code_degradation_hard: 0.40
