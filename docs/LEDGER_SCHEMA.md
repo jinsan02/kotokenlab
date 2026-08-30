@@ -20,6 +20,17 @@
   값은 절대 바꾸지 않는다. 뒤에 `NA` 를 덧대기만 하고 `.bak` 을 남긴다.
   헤더 순서가 바뀐 경우는 자동으로 손대지 않고 보고만 한다
 - `ts_utc`, `git_commit`, `git_dirty` 는 생략하면 **자동으로 채워진다**
+- **`ts_utc` 는 UTC 다.** 기기가 바뀌거나 서머타임이 걸려도 같은 값이 같은 순간을
+  가리켜야 하기 때문이다. 한국(KST=UTC+9)에서 보면 화면 시각과 9시간 차이가 나는데
+  **이건 오차가 아니라 타임존이다.** 로컬 시각으로 보려면:
+
+  ```bash
+  .conda/python.exe tools/ledger_tail.py
+  .conda/python.exe tools/ledger_tail.py --table lm_metrics -n 20
+  ```
+
+  호스트 시계 자체의 오차는 `tools/check_clock.py` 가 외부 HTTPS 시각과 대조해
+  `experiments/clock_checks.tsv` 에 기록한다 (측정 시점 −850ms).
 - 새 run 의 `clock_check_sha256` 는 24시간 이내의 성공한 시간 검증에서 자동으로 채운다
 - `.gitattributes` 가 `*.tsv` 에 `merge=union` 을 걸어둬서, 서로 다른 브랜치에서
   붙인 행들은 충돌 없이 합쳐진다

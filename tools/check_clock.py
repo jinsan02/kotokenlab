@@ -31,6 +31,17 @@ def main() -> int:
         "windows_source", "clock_check_sha256", "note",
     ):
         print(f"{key:<22} {row[key]}")
+
+    # 원장은 UTC 로 기록한다. 한국(UTC+9)에서는 화면에 9시간 어긋나 보이므로
+    # 로컬 시각을 함께 찍어 "기록 시각이 틀렸다"는 오해를 막는다.
+    from datetime import datetime, timezone
+
+    now_utc = datetime.now(timezone.utc)
+    off = now_utc.astimezone().utcoffset()
+    hours = int(off.total_seconds()) // 3600 if off else 0
+    print(f"{'ledger_ts_utc':<22} {now_utc.strftime('%Y-%m-%dT%H:%M:%SZ')}  (원장 기록 형식)")
+    print(f"{'local_time':<22} {now_utc.astimezone().strftime('%Y-%m-%d %H:%M:%S')}"
+          f"  (UTC{hours:+d} — 원장과 {abs(hours)}시간 차이는 타임존이지 오차가 아니다)")
     return 0 if row["status"] == "ok" else 1
 
 
