@@ -96,7 +96,9 @@ kbd{{font:12px monospace;color:var(--mut)}}
 <script>
 const ROWS = {rows};
 const LABELS = {labels};
-const KEY = "domain_audit_v1";
+// 감사 파일마다 키를 다르게 준다. 같은 키를 쓰면 v3 에서 찍은 라벨이 v4 화면에
+// 이미 채워진 것처럼 떠서, 새 표본을 라벨링한 줄 알고 잘못된 정확도를 얻는다.
+const KEY = {storage_key};
 let gold = {{}};
 try {{ gold = JSON.parse(localStorage.getItem(KEY) || "{{}}"); }} catch (e) {{ gold = {{}}; }}
 
@@ -204,14 +206,17 @@ def main(argv: list | None = None) -> int:
 
     out = ROOT / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
+    storage_key = f"domain_audit::{src.stem}"
     out.write_text(
         PAGE.format(n=len(rows),
                     rows=json.dumps(rows, ensure_ascii=False),
                     labels=json.dumps(LABELS, ensure_ascii=False),
-                    header=json.dumps(header, ensure_ascii=False)),
+                    header=json.dumps(header, ensure_ascii=False),
+                    storage_key=json.dumps(storage_key)),
         encoding="utf-8", newline="\n")
 
-    print(f"{out}\n  표본 {len(rows)}건, 라벨 {len(LABELS)}종\n")
+    print(f"{out}\n  표본 {len(rows)}건, 라벨 {len(LABELS)}종")
+    print(f"  저장 키: {storage_key}  (감사 파일마다 분리된다)\n")
     print("브라우저로 열어서 숫자키로 라벨을 찍는다. 예측이 맞으면 Enter.")
     print("작업은 자동 저장되니 중간에 닫아도 된다.\n")
     print("다 채우면 TSV 를 내려받아 아래 경로를 덮어쓰고:")
