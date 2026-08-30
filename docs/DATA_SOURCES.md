@@ -27,6 +27,34 @@
 **AI Hub / 모두의 말뭉치**: 한국 실명 인증 + 신청 절차가 필요해 스크립트로 재현할 수
 없다. 필요해지면 수동으로 추가하되, manifest 에 `source` 를 남겨 분리 가능하게 한다.
 
+### 대조군 — 실제로 쓰는 것 (구현 완료)
+
+`scripts/run_control_pipeline.py` 가 한국어 파이프라인과 **같은 manifest 스키마,
+같은 `doc_id` 해시 분할**로 만든다. 다른 것은 품질 필터 프로파일뿐이다
+(`QualityConfig.for_language`).
+
+| 언어 | 출처 | 파케이 경로 | 필터 차이 |
+|---|---|---|---|
+| 영어 | `HuggingFaceFW/fineweb-edu` | `sample/10BT/` | 한글 하한 off, 라틴 하한 0.50, 한글 5% 초과 배제 |
+| 코드 | `codeparrot/github-code-clean` | `data/train-` | **반복 검사 off**, 길이 하한 120자 |
+
+코드에서 반복 검사를 끄는 이유는 `import` 줄과 보일러플레이트가 정당하게
+반복되기 때문이다. 한국어 SEO 스팸 기준을 그대로 적용하면 멀쩡한 소스가 전부
+탈락한다.
+
+**이 라벨은 규칙이 아니라 출처다.** 그래서 도메인 라벨 정확도 문제
+([DOMAIN_LABELS.md](DOMAIN_LABELS.md))의 영향을 받지 않는다. 스펙 §17 의
+영어·코드 regression 판정은 여기서 이뤄진다.
+
+파일럿 규모: 영어 7,996문서(dev 1.62MB), 코드 7,407문서(dev 2.10MB).
+목표는 도메인당 dev 5MB 이며 전체 규모 실행에서 맞춘다.
+
+### 호스트 상한 (구현 완료)
+
+`spam_filter.max_docs_per_host: 400` 을 파이프라인이 강제한다. 상한이 없으면
+한 사이트의 문체가 토크나이저 통계를 끌고 간다 — 4샤드 조사에서 tripadvisor 가
+6.66% 를 차지했고, 상한 적용 후 2.20% 로 떨어지며 870건(4.35%)이 제외됐다.
+
 ### Level 3 평가 (스펙 §40)
 
 | 언어 | 벤치마크 |
@@ -84,8 +112,11 @@ merge rule 을 오염시킨다** — 스팸 상용구가 고빈도 토큰으로 
 첫 행이 영어 비둘기 사진 페이지였다. 스크립트 기준 분류라서 한글이 일부만 있어도
 포함된다. `language_score` 임계값과 **한글 문자 비율**을 직접 계산해 거른다.
 
-이건 오히려 스펙에 유리한 면도 있다 — 한영 혼용 문서는 §5 의 `Korean-English Mixed`
-도메인으로 따로 분류하면 된다. 버리지 말고 라벨링한다.
+한영 혼용 문서는 버리지 않는다. 다만 **도메인 라벨로 쓰지 않는다** — 블라인드
+감사에서 `ko_en_mixed` 는 정밀도·재현율 모두 0% 였다
+([DOMAIN_LABELS.md](DOMAIN_LABELS.md)). 대신 manifest 에 `latin_share` 와
+`hangul_ratio` 를 **연속값**으로 남겨서 사후에 임의의 구간으로 문서군을 나눈다.
+도메인 라벨이 아니라 문서 속성이므로 규칙 정확도 문제를 우회한다.
 
 ### 3.3 벤치마크 누출
 
@@ -145,10 +176,14 @@ Qwen2.5 기준 1 문자 ≈ 0.66 토큰   →  1 토큰 ≈ 4.5 바이트
 6. Near dedup   MinHash + LSH (fineweb-2 minhash_cluster_size 는 참고용)
 7. 오염 제거    KMMLU / KorQuAD / HAE-RAE 문항과 n-gram 중복 문서 제거
 8. Manifest    data/manifests/{train,dev,final_test}.tsv
-                 doc_id source domain date language sha256 split char_count byte_count
-9. 문서 단위 분할  90 / 5 / 5, 도메인 비율 유지
+                 doc_id source domain date language sha256 split
+                 char_count byte_count latin_share hangul_ratio
+9. 문서 단위 분할  90 / 5 / 5, doc_id 해시 기반 (순서·개수와 무관)
 10. 청킹        분할 이후에만
 ```
+
+manifest 본체는 커밋하지 않는다 (전체 규모에서 수백 MB). 커밋되는 것은
+`data/manifests/SUMMARY.tsv` 와 LEDGER 의 `manifest_sha256` 이다.
 
 **8번까지 끝나고 manifest_sha256 이 확정되기 전에는 토크나이저를 학습하지 않는다**
 ([RULES.md](RULES.md) 1번).

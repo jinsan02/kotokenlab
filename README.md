@@ -28,7 +28,20 @@ Attention 연산량, KV Cache, 추론 지연에 미치는 영향을 **통제된 
 ## 결과
 
 > 아래 표는 정식 데이터와 자체 토크나이저가 고정된 뒤 채운다. 현재는 Step 1
-> 소규모 데이터 관통과 Step 2 Level 1 파일럿까지 완료한 **검증 단계**다.
+> 소규모 관통, Step 2 Level 1(영어·코드 대조군 포함), 도메인 라벨 검증까지
+> 끝낸 **전체 규모 직전** 단계다.
+>
+> 지금까지 측정된 것 (dev 파일럿, 자체 토크나이저 이전):
+>
+> ```
+> 한국어  Qwen 0.6831 tok/char   HCX -25.2%   A.X -39.4%
+> 영어    Qwen 0.2169            HCX  -0.5%   A.X  +7.3%
+> 코드    Qwen 0.2955            HCX +20.9%   A.X +26.6%
+> ```
+>
+> 한국어 압축을 얻는 만큼 코드에서 20~27% 를 잃는다 — 스펙 §16 이 경고한
+> trade-off 가 실측으로 확인됐다. 도메인 라벨 신뢰 범위는
+> [`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md).
 
 ```
 Korean Tokens        -XX.X%
@@ -76,7 +89,7 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 |---|---|
 | **하드룰 17개** | [`docs/RULES.md`](docs/RULES.md) — 단일 진실 공급원 |
 | **커밋 규칙** | [`docs/COMMIT_CONVENTION.md`](docs/COMMIT_CONVENTION.md) — `record` / `fix` / `upgrade` … |
-| **원장 스키마** | [`docs/LEDGER_SCHEMA.md`](docs/LEDGER_SCHEMA.md) — TSV 8종 |
+| **원장 스키마** | [`docs/LEDGER_SCHEMA.md`](docs/LEDGER_SCHEMA.md) — TSV 10종 + manifest |
 | **작업 흐름** | [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — 실험 수명주기, 개발 순서 |
 | **환경** | [`docs/ENVIRONMENT.md`](docs/ENVIRONMENT.md) — 가상환경도 버전 관리한다 |
 | **데이터셋** | [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) — 무엇을 쓰고 왜 그것인가 |
@@ -89,6 +102,8 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 
 특히:
 
+- **주장할 수 있는 것만 주장한다** — 한국어 내부 도메인 라벨은 감사 정확도
+  ~55% 라 세분화를 보고하지 않는다 ([`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md))
 - **Split first, tokenize later** — 문서 단위 분할이 토크나이저 학습보다 먼저다
 - **Final Test 는 마지막까지 열지 않는다** — 훅이 `final_test` 경로를 하드 차단한다
 - **BPB 로 비교한다** — 토크나이저가 다르면 token-level PPL 은 비교 대상이 아니다

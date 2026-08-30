@@ -12,7 +12,9 @@
 3. [`docs/COMMIT_CONVENTION.md`](docs/COMMIT_CONVENTION.md) — 커밋할 일이 있으면
 4. [`docs/LEDGER_SCHEMA.md`](docs/LEDGER_SCHEMA.md) — 결과를 기록할 일이 있으면
 5. [`docs/HANDOFF.md`](docs/HANDOFF.md) — 지금까지 된 것과 다음 할 일
-6. [`docs/SPEC_KoTokenLab.md`](docs/SPEC_KoTokenLab.md) — 연구 설계 원본. 필요한 절만
+6. [`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md) — 도메인 라벨로 무엇을
+   주장할 수 있는지. 도메인별 수치를 인용하기 전에 반드시 본다
+7. [`docs/SPEC_KoTokenLab.md`](docs/SPEC_KoTokenLab.md) — 연구 설계 원본. 필요한 절만
 
 그리고 현재 상태를 복원한다:
 
@@ -60,6 +62,8 @@ Claude Code 가 직전 세션을 돌렸을 수도 있다. **앞선 대화를 알
 - `data/final_test/` 를 읽거나 커밋 — 프로젝트에서 가장 되돌릴 수 없는 실수
 - `C:\aimers\.conda` 패키지 업그레이드 — 다른 프로젝트의 재현성이 깨진다
 - 실험 결과를 마크다운 일지로 손으로 적기 — 원장에 코드가 적는다
+- **도메인별 수치를 라벨 정확도 없이 인용하기** — 한국어 내부 세분화는 ~55% 다
+- **해시를 손으로 적기** — 원장에서 읽어온다. 훅이 대조해서 거부한다
 
 ## 결과를 기록할 때
 

@@ -1,104 +1,107 @@
 # 인수인계 — 현재 상태와 다음 순서
 
-최종 갱신 2026-08-30, Claude Code. 규칙은 [`RULES.md`](RULES.md),
-범위와 종료 조건은 [`PLAN.md`](PLAN.md), 프롬프트는 [`PROMPTS.md`](PROMPTS.md).
+최종 갱신 2026-08-30. 규칙은 [`RULES.md`](RULES.md), 범위와 종료 조건은
+[`PLAN.md`](PLAN.md), 프롬프트는 [`PROMPTS.md`](PROMPTS.md),
+도메인 라벨 신뢰 범위는 [`DOMAIN_LABELS.md`](DOMAIN_LABELS.md).
 
 ---
 
 ## 한 줄 상태
 
-**전체 규모 직전.** 데이터 파이프라인·Level 1·영어/코드 대조군까지 끝났고,
-Candidate Gate 가 처음으로 온전히 판정됐다. 남은 것은 도메인 규칙 정확도 검증
-(사람 손 필요)과 게이트 임계값 결정이다.
+**전체 규모 실행 직전.** 소규모 관통, Level 1(영어·코드 대조군 포함), 도메인 라벨
+검증, Candidate Gate 임계값 확정까지 끝났다. 남은 것은 정식 코퍼스를 만드는 일이다.
 
 ```
-Step 0  저장소·원장·훅·CI·환경·자원 실측                완료
-Step 1  한국어 파이프라인 (규칙 v3, 호스트 상한)          완료
-Step 2  Level 1 벤치마크 + 영어·코드 대조군               완료
-        ─────────────────────────────────────────────
-현재    도메인 정확도 라벨링 · 게이트 임계값 결정
-다음    전체 규모 실행 -> Step 3 토크나이저 학습
-금지    임계값을 결과 보고 나서 완화하지 않는다 (§107)
+Step 0   저장소 · 원장 · 훅 · CI · 환경 · 자원 실측              완료
+Step 1   한국어 파이프라인 (규칙 v4, 호스트 상한 400)            완료 (파일럿)
+Step 1b  영어 · 코드 대조군                                     완료 (파일럿)
+Step 1c  도메인 라벨 블라인드 감사                               완료
+Step 2   Level 1 벤치마크 + Gate 임계값 확정                     완료
+         ────────────────────────────────────────────────
+현재     전체 규모 실행
+다음     Step 3 토크나이저 학습 (T2a / T2b)
+금지     manifest 가 고정되기 전에 토크나이저를 학습하지 않는다
 ```
 
 ---
 
-## 지금까지 나온 결과
+## 측정된 것
 
-### Level 1 (dev 1,617문서 6.8MB, run_id `tok_bench_ctrl`)
+### Level 1 — 1층: 언어 간 (라벨이 출처 데이터셋이라 신뢰 가능)
 
-| 도메인 | Qwen tok/char | HCX | A.X |
+| 구분 | 문자 수 | Qwen2.5 | HCX-SEED | A.X-4.0-Light |
+|---|---:|---:|---:|---:|
+| 한국어 | 1,340,613 | 0.6831 | −25.2% | **−39.4%** |
+| 영어 | 1,616,064 | 0.2169 | −0.5% | **+7.3%** |
+| 코드 | 2,067,176 | 0.2955 | **+20.9%** | **+26.6%** |
+
+한국어 압축을 얻는 만큼 코드에서 20~27% 를 잃는다. 스펙 §16 이 경고한 trade-off 가
+실측으로 확인됐다.
+
+### Level 1 — 2층: 한국어 내부 (참고. 세분화는 보고하지 않는다)
+
+| 구분 | 문자 수 | Qwen2.5 | A.X |
 |---|---:|---:|---:|
-| news | 0.7051 | −26.5% | **−40.1%** |
-| blog | 0.6913 | −25.1% | −40.7% |
-| web_general | 0.6914 | −25.2% | −39.8% |
-| technical | 0.5388 | −20.6% | −30.8% |
-| ko_en_mixed | 0.4688 | −18.4% | −26.3% |
-| **english** | 0.2169 | −0.5% | **+7.3%** |
-| **code** | 0.2955 | **+20.9%** | **+26.6%** |
+| news | 232,628 | 0.7051 | −40.1% |
+| 기타(한국어) | 1,107,985 | 0.6785 | −39.2% |
 
-**Candidate Gate 는 두 후보를 모두 탈락시킨다.** 스펙 §17 의 조건(영어 ≤5%,
-코드 ≤10%)에 HCX 는 코드 +20.9%, A.X 는 영어 +7.3% + 코드 +26.6% 로 걸린다.
+**차이가 0.9%p 다.** 반면 언어 간은 67%p 갈린다. 라벨을 못 믿는 축과 결과가
+갈리는 축이 서로 다르므로, 세분화를 포기해도 잃는 정보가 거의 없다.
 
-이게 이 프로젝트에서 가장 중요한 미결 판단이다 — 임계값이 현실과 안 맞는 것인지,
-한국어 특화가 원래 이 비용을 치르는 것인지. **T2 를 만들기 전에** 정하고
-문서에 남겨야 한다. 결과를 보고 나서 완화하면 evaluation freeze 를 어긴다.
-
-### 도메인 분포 (규칙 v3, 호스트 상한 400)
+### 도메인 라벨 신뢰도
 
 ```
-web_general 67.8%  news 17.6%  blog 5.3%  ko_en_mixed 4.8%
-technical 1.9%  encyclopedia 1.8%  community 0.7%  code 0.06%
+블라인드 감사 150건        54.7%
+  news 정밀도              81%
+  technical 재현율          8%
+  community / ko_en_mixed   0%
 ```
 
-web_general 은 여기서 더 못 내린다. 호스트가 10,015개로 흩어져 있고 1위 다음이
-0.40% 이하다. "분류 실패" 가 아니라 "출처가 특정되지 않는 일반 웹" 으로 취급한다.
+경위는 [`DOMAIN_LABELS.md`](DOMAIN_LABELS.md).
+**한국어 내부 세분화 수치를 단독으로 인용하지 마라.**
+
+### 자원 실측 (RTX 5070 Ti 16GB)
+
+```
+학습 운영 설정      seq 2048 / micro_bs 2 / AdamW 8bit -> 13.3GB, 9,089 tok/s
+50M 토큰 CPT        약 1.6시간.  코어 전체 GPU 예산 약 13시간
+prefill 32,768 tok  0.5B 2,718MB / 1,310ms    1.5B 6,808MB / 2,972ms
+```
+
+전체 표: [`reports/tables/resource_probe.md`](../reports/tables/resource_probe.md)
 
 ---
 
 ## 다음에 할 일
 
-### 1. 도메인 규칙 정확도 — **사람 손이 필요하다**
+### 1. 전체 규모 실행 (지금)
 
 ```bash
-C:\llm_tokenizer\.conda\python.exe scripts\make_label_ui.py
+C:\llm_tokenizer\.conda\python.exe scripts\run_data_pipeline.py --max-docs 1500000 --max-bytes 6000000000 --shards 4 --tag v1
+C:\llm_tokenizer\.conda\python.exe scripts\run_control_pipeline.py --lang en --max-docs 60000
+C:\llm_tokenizer\.conda\python.exe scripts\run_control_pipeline.py --lang code --max-docs 60000
 ```
 
-`reports/tables/domain_audit_label.html` 을 브라우저로 열고 200건에 라벨을 찍는다.
-숫자키로 선택, 예측이 맞으면 Enter. 자동 저장되므로 중간에 닫아도 된다.
-다 채우면 TSV 를 내려받아 `reports/tables/domain_audit.tsv` 를 덮어쓰고:
+예상: 다운로드 수 GB, CPU 처리 1~2시간, GPU 미사용.
 
-```bash
-C:\llm_tokenizer\.conda\python.exe scriptsudit_domain_rules.py --mode score
-```
+확인할 것:
+- 도메인당 dev 5MB 이상 (파일럿은 한국어 1.34MB, 영어 1.62MB, 코드 2.10MB 로 미달)
+- 필터 통과율 90~92%, 도메인 분포가 파일럿과 크게 다르지 않은지
+- 완료 후 `manifest_sha256` 을 [`PLAN.md`](PLAN.md) 에 고정하고 `data(data):` 커밋
 
-**이 정확도 없이는 도메인별 결과를 주장할 수 없다.** 표본에 community 2건,
-encyclopedia 1건뿐이라 그 두 도메인은 이 표본으로 못 잰다 — 필요하면 층화 표본을
-따로 뽑아야 한다.
+### 2. Level 1 정식 측정 → `phase1-tokenizer-freeze` 태그
 
-### 2. 게이트 임계값 결정 (사용자 판단)
+전체 규모 dev 로 다시 재고, 그 수치가 리포트에 들어간다.
 
-선택지: (a) 스펙 §17 그대로 두고 우리 T2 도 같은 잣대로 잰다,
-(b) 코드 상한을 완화하되 **지금** 정하고 근거를 남긴다,
-(c) 게이트를 탈락 기준이 아니라 보고 항목으로 바꾼다.
+### 3. Step 3 — 토크나이저 학습 T2a / T2b
 
-### 3. 전체 규모 실행 — 위 둘이 끝난 뒤
+[`PROMPTS.md`](PROMPTS.md) 4번. 신규성 방어 지점이다:
+`T2a` vocab 축소(선행연구 설정) vs `T2b` 크기 유지 치환(우리 주장).
 
-```bash
-C:\llm_tokenizer\.conda\python.exe scriptsun_data_pipeline.py   --max-docs 1500000 --max-bytes 6000000000 --shards 4 --tag v1
-C:\llm_tokenizer\.conda\python.exe scriptsun_control_pipeline.py --lang en --max-docs 60000
-C:\llm_tokenizer\.conda\python.exe scriptsun_control_pipeline.py --lang code --max-docs 60000
-```
+### 하지 않아도 되는 것
 
-**라벨링 결과로 규칙을 고치면 manifest 가 바뀌므로 전체 규모를 다시 돌려야 한다.**
-그래서 1번을 먼저 끝내는 편이 낫다. 도메인별 dev 5MB 하한도 이때 맞춘다
-(지금 영어 1.6MB, 코드 2.1MB 로 미달).
-
-완료 후 manifest_sha256 을 PLAN 에 고정하고 `data(data):` 로 커밋한다.
-
-### 4. 그다음
-
-Step 3 토크나이저 학습(T2a/T2b). [`PROMPTS.md`](PROMPTS.md) 4번 참조.
+도메인 라벨 재감사. 이미 3회 했고 결론이 나왔다. 규칙을 고쳤다면
+`scripts/eval_domain_rules.py` 로 **추가 라벨링 없이** 채점하면 된다.
 
 ---
 
@@ -108,12 +111,15 @@ Step 3 토크나이저 학습(T2a/T2b). [`PROMPTS.md`](PROMPTS.md) 4번 참조.
 2. 다른 토크나이저 비교는 PPL 이 아니라 BPB 로 한다.
 3. HCX/A.X 는 external reference 다. 인과 효과는 같은 Qwen backbone 에서만.
 4. attention 은 `EFFICIENT_ATTENTION + CUDNN_ATTENTION` 을 강제한다.
+   강제하지 않으면 8,192 토큰에서 메모리 7.1배, 시간 10.3배가 된다.
 5. byte fallback 256개와 special token 은 pruning 하지 않는다.
 6. 첫 CPT 는 동일 config seed 42/123/2026 으로 노이즈 플로어부터.
 7. 원장은 append-only. 실패 run 도 지우지 않는다.
 8. `record` 커밋에 코드·설정을 섞지 않는다.
 9. 실험 전 `tools/check_clock.py --record` 를 실행한다.
-10. **해시를 손으로 적지 않는다.** 원장에서 읽어온다 — 훅이 대조한다.
+10. **해시를 손으로 적지 않는다.** 원장에서 읽어온다 — 훅이 대조해서 거부한다.
+11. **도메인별 수치를 라벨 정확도 없이 인용하지 않는다.** 한국어 내부는 ~55% 다.
+12. 라벨링 화면으로 정확도를 잴 때는 **반드시 `--blind`**.
 
 전체는 [`RULES.md`](RULES.md) 17개 항목이 유일한 기준이다.
 
@@ -123,12 +129,28 @@ Step 3 토크나이저 학습(T2a/T2b). [`PROMPTS.md`](PROMPTS.md) 4번 참조.
 
 - python 은 항상 `C:\llm_tokenizer\.conda\python.exe` 절대경로
 - 원장 시각은 UTC 다. 로컬로 보려면 `tools/ledger_tail.py`
-- 학습 운영 설정: seq 2048 / micro_bs 2 / AdamW 8bit -> 13.3GB, 9,089 tok/s
+- 원장 테이블 10종 + manifest. 컬럼을 추가했으면 `tools/migrate_ledger.py`
 - CI 는 `pytest numpy pyyaml tokenizers` 만 설치한다. 새 테스트가 서드파티를
   쓰면 `.github/workflows/ci.yml` 에 추가해야 한다
-- 파이썬 문자열 치환으로 코드를 수정할 때 `
-` 이스케이프가 조용히 어긋난다.
-  실제로 세 번 당했다 — 치환 후 반드시 `grep` 으로 적용 여부를 확인하라
+- **파이썬 문자열 치환으로 코드를 수정할 때 `\n` 이스케이프가 조용히 어긋난다.**
+  실제로 네 번 당했다. 치환 후 반드시 `grep` 이나 `assert` 로 적용 여부를 확인하라
+- 감사 TSV 를 브라우저에서 받으면 `&` 가 `&amp;` 로 온다. `html.unescape` 후 적용
+- 라벨링 화면은 `python -m http.server` 로 띄운다 (`.claude/launch.json` 의 `labeler`).
+  `file://` 로 열면 localStorage 가 막히는 브라우저가 있다
+
+---
+
+## 아직 안 만든 것
+
+| 파일 | 용도 |
+|---|---|
+| `src/tokenizer/train.py` `prune.py` `substitute.py` | T2a / T2b 학습 |
+| `src/surgery/*.py` | embedding resize, E0/E1 초기화 |
+| `src/training/cpt.py` `callbacks.py` | CPT 루프 |
+| `src/evaluation/bpb.py` | Level 2 BPB |
+| `src/evaluation/latency.py` `memory.py` | Level 4 |
+
+`src/` 의 스텁에는 각각 스펙 절 번호가 docstring 에 적혀 있다.
 
 ---
 
@@ -142,5 +164,7 @@ C:\llm_tokenizer\.conda\python.exe tools\ledger_tail.py
 C:\llm_tokenizer\.conda\python.exe -m src.utils.env --check
 C:\llm_tokenizer\.conda\python.exe tools\check_clock.py --record
 C:\llm_tokenizer\.conda\python.exe -m pytest tests/ -q
-C:\llm_tokenizer\.conda\python.exe toolsalidate_ledger.py
+C:\llm_tokenizer\.conda\python.exe tools\validate_ledger.py
 ```
+
+앞선 대화를 기억한다고 가정하지 말고, 커밋과 `experiments/` 원장만 현재 상태로 믿는다.

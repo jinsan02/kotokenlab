@@ -49,18 +49,63 @@ python 은 항상 C:\llm_tokenizer\.conda\python.exe 절대경로로 부른다.
    .conda\python.exe tools\validate_ledger.py
    .conda\python.exe -m pytest tests/ -q
 
-확인할 것:
-- 필터 통과율이 90~96% 범위인가 (파일럿 95.1%). 크게 벗어나면 필터가 바뀐 것이다
-- 탈락 사유 분포가 파일럿과 비슷한가 (too_short ~2.6%, repeated_lines ~2.2%)
-- ko_en_mixed 도메인이 3~6% 인가. 40% 가 나오면 도메인 규칙이 깨진 것이다
-  (한글 비율이 아니라 latin/(hangul+latin) 을 봐야 한다 — src/data/domain.py 참조)
-- web_general 비율. 파일럿은 문서 수 기준 약 73% 이고, 규칙을 보강했다면 줄어야 한다
-- Level 1 의 tok/char 가 파일럿과 비슷한가
-  (Qwen 0.687 / HCX 0.516 -24.9% / A.X 0.416 -39.4% 근방)
+확인할 것 (규칙 v4 + 호스트 상한 400 기준):
+- 필터 통과율 90~92% (host_cap 이 4.3% 를 걷어내므로 95% 가 아니다)
+- 탈락 사유: host_cap ~4.3%, too_short ~2.9%, repeated_lines ~1.8%
+- 도메인 분포: web_general ~64%, news ~21%, blog ~5%, ko_en_mixed ~5%
+  ko_en_mixed 가 40% 가 나오면 도메인 규칙이 깨진 것이다 (한글 비율이 아니라
+  latin/(hangul+latin) 을 봐야 한다 — src/data/domain.py)
+- 한 호스트가 상한을 넘겼는지. tripadvisor 가 상한 없이는 6.66% 를 차지한다
+- Level 1 tok/char: 한국어 Qwen 0.683 / HCX -25.2% / A.X -39.4%
+  영어 Qwen 0.217 / A.X +7.3%,  코드 Qwen 0.296 / A.X +26.6%
+- **도메인별 수치를 인용하기 전에 docs/DOMAIN_LABELS.md 를 읽어라.**
+  한국어 내부 세분화는 감사 정확도 ~55% 라 news / 기타 까지만 보고한다
 
 수치가 파일럿과 크게 다르면 **원인을 먼저 설명**하고, 의도한 변화인지 내게 확인받아라.
 결과 기록은 record(...) 커밋으로 하되 코드는 섞지 마라 (훅이 거부한다).
 파일럿 기준값은 experiments/tokenizer_metrics.tsv 의 run_id=tok_bench_pilot 행에 있다.
+```
+
+---
+
+## 1b. 도메인 규칙을 고쳤을 때 (라벨 재사용, 추가 라벨링 없음)
+
+```
+도메인 규칙을 고쳤으니 이미 있는 블라인드 라벨로 채점해라.
+사람에게 다시 라벨링을 시키지 마라 — reports/tables/domain_audit_v5.tsv 에
+블라인드로 찍은 150건이 있다.
+
+  .conda\python.exe scripts\eval_domain_rules.py --errors      # dev 105건
+  .conda\python.exe scripts\eval_domain_rules.py --holdout     # 최종 1회만
+
+dev 로는 몇 번이든 고쳐도 된다. **holdout 은 최종 측정 전용**이고, 그 숫자를
+보고 규칙을 고치면 holdout 이 dev 가 된다.
+
+기준값: 규칙 v4 호스트만 = dev 58.1% / holdout 55.6%.
+내용 신호를 켜면 dev 70.5% 로 오르지만 holdout 53.3% 로 내려간다 — 과적합이다
+(docs/DOMAIN_LABELS.md 4차). dev 만 보고 채택하지 마라.
+
+dev 와 holdout 격차가 10%p 를 넘으면 과적합을 의심하고 내게 보고해라.
+```
+
+---
+
+## 1c. 새 감사 표본이 필요할 때 (반드시 블라인드)
+
+```
+도메인 라벨 정확도를 다시 재야 한다. 새 표본을 뽑아 라벨링 화면을 만들어라.
+
+  .conda\python.exe scripts\audit_domain_rules.py --mode sample --shards 4 \
+      --seed <기존과 다른 seed> --sample-size 150 --out reports\tables\domain_audit_v6.tsv
+  .conda\python.exe scripts\make_label_ui.py --blind \
+      --audit reports\tables\domain_audit_v6.tsv --out reports\tables\domain_audit_v6_label.html
+
+**--blind 를 빼지 마라.** 예측을 보여주면 사람이 그대로 수용해서 정확도가
+측정이 아니라 항등식이 된다. 실제로 두 번 그랬다 — 88%(부풀려짐)와
+100%(무효). 블라인드로 재니 54.7% 였다 (docs/DOMAIN_LABELS.md).
+
+seed 는 기존 표본(42, 123, 2026)과 달라야 하고, 겹침 건수를 확인해서 보고해라.
+채워진 TSV 를 받으면 html.unescape 로 이스케이프를 되돌린 뒤 적용해라.
 ```
 
 ---
@@ -193,4 +238,11 @@ tok(tok) 커밋에 Tokenizer-SHA256 트레일러가 필요하다.
 - **단계마다 확인을 받게 한다.** "각 단계가 끝나면 결과를 보여주고 물어봐라" 를 넣는다
 - **기준값을 준다.** "파일럿에서 95.1% 였다" 처럼 비교 대상이 있어야 이상을 알아챈다
 - **하지 말 것을 명시한다.** 규칙 문서를 읽으라고만 하면 안 읽는다
+- **목록 밖 작업을 금지한다.** "이 목록에 없는 새 모듈·도구·원장 테이블을 추가하지
+  마라. 필요하다고 판단되면 제안만 하고 확인받아라." 를 넣지 않으면 에이전트가
+  남는 판단력으로 안 시킨 개선 작업을 만든다
+- **완료 기준을 파일명으로 못 박는다.** "scripts/xxx.py 가 존재하고 N행 TSV 를
+  만들면 완료" 처럼. "조사해라" 만으로는 조사했는지 알 수 없다
+- **측정 도구를 줄 때는 그 도구의 편향을 함께 적는다.** 예측을 보여주는 라벨링
+  화면을 주면서 정확도를 재라고 하면 앵커링된 숫자가 돌아온다
 - 긴 작업은 `--tag` 를 다르게 줘서 원장에서 구분되게 한다
