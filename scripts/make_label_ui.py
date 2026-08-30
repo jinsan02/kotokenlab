@@ -29,7 +29,9 @@ from src.data.domain import DOMAINS  # noqa: E402
 
 LABELS = [d for d in DOMAINS if d not in ("conversational", "noisy")]
 
-PAGE = """<title>도메인 감사 — {n}건</title>
+PAGE = """<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>도메인 감사 — {n}건</title>
 <style>
 :root{{--bg:#fff;--fg:#111;--mut:#666;--line:#ddd;--acc:#0b57d0;--ok:#0a7c3f}}
 @media (prefers-color-scheme:dark){{:root{{--bg:#16181c;--fg:#e6e6e6;--mut:#9aa0a6;--line:#333;--acc:#8ab4f8;--ok:#7ee2a8}}}}
@@ -66,6 +68,28 @@ kbd{{font:12px monospace;color:var(--mut)}}
   <div class="bar"><div id="pg"></div></div>
   <div class="meta" style="margin-top:6px">
     숫자키로 라벨 선택 · <kbd>Enter</kbd> 예측이 맞으면 그대로 확정 · 자동 저장됨
+    · <a href="#" id="help">라벨 설명 보기</a>
+  </div>
+  <div id="legend" style="display:none;margin-top:8px;font-size:13px;
+       border:1px solid var(--line);border-radius:8px;padding:10px">
+    <b>판단 기준: 호스트가 아니라 <u>본문</u>이 어떤 글인가.</b> URL 은 힌트로만 쓴다.<br><br>
+    <b>1 news</b> — 언론사 기사, 보도자료. 사건·발표를 전하는 글<br>
+    <b>2 encyclopedia</b> — 위키, 백과, 용어사전. 개념을 설명하는 사전식 글<br>
+    <b>3 blog</b> — 개인이 쓴 후기·일상·정보 글 (네이버블로그, 티스토리, 브런치)<br>
+    <b>4 community</b> — 게시판·카페의 <u>토론/질문/댓글</u> 중심 글<br>
+    <b>5 technical</b> — 매뉴얼, API 문서, 도움말, 설치 안내. 절차를 알려주는 글<br>
+    <b>6 ko_en_mixed</b> — 한국어와 영어가 <u>실질적으로 섞인</u> 글 (영어 표제어 사전,
+    번역 안 된 영문 단락이 큰 비중)<br>
+    <b>7 code</b> — 본문이 소스코드인 것<br>
+    <b>8 web_general</b> — 위 어디에도 안 맞는 일반 웹<br><br>
+    <b>헷갈리는 것</b><br>
+    · 여행·숙박·쇼핑 <b>리뷰</b>(트립어드바이저, 아고다) → <b>8 web_general</b>.
+      게시판 토론이 아니므로 community 아님<br>
+    · 기업 소개·제품 홍보·보도자료 형식의 마케팅 글 → <b>8 web_general</b><br>
+    · 정부·공공기관 안내문 → 절차 설명이면 <b>5 technical</b>, 소식이면 <b>1 news</b><br>
+    · 영어가 좀 섞였지만 <u>한국어 글</u>이면 6 아니라 원래 도메인<br>
+    · 정말 모르겠으면 <b>8 web_general</b> 로 두고 reviewer_note 는 비워둔다<br><br>
+    예측이 맞으면 <kbd>Enter</kbd> 하나면 된다. 규칙이 대체로 맞으니 대부분 Enter 다.
   </div>
 </header>
 <main id="list"></main>
@@ -135,6 +159,11 @@ function scrollNext(from) {{
     }}
 }}
 document.getElementById("jump").onclick = () => scrollNext(-1);
+document.getElementById("help").onclick = e => {{
+  e.preventDefault();
+  const l = document.getElementById("legend");
+  l.style.display = l.style.display === "none" ? "block" : "none";
+}};
 document.getElementById("clr").onclick = () => {{
   if (confirm("라벨을 전부 지웁니다. 계속?")) {{ gold = {{}}; save(); }}
 }};
