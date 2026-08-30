@@ -1,0 +1,15 @@
+{
+  "accum": 8,
+  "budget_bytes": 900000,
+  "dtype": "bfloat16",
+  "grad_checkpointing": true,
+  "lr": 1e-05,
+  "lr_schedule": "cosine_by_raw_bytes",
+  "micro_bs": 2,
+  "model": "Qwen/Qwen2.5-0.5B",
+  "optimizer": "adamw8bit",
+  "pool_docs": 500,
+  "revision": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+  "seed": 42,
+  "seq_len": 2048
+}

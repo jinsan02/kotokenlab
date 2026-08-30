@@ -1,0 +1,17 @@
+{
+  "accum": 8,
+  "frozen_backbone": true,
+  "lr": 0.0001,
+  "lr_schedule": "cosine_by_raw_bytes",
+  "micro_bs": 2,
+  "model": "artifacts/models/kot2b_v2_n30000_mean",
+  "optimizer": "adamw8bit",
+  "pool_docs": 1200,
+  "revision": null,
+  "rungs": [
+    1500000,
+    3000000
+  ],
+  "seed": 42,
+  "seq_len": 2048
+}
