@@ -23,8 +23,9 @@ Step 2   Level 1 벤치마크 + Gate 임계값 확정                     완료
 Step 2b  전체 규모 코퍼스 v1 (한국어 + 영어·코드 대조군)          완료
 Step 2c  Level 1 정식 측정 (v1 dev 259MB)                        완료
 Step 3   T2a / T2b 수술 + N 스윕 -> N=30,000 확정               완료
+Step 4   embedding surgery — E1 부품 평균 채택                  완료
          ────────────────────────────────────────────────
-현재     Step 4 embedding surgery (resize, E0/E1 초기화)
+현재     Step 5 Embedding Alignment + 노이즈 플로어 3 seed
 금지     phase1-tokenizer-freeze 이후 코퍼스를 바꾸지 않는다
 ```
 
@@ -139,12 +140,41 @@ N 은 CPU 스윕으로 골랐다. 한계이득이 25.2 -> 3.5 -> 1.5%p 로 반�
 대조군은 `kot2a_v1_n30000` 이고 둘은 같은 `prune_30000.tsv` 를 쓴다.
 v1 계열 T2b 는 결함이 있으니 쓰지 마라.
 
-### 4. Step 4 — embedding surgery (다음)
+### 4. Step 4 — embedding surgery 완료 (2026-08-30)
 
-[`PROMPTS.md`](PROMPTS.md) 5번, 스펙 §20~21. T2a 는 vocab 이 줄어 resize 가
-필요하고 T2b 는 형상이 그대로다. 치환된 30,000행만 다시 초기화한다 —
-`artifacts/tokenizers/kot2b_v1_n30000/id_map.json` 에 어느 ID 가 어떤 토큰으로
-바뀌었는지 들어 있다.
+전체 표는 [`reports/tables/precpt_bpb.md`](../reports/tables/precpt_bpb.md).
+학습을 전혀 하지 않은 Pre-CPT BPB 라 **초기화 효과만** 보인다.
+
+```
+                     파라미터   한국어    영어    코드
+기준선 (수술 없음)      494.0M   1.1569  0.8115  0.4387
+T2a 제거만             467.0M   1.1559  0.8116  0.4398   <- 사실상 무손실
+T2b E0 무작위          494.0M   5.0148  1.1246  0.6695
+T2b E1 부품 평균       494.0M   2.3803  0.8126  0.4413   <- 채택
+T2b E1 + 노름 보정     494.0M   3.0017  0.9448  0.5470
+T2b E2 역빈도 가중     494.0M   2.4282  0.8145  0.4525
+```
+
+**T2a 는 공짜다.** embedding 27.1M(5.5%)을 능력 손실 없이 줄인다. Level 1 에서
+압축 이득이 0 이었던 것과 같은 사실의 다른 면이다.
+
+**T2b 는 정렬 없이는 못 쓴다.** 가장 좋은 초기화도 기준선의 2.06배다. 스펙 §20 이
+수술 직후 CPT 로 가지 말라고 한 이유가 수치로 확인됐다.
+
+**노름 보정은 해로웠다 — 가설이 반증됐다.** 평균은 노름이 줄어드니 E0 처럼 분포를
+맞춰 주면 공정해질 줄 알았는데 2.3803 -> 3.0017 로 나빠졌다. tie_word_embeddings
+라서 그 벡터가 출력 로짓 방향이기도 하고, 크기를 키우면 학습 안 된 새 토큰을
+모델이 더 자신 있게 예측한다. 영어가 0.8115 -> 0.9448 로 함께 나빠진 것이
+증거다 — softmax 분모를 통해 모든 문맥을 침범한 것이다. 작은 노름은 보호 장치였다.
+
+산출물: `artifacts/models/kot2b_v2_n30000_mean` (본안),
+`artifacts/models/kot2a_v1_n30000_none` (대조군).
+
+### 5. Step 5 — Embedding Alignment 와 노이즈 플로어 (지금)
+
+[`PROMPTS.md`](PROMPTS.md) 5번. Pre-CPT 2.38 과 기준선 1.16 사이의 간격을 정렬과
+CPT 가 메워야 한다. **노이즈 플로어(seed 42/123/2026)를 먼저 재라** — sigma 를
+모르면 이후 모든 비교를 해석할 수 없다.
 
 ### 하지 않아도 되는 것
 
