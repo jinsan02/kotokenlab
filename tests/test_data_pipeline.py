@@ -110,9 +110,30 @@ def test_host_of():
 
 
 def test_host_suffix_is_not_substring():
-    """'news.' 같은 조각이 아무 데나 걸리면 안 된다."""
-    assert classify("https://mynewsletter.example.com/x", "한글 " * 200, RULES)[0] \
-        != "news"
+    """host_suffix 는 접미사 매칭이다. 부분 문자열로 아무 데나 걸리면 안 된다."""
+    ko = "한글 " * 200
+    # "seoul.co.kr" 이 host_suffix 에 있지만 앞에 다른 토큰이 붙으면 안 걸린다
+    assert classify("https://notseoul.co.kr.example.org/x", ko, RULES)[0] != "news"
+
+
+def test_news_substring_has_known_false_positives():
+    """v4 는 `host_contains: news` 를 의도적으로 넣었다. 대가를 기록해 둔다.
+
+    수동 감사에서 news 재현율이 67% 였다 — 지역·중소 언론사를 놓쳤기 때문이다.
+    재현율을 올리려고 부분 문자열 매칭을 넣었고, 그 대가로 호스트 이름 가운데에
+    'news' 가 들어간 비언론 사이트(뉴스레터 등)가 news 로 잡힌다.
+
+    이 트레이드오프는 숨기지 않는다. 오분류 비용이 재현율 이득보다 커지면
+    토큰 경계 매칭으로 바꿔야 하고, 그 판단은 다음 수동 감사 수치로 한다.
+    """
+    ko = "한글 " * 200
+    assert classify("https://mynewsletter.example.com/x", ko, RULES)[0] == "news"
+
+
+def test_subdomain_intent_beats_domain_rule():
+    """blog.koreadaily.com 은 news 가 아니라 blog 다 (v4 규칙 순서)."""
+    ko = "한글 " * 200
+    assert classify("https://blog.koreadaily.com/x", ko, RULES)[0] == "blog"
 
 
 def test_latin_share_separates_mixed_from_plain_korean():

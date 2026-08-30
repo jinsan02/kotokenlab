@@ -8,22 +8,9 @@
 # host_suffix 는 정확 일치 또는 ".<suffix>" 로 끝나는 경우만 잡는다 (부분 문자열 아님).
 # host_contains 가 부분 문자열 매칭이다.
 
-version: v3
+version: v4
 
 rules:
-  news:
-    host_suffix: ["yna.co.kr", "chosun.com", "hani.co.kr", "khan.co.kr", "mk.co.kr",
-                  "hankyung.com", "sbs.co.kr", "kbs.co.kr", "mbc.co.kr", "donga.com",
-                  "joongang.co.kr", "ohmynews.com", "newsis.com", "newswire.co.kr",
-                  "yonhapnews.co.kr", "etnews.com", "zdnet.co.kr",
-                  # 아래는 4샤드 20,000문서 조사(2026-08-30)에서 web_general 로
-                  # 새고 있던 실제 뉴스 호스트다. 표본에서 관측한 것만 넣는다.
-                  "voakorea.com", "asiae.co.kr", "etoday.co.kr", "seoul.co.kr",
-                  "koreadaily.com", "mt.co.kr", "heraldk.com", "redian.org",
-                  "ajunews.com", "newstomato.com", "zum.com", "joins.com",
-                  "hankookilbo.com", "segye.com", "kukinews.com", "nocutnews.co.kr",
-                  "pressian.com", "hankyung.com", "mediatoday.co.kr", "ytn.co.kr"]
-    host_contains: ["news.", ".news", "press.", "media."]
   encyclopedia:
     host_suffix: ["wikipedia.org", "namu.wiki", "wikimedia.org", "wiktionary.org",
                   "terms.naver.com", "britannica.com"]
@@ -34,7 +21,9 @@ rules:
   community:
     host_suffix: ["dcinside.com", "fmkorea.com", "clien.net", "ruliweb.com",
                   "ppomppu.co.kr", "bobaedream.co.kr", "inven.co.kr", "reddit.com",
-                  "82cook.com", "mlbpark.donga.com", "theqoo.net", "instiz.net"]
+                  "82cook.com", "mlbpark.donga.com", "theqoo.net", "instiz.net",
+                  "todayhumor.co.kr", "humoruniv.com", "slrclub.com", "cook.co.kr",
+                  "pann.nate.com", "arca.live", "gasengi.com", "etoland.co.kr"]
     host_contains: ["cafe.", "forum", "board", "gall", "community"]
   technical:
     host_suffix: ["stackoverflow.com", "stackexchange.com", "readthedocs.io",
@@ -42,6 +31,27 @@ rules:
                   "kernel.org", "ubuntu.com", "apache.org", "w3.org"]
     host_contains: ["docs.", "developer.", "developers.", "support.", "manual",
                     "wiki.", "help."]
+  news:
+    host_suffix: ["yna.co.kr", "chosun.com", "hani.co.kr", "khan.co.kr", "mk.co.kr",
+                  "hankyung.com", "sbs.co.kr", "kbs.co.kr", "mbc.co.kr", "donga.com",
+                  "joongang.co.kr", "ohmynews.com", "newsis.com", "newswire.co.kr",
+                  "yonhapnews.co.kr", "etnews.com", "zdnet.co.kr",
+                  "voakorea.com", "asiae.co.kr", "etoday.co.kr", "seoul.co.kr",
+                  "koreadaily.com", "mt.co.kr", "heraldk.com", "redian.org",
+                  "ajunews.com", "newstomato.com", "zum.com", "joins.com",
+                  "hankookilbo.com", "segye.com", "kukinews.com", "nocutnews.co.kr",
+                  "pressian.com", "mediatoday.co.kr", "ytn.co.kr",
+                  # 2026-08-30 수동 감사에서 web_general 로 새던 지역·중소 언론사.
+                  # 규칙에 전국 매체만 있어 news 재현율이 67% 였다.
+                  "gkyu.co.kr", "kyongbuk.co.kr", "maniareport.com", "jemin.com",
+                  "kookje.co.kr", "issuemaker.kr", "newsgn.com", "globalnewsagency.kr",
+                  "news1.kr", "kmctimes.com", "bestdaily.co.kr", "hkn24.com",
+                  "kns.tv", "safetoday.kr", "jjan.kr", "insight.co.kr",
+                  "bizhankook.com"]
+    # 일반화 패턴. 한국 언론사 도메인에 흔한 조각만 넣는다.
+    # 'report' 는 넣지 않는다 — reportworld.co.kr 같은 레포트 판매 사이트가 걸린다.
+    # 'today' 도 넣지 않는다 — todayhumor 같은 커뮤니티가 걸린다.
+    host_contains: ["news", "press.", "ilbo", "sinmun", "shinmun", "journal", "times."]
   code:
     host_suffix: ["github.com", "gitlab.com", "bitbucket.org", "github.io",
                   "sourceforge.net", "npmjs.com", "pypi.org"]
