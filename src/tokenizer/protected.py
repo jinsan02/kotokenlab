@@ -59,16 +59,23 @@ def byte_token_ids(tokenizer: Any) -> set:
 
 
 def special_token_ids(tokenizer: Any) -> set:
-    """BOS/EOS/PAD/UNK 와 추가된 special/control 토큰 (스펙 §102)."""
+    """BOS/EOS/PAD/UNK 와 **모든** added token (스펙 §102).
+
+    `special` 플래그를 믿지 않는다. Qwen2.5 는 added token 22개 중 8개가
+    `special=False` 로 들어 있다 — `<tool_call>`, `<|fim_middle|>`,
+    `<|file_sep|>` 같은 제어 토큰들이다. 플래그만 보면 이것들이 pruning
+    후보로 새어 나가고, 실제로 N=20,000 에서 그렇게 됐다.
+
+    added token 은 정의상 merge 로 만들어지지 않고 예약된 ID 를 차지한다.
+    코퍼스 빈도가 0 이어도 지우면 안 되는 것이므로 전부 보호한다.
+    """
     ids = {i for i in getattr(tokenizer, "all_special_ids", []) or [] if i is not None}
     for attr in ("bos_token_id", "eos_token_id", "pad_token_id", "unk_token_id"):
         v = getattr(tokenizer, attr, None)
         if v is not None:
             ids.add(v)
-    # added_tokens_decoder 에는 chat template 용 control 토큰이 들어 있다
-    for tid, tok in (getattr(tokenizer, "added_tokens_decoder", {}) or {}).items():
-        if getattr(tok, "special", False):
-            ids.add(int(tid))
+    for tid in (getattr(tokenizer, "added_tokens_decoder", {}) or {}):
+        ids.add(int(tid))
     return ids
 
 

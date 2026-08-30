@@ -1,0 +1,8 @@
+{
+  "donor_pool": 60000,
+  "mode": "t2b",
+  "num_pruned": 20000,
+  "repo": "Qwen/Qwen2.5-0.5B",
+  "revision": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+  "tag": "v1"
+}

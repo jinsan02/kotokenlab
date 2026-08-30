@@ -16,20 +16,26 @@ tokenizers:
   #   path: artifacts/tokenizers/kosub_v1
 
 data:
-  manifest_sha256: MANIFEST_SHA256_HERE
+  # v1 코퍼스. 원장 data_v1_seed42 에서 읽은 값이다 (docs/PLAN.md 고정된 계보).
+  manifest_sha256: e993d3267eea5ec0096c39d0dc8cf17c0e02561d4d02371a625f85b5ea80f25c
   split: dev
   # 전체 평균 하나만 내지 않는다. 도메인별로 행을 남긴다 (스펙 §16).
-  domains: [news, encyclopedia, blog, community, conversational, technical, ko_en_mixed, code, noisy]
+  # v1 코퍼스에 실제로 있는 라벨. 한국어 내부 세분화는 감사 정확도 ~55% 라
+  # 보고는 news / 기타 까지만 한다 (docs/DOMAIN_LABELS.md).
+  domains: [news, encyclopedia, blog, community, technical, ko_en_mixed,
+            web_general, code, english]
 
 metrics:
   compression: [tok_per_char, tok_per_byte, bytes_per_tok, tok_per_eojeol]
   length_percentiles: [50, 90, 95, 99]
   # 검토 A7: fertility 는 "정답 분절"이 있어야 계산된다. 분석기와 버전을 고정한다.
   # 정하기 전에는 fertility_mean 을 NA 로 둔다 — 비워두는 것이 임의 정의보다 낫다.
+  # 2026-08-30 분석기를 kiwipiepy 로 고정하고 켰다. 버전은 측정 때마다
+  # tokenizer_metrics.tsv 와 화면에 남는다.
   fertility:
-    enabled: false
-    analyzer: null          # kiwipiepy | mecab-ko
-    analyzer_version: null
+    enabled: true
+    analyzer: kiwipiepy
+    analyzer_version: "0.23.2"
 
 # 스펙 §17 Candidate Gate — 보고 중심 + 파국 방지 하한
 #
