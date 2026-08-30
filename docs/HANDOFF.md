@@ -1,8 +1,12 @@
 # 인수인계 — 현재 상태와 다음 순서
 
-최종 갱신 2026-08-30. 규칙은 [`RULES.md`](RULES.md), 범위와 종료 조건은
+최종 갱신 2026-08-31. 규칙은 [`RULES.md`](RULES.md), 범위와 종료 조건은
 [`PLAN.md`](PLAN.md), 프롬프트는 [`PROMPTS.md`](PROMPTS.md),
 도메인 라벨 신뢰 범위는 [`DOMAIN_LABELS.md`](DOMAIN_LABELS.md).
+
+**스펙과 다르게 한 것은 [`DESIGN_DELTA.md`](DESIGN_DELTA.md) 에 모여 있다.**
+Gate 이원화, 도메인 2분류, 인접쌍 채굴, pretokenizer 경계 함정, 노름 보정 반증,
+조건별 sigma — 스펙만 읽고 코드를 고치면 이 결정들을 되돌리게 된다.
 
 ---
 

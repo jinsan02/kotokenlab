@@ -107,7 +107,13 @@ def check(root: Path | None = None) -> list:
                     errors.append(f"{path}: 출력 셀을 비우고 커밋하라")
                     break
 
-    errors.extend(validate(root))
+    # 미종료 run 검사는 원장을 건드리는 커밋에서만 한다. 학습이 도는 동안에는
+    # 그 run 이 정상적으로 start 만 있는 상태라, 문서만 고치는 커밋까지 막는 것은
+    # 오탐이다. 실제로 6시간짜리 CPT 중에 문서 커밋이 막혔다.
+    touches_ledger = any(
+        f.startswith("experiments/") or f.startswith("data/manifests/")
+        for f in files)
+    errors.extend(validate(root, check_lifecycle=touches_ledger))
     return errors
 
 

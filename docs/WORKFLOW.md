@@ -63,9 +63,11 @@ Config-SHA256: <config.json 의 sha256>
 
 ## 개발 순서 (스펙 §97~§112)
 
-현재 위치는 **전체 규모 실행 직전**이다. 소규모 관통·Level 1·영어/코드
-대조군·도메인 라벨 검증까지 끝났다. 남은 것은 정식 코퍼스를 만드는 일이고,
-manifest 가 고정되기 전에는 토크나이저 학습과 CPT 로 넘어가지 않는다.
+현재 위치는 **Step 5 Embedding Alignment 실행 중**이다. v1 코퍼스와 Level 1 은
+`phase1-tokenizer-freeze` 로 얼렸고, T2a/T2b 토크나이저와 embedding 수술,
+노이즈 플로어(조건별 sigma)까지 끝났다. 남은 것은 정렬과 본 CPT 다.
+
+스펙과 다르게 한 결정들은 [`DESIGN_DELTA.md`](DESIGN_DELTA.md) 에 모여 있다.
 
 | Step | 내용 | 상태 |
 |---|---|---|

@@ -236,8 +236,10 @@ Step 3  T2a / T2b 수술 — N=30,000, 한국어 -30.2%           완료
         ─────────────────────────────────────────────
 Step 4  embedding surgery — E1 부품 평균 채택, Pre-CPT BPB 2.3803   완료
         ─────────────────────────────────────────────
-현재    Step 5 Embedding Alignment + 노이즈 플로어 3 seed
-다음    CPT (C0 / T2a / T2b x 50M, Equal Raw Data)
+Step 5  노이즈 플로어 — 조건별 sigma 측정 (C0 / T2a / T2b)      완료
+        ─────────────────────────────────────────────
+현재    Embedding Alignment (3조건) -> 본 CPT (168.5MB, Equal Raw Data)
+다음    Equal Token Budget 실험 (스펙 §32~33) -> T3 New BBPE
 ```
 
 측정된 것 (v1 dev, run `tok_bench_v1`):

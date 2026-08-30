@@ -124,7 +124,15 @@ def _check_duplicates(rows: list, label: str, keys: tuple) -> list:
     return dups
 
 
-def validate(root: Path | str | None = None) -> list:
+def validate(root: Path | str | None = None, *,
+             check_lifecycle: bool = True) -> list:
+    """원장 무결성 검사.
+
+    check_lifecycle 을 끄면 "start 만 있고 안 끝난 run" 검사를 건너뛴다.
+    학습이 도는 동안에는 그 run 이 정상적으로 start 만 있는 상태이므로, 그때
+    문서 커밋까지 막히는 것은 오탐이다. 원장을 실제로 건드리는 커밋에서만 켠다
+    (tools/precheck.py 참조). 사람이 직접 부를 때는 기본값 그대로 전부 본다.
+    """
     root = Path(root or ledger.repo_root())
     errors: list = []
     run_ids: set = set()
@@ -143,7 +151,8 @@ def validate(root: Path | str | None = None) -> list:
                 errors.append(f"LEDGER.tsv:{n}: 알 수 없는 phase {row.get('phase')!r}")
             if row.get("status") not in ledger.RUN_STATUSES:
                 errors.append(f"LEDGER.tsv:{n}: 알 수 없는 status {row.get('status')!r}")
-        errors += _check_run_lifecycle(rows)
+        if check_lifecycle:
+            errors += _check_run_lifecycle(rows)
         errors += _check_duplicates(rows, "LEDGER.tsv",
                                     ("run_id", "status", "ts_utc"))
 

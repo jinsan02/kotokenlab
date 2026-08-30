@@ -14,6 +14,8 @@
 5. [`docs/HANDOFF.md`](docs/HANDOFF.md) — 지금까지 된 것과 다음 할 일
 6. [`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md) — 도메인 라벨로 무엇을
    주장할 수 있는지. 도메인별 수치를 인용하기 전에 반드시 본다
+6b. [`docs/DESIGN_DELTA.md`](docs/DESIGN_DELTA.md) — **스펙과 다르게 한 것과 그 이유.**
+   스펙만 읽고 코드를 고치면 이미 반증된 가설을 되살리게 된다
 7. [`docs/SPEC_KoTokenLab.md`](docs/SPEC_KoTokenLab.md) — 연구 설계 원본. 필요한 절만
 
 그리고 현재 상태를 복원한다:
