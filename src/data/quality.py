@@ -30,12 +30,38 @@ class QualityConfig:
     min_chars: int = 200
     max_chars: int = 200_000
     min_hangul_ratio: float = 0.15          # 이보다 낮으면 한국어 코퍼스에서 제외
+    min_latin_ratio: float = 0.0            # 영어 대조군에서만 쓴다
     min_language_score: float = 0.60        # FineWeb-2 의 language_score
     max_line_repeat_ratio: float = 0.30     # 같은 줄의 반복
     min_distinct_ngram_ratio: float = 0.25  # 고유 5-gram 비율 (SEO 스팸은 매우 낮다)
     max_digit_ratio: float = 0.30
     min_mean_line_chars: float = 10.0       # 메뉴·링크 나열 문서 배제
     ngram_n: int = 5
+    check_line_repeat: bool = True
+    check_ngram: bool = True
+
+    @classmethod
+    def for_language(cls, lang: str) -> "QualityConfig":
+        """언어별 프로파일. 같은 필터를 그대로 쓰면 대조군이 통째로 날아간다.
+
+        ko    기본값. 한글 비율 하한이 있다.
+        en    한글 하한을 끄고 라틴 하한을 건다. 영어 regression 측정용이라
+              한국어 문서가 섞이면 안 된다.
+        code  반복 검사를 **끈다**. 코드는 import 줄, 닫는 괄호, 보일러플레이트가
+              정당하게 반복되므로 한국어 SEO 스팸 기준을 적용하면 멀쩡한 파일이
+              전부 탈락한다. 길이 하한도 낮춘다 (짧은 소스 파일이 흔하다).
+        """
+        if lang == "ko":
+            return cls()
+        if lang == "en":
+            return cls(min_hangul_ratio=0.0, min_latin_ratio=0.50,
+                       min_language_score=0.0)
+        if lang == "code":
+            return cls(min_chars=120, min_hangul_ratio=0.0,
+                       min_language_score=0.0, max_digit_ratio=0.60,
+                       min_mean_line_chars=3.0,
+                       check_line_repeat=False, check_ngram=False)
+        raise ValueError(f"알 수 없는 언어 프로파일: {lang!r} (ko|en|code)")
 
 
 @dataclass
@@ -109,14 +135,19 @@ def check(text: str, cfg: QualityConfig, language_score: float | None = None) ->
     stats = char_stats(text)
     if stats["hangul"] < cfg.min_hangul_ratio:
         return "low_hangul"
+    if cfg.min_latin_ratio and stats["latin"] < cfg.min_latin_ratio:
+        return "low_latin"
+    if cfg.min_latin_ratio and stats["hangul"] > 0.05:
+        return "korean_in_english"    # 영어 대조군에 한국어가 섞이면 측정이 흐려진다
     if stats["digit"] > cfg.max_digit_ratio:
         return "digit_heavy"
 
     if mean_line_chars(text) < cfg.min_mean_line_chars:
         return "short_lines"          # 메뉴·링크 나열
-    if line_repeat_ratio(text) > cfg.max_line_repeat_ratio:
+    if cfg.check_line_repeat and line_repeat_ratio(text) > cfg.max_line_repeat_ratio:
         return "repeated_lines"
-    if distinct_ngram_ratio(text, cfg.ngram_n) < cfg.min_distinct_ngram_ratio:
+    if cfg.check_ngram and \
+            distinct_ngram_ratio(text, cfg.ngram_n) < cfg.min_distinct_ngram_ratio:
         return "repeated_ngram"       # SEO 스팸
 
     return None

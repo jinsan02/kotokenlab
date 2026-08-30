@@ -40,14 +40,28 @@ BATCH = 256
 
 
 def load_docs(split: str, root: Path | None = None) -> list:
-    """data/interim/docs/<split>.jsonl 를 읽는다 (파이프라인 산출물)."""
-    path = Path(root or ROOT) / "data" / "interim" / "docs" / f"{split}.jsonl"
-    if not path.exists():
+    """data/interim/docs/ 에서 이 split 의 문서를 전부 읽는다.
+
+    한국어는 `<split>.jsonl`, 영어·코드 대조군은 `<split>_control_*.jsonl` 이다.
+    두 파이프라인이 서로의 파일을 건드리지 않으므로 실행 순서에 의존하지 않고,
+    있는 것만 읽는다. 대조군이 없으면 Candidate Gate 가 regression 조건을
+    "판정 불가" 로 남긴다 — 통과로 치지 않는다.
+    """
+    base = Path(root or ROOT) / "data" / "interim" / "docs"
+    paths = sorted(p for p in base.glob(f"{split}*.jsonl")
+                   if p.name == f"{split}.jsonl"
+                   or p.name.startswith(f"{split}_control_"))
+    if not paths:
         raise FileNotFoundError(
-            f"{path} 가 없다. 먼저 scripts/run_data_pipeline.py 를 돌려라."
+            f"{base}/{split}*.jsonl 이 없다. "
+            "먼저 scripts/run_data_pipeline.py 를 돌려라."
         )
-    with path.open("r", encoding="utf-8") as fh:
-        return [json.loads(ln) for ln in fh if ln.strip()]
+    docs: list = []
+    for path in paths:
+        with path.open("r", encoding="utf-8") as fh:
+            docs += [json.loads(ln) for ln in fh if ln.strip()]
+    print(f"  읽은 파일: {', '.join(p.name for p in paths)}")
+    return docs
 
 
 def load_tokenizer(spec: dict):
@@ -119,7 +133,8 @@ def gate(baseline: dict, candidate: dict, cfg: dict) -> list:
     도메인이 없으면 그 조건은 **판정하지 않는다** — 통과로 치지 않는다.
     """
     fails: list = []
-    ko_domains = [d for d in baseline if d not in ("ko_en_mixed", "code")]
+    ko_domains = [d for d in baseline
+                  if d not in ("ko_en_mixed", "code", "english")]
     if ko_domains:
         b = sum(baseline[d]["n_tokens"] for d in ko_domains) / \
             sum(baseline[d]["n_chars"] for d in ko_domains)
@@ -129,14 +144,17 @@ def gate(baseline: dict, candidate: dict, cfg: dict) -> list:
         need = float(cfg.get("korean_tok_per_char_improvement_min", 0.15))
         if gain < need:
             fails.append(f"한국어 압축 개선 {gain * 100:.1f}% < 요구 {need * 100:.0f}%")
-    for domain, key, label in (("code", "code_degradation_max", "코드"),):
+    for domain, key, label, default in (
+        ("english", "english_degradation_max", "영어", 0.05),
+        ("code", "code_degradation_max", "코드", 0.10),
+    ):
         if domain in baseline and domain in candidate:
             b = baseline[domain]["tok_per_char"]
             c = candidate[domain]["tok_per_char"]
             deg = (c - b) / b
-            lim = float(cfg.get(key, 0.10))
+            lim = float(cfg.get(key, default))
             if deg > lim:
-                fails.append(f"{label} 악화 {deg * 100:.1f}% > 상한 {lim * 100:.0f}%")
+                fails.append(f"{label} 악화 {deg * 100:+.1f}% > 상한 {lim * 100:.0f}%")
         else:
             fails.append(f"{domain} 도메인이 코퍼스에 없어 판정 불가")
     return fails
