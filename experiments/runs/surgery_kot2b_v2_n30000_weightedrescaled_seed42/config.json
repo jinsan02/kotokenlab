@@ -1,0 +1,11 @@
+{
+  "base_repo": "Qwen/Qwen2.5-0.5B",
+  "base_revision": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+  "init": "weighted",
+  "mode": "t2b",
+  "rescale": true,
+  "seed": 42,
+  "stats_tag": "v1",
+  "tokenizer": "kot2b_v2_n30000",
+  "weight_scheme": "freq"
+}

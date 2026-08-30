@@ -1,0 +1,8 @@
+{
+  "max_bytes": 2000000,
+  "model": "artifacts/models/kot2b_v2_n30000_random",
+  "purpose": "pre_cpt_bpb",
+  "revision": null,
+  "seq_len": 2048,
+  "split": "dev"
+}

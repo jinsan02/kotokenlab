@@ -215,8 +215,10 @@ Step 3  전체 규모 코퍼스 (v1) — 한국어 118.7만 문서 + 영어·코
         ─────────────────────────────────────────────
 Step 3  T2a / T2b 수술 — N=30,000, 한국어 -30.2%           완료
         ─────────────────────────────────────────────
-현재    Step 4 embedding surgery (E0/E1 초기화)
-다음    노이즈 플로어 3 seed -> CPT
+Step 4  embedding surgery — E1 부품 평균 채택, Pre-CPT BPB 2.3803   완료
+        ─────────────────────────────────────────────
+현재    Step 5 Embedding Alignment + 노이즈 플로어 3 seed
+다음    CPT (C0 / T2a / T2b x 50M, Equal Raw Data)
 ```
 
 측정된 것 (v1 dev, run `tok_bench_v1`):
