@@ -67,8 +67,7 @@ kbd{{font:12px monospace;color:var(--mut)}}
   </div>
   <div class="bar"><div id="pg"></div></div>
   <div class="meta" style="margin-top:6px">
-    숫자키로 라벨 선택 · <kbd>Enter</kbd> 예측이 맞으면 그대로 확정 · 자동 저장됨
-    · <a href="#" id="help">라벨 설명 보기</a>
+    {mode_help} · 자동 저장됨 · <a href="#" id="help">라벨 설명 보기</a>
   </div>
   <div id="legend" style="display:none;margin-top:8px;font-size:13px;
        border:1px solid var(--line);border-radius:8px;padding:10px">
@@ -89,7 +88,7 @@ kbd{{font:12px monospace;color:var(--mut)}}
     · 정부·공공기관 안내문 → 절차 설명이면 <b>5 technical</b>, 소식이면 <b>1 news</b><br>
     · 영어가 좀 섞였지만 <u>한국어 글</u>이면 6 아니라 원래 도메인<br>
     · 정말 모르겠으면 <b>8 web_general</b> 로 두고 reviewer_note 는 비워둔다<br><br>
-    예측이 맞으면 <kbd>Enter</kbd> 하나면 된다. 규칙이 대체로 맞으니 대부분 Enter 다.
+    {mode_note}
   </div>
 </header>
 <main id="list"></main>
@@ -99,6 +98,7 @@ const LABELS = {labels};
 // 감사 파일마다 키를 다르게 준다. 같은 키를 쓰면 v3 에서 찍은 라벨이 v4 화면에
 // 이미 채워진 것처럼 떠서, 새 표본을 라벨링한 줄 알고 잘못된 정확도를 얻는다.
 const KEY = {storage_key};
+const BLIND = {blind};
 let gold = {{}};
 try {{ gold = JSON.parse(localStorage.getItem(KEY) || "{{}}"); }} catch (e) {{ gold = {{}}; }}
 
@@ -124,13 +124,13 @@ ROWS.forEach((r, i) => {{
   const d = document.createElement("div");
   d.className = "card"; d.id = "c" + i;
   const btns = LABELS.map((l, k) =>
-    `<button data-l="${{l}}" data-i="${{i}}" class="${{l === r.predicted_domain ? 'same' : ''}}">`
+    `<button data-l="${{l}}" data-i="${{i}}" class="${{!BLIND && l === r.predicted_domain ? 'same' : ''}}">`
     + `${{k + 1}}. ${{l}}</button>`).join("");
   d.innerHTML =
     `<div class="meta">${{i + 1}}/${{ROWS.length}} · ${{r.sample_id}} · <b>${{r.host}}</b></div>`
     + `<div class="meta">${{r.url}}</div>`
     + `<div class="prev">${{r.text_preview}}</div>`
-    + `<div>규칙 예측: <span class="pred">${{r.predicted_domain}}</span></div>`
+    + (BLIND ? "" : `<div>규칙 예측: <span class="pred">${{r.predicted_domain}}</span></div>`)
     + `<div class="btns">${{btns}}</div>`;
   list.appendChild(d);
 }});
@@ -147,7 +147,9 @@ document.addEventListener("keydown", e => {{
   const host = card && card.closest(".card");
   if (!host) return;
   const i = +host.id.slice(1), r = ROWS[i];
-  if (e.key === "Enter") {{ gold[r.sample_id] = r.predicted_domain; save(); scrollNext(i); }}
+  if (e.key === "Enter" && !BLIND) {{
+    gold[r.sample_id] = r.predicted_domain; save(); scrollNext(i);
+  }}
   const n = parseInt(e.key, 10);
   if (n >= 1 && n <= LABELS.length) {{
     gold[r.sample_id] = LABELS[n - 1]; save(); scrollNext(i);
@@ -169,11 +171,18 @@ document.getElementById("help").onclick = e => {{
 document.getElementById("clr").onclick = () => {{
   if (confirm("라벨을 전부 지웁니다. 계속?")) {{ gold = {{}}; save(); }}
 }};
+// 화면에 안전하게 넣으려고 HTML 이스케이프한 값을 되돌린다.
+// 안 되돌리면 내려받은 TSV 의 URL 이 &amp; 로 오염된다 (실제로 38건 그랬다).
+function unesc(s) {{
+  const d = document.createElement("textarea");
+  d.innerHTML = s;
+  return d.value;
+}}
 document.getElementById("dl").onclick = () => {{
   const head = {header};
   const lines = [head.join("\\t")];
   ROWS.forEach(r => lines.push(head.map(c =>
-    c === "gold_domain" ? (gold[r.sample_id] || "") : (r[c] || "")).join("\\t")));
+    c === "gold_domain" ? (gold[r.sample_id] || "") : unesc(r[c] || "")).join("\\t")));
   const blob = new Blob([lines.join("\\n") + "\\n"], {{type: "text/tab-separated-values"}});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -189,6 +198,8 @@ def main(argv: list | None = None) -> int:
     ap = argparse.ArgumentParser(description="도메인 감사 라벨링 화면 생성")
     ap.add_argument("--audit", default="reports/tables/domain_audit.tsv")
     ap.add_argument("--out", default="reports/tables/domain_audit_label.html")
+    ap.add_argument("--blind", action="store_true",
+                    help="규칙 예측을 숨긴다 (정확도 측정용 기본 권장)")
     args = ap.parse_args(argv)
 
     src = ROOT / args.audit
@@ -206,18 +217,36 @@ def main(argv: list | None = None) -> int:
 
     out = ROOT / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
-    storage_key = f"domain_audit::{src.stem}"
+    storage_key = f"domain_audit::{src.stem}{'::blind' if args.blind else ''}"
+    if args.blind:
+        mode_help = "숫자키 1~8 로 라벨 선택 (규칙 예측은 <b>가려져 있다</b>)"
+        mode_note = ("이 화면은 <b>블라인드</b> 모드다. 규칙이 뭐라고 했는지 보이지 "
+                     "않으므로 본문만 보고 판단한다. 예측을 보여주면 그대로 수용하기 "
+                     "쉬워서 정확도가 항등식이 된다 — 실제로 그렇게 200건이 100%로 "
+                     "나온 적이 있다.")
+    else:
+        mode_help = ("숫자키로 라벨 선택 · <kbd>Enter</kbd> 예측이 맞으면 그대로 확정")
+        mode_note = ("예측이 맞으면 <kbd>Enter</kbd> 하나면 된다. "
+                     "<b>단, 정확도를 재려면 --blind 로 만든 화면을 써라</b> — "
+                     "예측을 보고 수용하면 측정이 아니라 항등식이 된다.")
     out.write_text(
         PAGE.format(n=len(rows),
                     rows=json.dumps(rows, ensure_ascii=False),
                     labels=json.dumps(LABELS, ensure_ascii=False),
                     header=json.dumps(header, ensure_ascii=False),
-                    storage_key=json.dumps(storage_key)),
+                    storage_key=json.dumps(storage_key),
+                    blind="true" if args.blind else "false",
+                    mode_help=mode_help, mode_note=mode_note),
         encoding="utf-8", newline="\n")
 
-    print(f"{out}\n  표본 {len(rows)}건, 라벨 {len(LABELS)}종")
+    print(f"{out}\n  표본 {len(rows)}건, 라벨 {len(LABELS)}종"
+          f"{'  [블라인드]' if args.blind else ''}")
     print(f"  저장 키: {storage_key}  (감사 파일마다 분리된다)\n")
-    print("브라우저로 열어서 숫자키로 라벨을 찍는다. 예측이 맞으면 Enter.")
+    if args.blind:
+        print("규칙 예측이 가려져 있다. 본문만 보고 숫자키로 찍는다.")
+    else:
+        print("브라우저로 열어서 숫자키로 라벨을 찍는다. 예측이 맞으면 Enter.")
+        print("정확도 측정이 목적이면 --blind 를 써라.")
     print("작업은 자동 저장되니 중간에 닫아도 된다.\n")
     print("다 채우면 TSV 를 내려받아 아래 경로를 덮어쓰고:")
     print(f"  {src}")
