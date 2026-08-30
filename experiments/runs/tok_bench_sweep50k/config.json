@@ -1,0 +1,28 @@
+{
+  "config_file": "configs/tokenizer/t2_sweep50k.yaml",
+  "fertility_sample": 1500,
+  "gate": {
+    "code_degradation_hard": 0.4,
+    "code_degradation_report": 0.1,
+    "english_degradation_hard": 0.25,
+    "english_degradation_report": 0.05,
+    "korean_tok_per_char_improvement_min": 0.15
+  },
+  "morph_analyzer": "kiwipiepy-0.23.2",
+  "split": "dev",
+  "tokenizers": [
+    {
+      "name": "qwen_original",
+      "repo_id": "Qwen/Qwen2.5-0.5B",
+      "revision": "060db6499f32faf8b98477b0a26969ef7d8b9987"
+    },
+    {
+      "name": "t2a_n50000",
+      "path": "artifacts/tokenizers/kot2a_v1_n50000"
+    },
+    {
+      "name": "t2b_n50000",
+      "path": "artifacts/tokenizers/kot2b_v1_n50000"
+    }
+  ]
+}

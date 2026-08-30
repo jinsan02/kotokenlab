@@ -8,7 +8,9 @@
 
 ## 한 줄 상태
 
-**Level 1 정식 측정까지 완료. `phase1-tokenizer-freeze` 로 얼렸다.** 한국어 118.7만 문서(정제 4.73GB)와
+**Level 1 정식 측정까지 완료. Step 3 T2a/T2b 도 끝났다.**
+코퍼스는 `phase1-tokenizer-freeze` 로 얼렸고, T2b n=30,000 이 한국어 -28.4% 로
+Candidate Gate 를 통과했다. 다음은 Step 4 embedding surgery 다. 한국어 118.7만 문서(정제 4.73GB)와
 영어·코드 대조군을 만들었고 `manifest_sha256` 을 [`PLAN.md`](PLAN.md) 에 고정했다.
 남은 것은 그 코퍼스로 Level 1 을 다시 재고 얼리는 일이다.
 
@@ -20,8 +22,9 @@ Step 1c  도메인 라벨 블라인드 감사                               완�
 Step 2   Level 1 벤치마크 + Gate 임계값 확정                     완료
 Step 2b  전체 규모 코퍼스 v1 (한국어 + 영어·코드 대조군)          완료
 Step 2c  Level 1 정식 측정 (v1 dev 259MB)                        완료
+Step 3   T2a / T2b 수술 + N 스윕 -> N=30,000 확정               완료
          ────────────────────────────────────────────────
-현재     Step 3 토크나이저 학습 (T2a / T2b)
+현재     Step 4 embedding surgery (resize, E0/E1 초기화)
 금지     phase1-tokenizer-freeze 이후 코퍼스를 바꾸지 않는다
 ```
 
@@ -106,10 +109,35 @@ v1 dev 259.2MB / 63,961문서를 토크나이저 3종으로 234초에 쟀다. �
 Candidate Gate 는 hcx_seed / ax_4_0_light 둘 다 하드 상한 이내라 GPU 진행이지만,
 둘 다 코드 악화가 보고 기준 10% 를 넘겼다 (+17.6% / +22.5%).
 
-### 3. Step 3 — 토크나이저 학습 T2a / T2b
+### 3. Step 3 — T2a / T2b 완료 (2026-08-30)
 
-[`PROMPTS.md`](PROMPTS.md) 4번. 신규성 방어 지점이다:
-`T2a` vocab 축소(선행연구 설정) vs `T2b` 크기 유지 치환(우리 주장).
+전체 표는 [`reports/tables/t2_sweep.md`](../reports/tables/t2_sweep.md).
+
+```
+             한국어      영어     코드    vocab
+T2a n=30,000  +0.0%    +0.0%   +0.1%   121,643  (embedding -26.9M)
+T2b n=30,000  -28.4%   +0.0%   -0.8%   151,643  (유지)
+```
+
+**T2a 가 못한 것이 아니라 사는 물건이 다르다.** 제거 대상이 코퍼스에서 거의
+안 쓰이므로(3만개 = 13.6억 토큰 중 0.0035%) 지우기만 해서는 토큰화가 바뀔
+이유가 없다. T2a 가 사는 것은 파라미터 26.9M(embedding 의 19.7%) 감소이고,
+T2b 가 사는 것은 압축 -28.4% 다. 압축은 **빈자리를 채워야** 나온다.
+
+외부 참조 대비: HCX 는 한국어 -24.9% 에 코드 +17.6%, A.X 는 -39.4% 에 코드
++22.5% 다. T2b 는 HCX 보다 한국어가 좋으면서 코드 손해가 없다.
+
+N 은 CPU 스윕으로 골랐다. 50,000 이 -30.2% 로 1.8%p 낫지만 제거 비용이 10배고
+그 지점부터 T2a 코드가 +0.8% 로 악화된다.
+
+산출물: `artifacts/tokenizers/ko{t2a,t2b}_v1_n30000`, 원장 `experiments/artifacts.tsv`.
+
+### 4. Step 4 — embedding surgery (다음)
+
+[`PROMPTS.md`](PROMPTS.md) 5번, 스펙 §20~21. T2a 는 vocab 이 줄어 resize 가
+필요하고 T2b 는 형상이 그대로다. 치환된 30,000행만 다시 초기화한다 —
+`artifacts/tokenizers/kot2b_v1_n30000/id_map.json` 에 어느 ID 가 어떤 토큰으로
+바뀌었는지 들어 있다.
 
 ### 하지 않아도 되는 것
 
