@@ -1,0 +1,42 @@
+tokenizers:
+- name: qwen_original
+  repo_id: Qwen/Qwen2.5-0.5B
+  revision: 060db6499f32faf8b98477b0a26969ef7d8b9987
+- name: t2a_n50000
+  path: artifacts/tokenizers/kot2a_v1_n50000
+- name: t2b_n50000
+  path: artifacts/tokenizers/kot2b_v1_n50000
+data:
+  manifest_sha256: e993d3267eea5ec0096c39d0dc8cf17c0e02561d4d02371a625f85b5ea80f25c
+  split: dev
+  domains:
+  - news
+  - encyclopedia
+  - blog
+  - community
+  - technical
+  - ko_en_mixed
+  - web_general
+  - code
+  - english
+metrics:
+  compression:
+  - tok_per_char
+  - tok_per_byte
+  - bytes_per_tok
+  - tok_per_eojeol
+  length_percentiles:
+  - 50
+  - 90
+  - 95
+  - 99
+  fertility:
+    enabled: true
+    analyzer: kiwipiepy
+    analyzer_version: 0.23.2
+gate:
+  korean_tok_per_char_improvement_min: 0.15
+  english_degradation_report: 0.05
+  code_degradation_report: 0.1
+  english_degradation_hard: 0.25
+  code_degradation_hard: 0.4
