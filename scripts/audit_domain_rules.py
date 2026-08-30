@@ -51,23 +51,38 @@ DEFAULT_AUDIT = ROOT / "reports" / "tables" / "domain_audit.tsv"
 
 
 def collect(max_docs: int, max_bytes: int, shards: int, rules: DomainRules) -> list:
-    """품질 필터를 통과한 문서만 모은다. 규칙은 통과 문서에만 적용되기 때문이다."""
+    """품질 필터와 **호스트 상한**을 통과한 문서만 모은다.
+
+    파이프라인과 같은 조건이어야 한다. 감사 도구가 상한을 빼먹으면 조사 결과와
+    실제 코퍼스가 어긋나서, 규칙을 잘못된 분포 위에서 고치게 된다.
+    """
     qcfg = QualityConfig()
+    host_cap = int(rules.spam.get("max_docs_per_host", 0) or 0)
+    host_seen: Counter = Counter()
     kept: list = []
-    seen = 0
+    seen = capped = 0
     for row in stream_docs(max_docs, max_bytes, shards=shards):
         seen += 1
         text = normalize_text(row["text"])
         if check(text, qcfg, row.get("language_score")):
             continue
         domain, host = classify(row["url"], text, rules)
+        if host_cap and host:
+            host_seen[host] += 1
+            if host_seen[host] > host_cap:
+                capped += 1
+                continue
         kept.append({
             "doc_id": row["doc_id"], "url": row["url"], "host": host,
             "text": text, "domain": domain,
             "by_rule": classify_host(host, rules) is not None,
         })
     print(f"수집 {seen:,}건 -> 필터 통과 {len(kept):,}건 "
-          f"({len(kept) / max(seen, 1) * 100:.1f}%)\n")
+          f"({len(kept) / max(seen, 1) * 100:.1f}%)")
+    if host_cap:
+        print(f"  호스트 상한 {host_cap:,}건/호스트 로 {capped:,}건 제외\n")
+    else:
+        print()
     return kept
 
 

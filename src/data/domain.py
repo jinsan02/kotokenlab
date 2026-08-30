@@ -92,11 +92,21 @@ def latin_share(text: str) -> float:
 def classify(url: str, text: str, rules: DomainRules) -> tuple:
     """(domain, host) 를 돌려준다.
 
-    한영 혼용 판정이 호스트 판정보다 **우선**한다. 스펙 §5 의 Ko-En Mixed 는
-    출처가 아니라 문서 성격이고, 토크나이저 압축률이 가장 다르게 나오는 구간이다.
+    **호스트가 명시적으로 매칭되면 그것이 이긴다.** 처음에는 한영 혼용 판정을
+    앞에 뒀는데, 4샤드 감사에서 `docs.blackberry.com` 이 technical 이 아니라
+    ko_en_mixed 로 분류되는 것을 발견했다. 영어가 섞인 기술문서는 technical
+    이기도 하고 ko_en_mixed 이기도 한데 컬럼이 하나뿐이라 하나를 잃는다.
+    출처가 확실한 쪽(technical)을 남기는 것이 도메인별 평가에 더 쓸모 있다.
+
+    ko_en_mixed 는 이제 **호스트 규칙에 걸리지 않은 문서**의 내용 기반 라벨이다.
+    trade-off: 알려진 호스트의 한영 혼용 문서는 ko_en_mixed 로 잡히지 않는다.
+    그 문서들의 압축률을 따로 보려면 latin_share 를 별도 신호로 기록해야 한다.
     """
     host = host_of(url)
+    by_host = classify_host(host, rules)
+    if by_host:
+        return by_host, host
     threshold = float(rules.ko_en_mixed.get("latin_share_min", 0.35))
     if latin_share(text) >= threshold:
         return "ko_en_mixed", host
-    return classify_host(host, rules) or rules.fallback, host
+    return rules.fallback, host

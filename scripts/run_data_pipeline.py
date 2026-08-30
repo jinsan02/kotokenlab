@@ -140,6 +140,11 @@ def main(argv: list | None = None) -> int:
         stats = FilterStats()
         docs: list = []
         raw_bytes = 0
+        # configs 의 max_docs_per_host 는 선언만 되어 있고 강제되지 않았다.
+        # 4샤드 조사에서 tripadvisor 한 호스트가 6.66% 를 차지했다 — 상한이 없으면
+        # 한 사이트의 문체가 토크나이저 통계를 끌고 간다.
+        host_cap = int(rules.spam.get("max_docs_per_host", 0) or 0)
+        host_seen: Counter = Counter()
         for row in stream_docs(args.max_docs, args.max_bytes,
                                shards=args.shards, seed=args.seed):
             raw_bytes += len(row["text"].encode("utf-8"))
@@ -149,6 +154,12 @@ def main(argv: list | None = None) -> int:
             if reason:
                 continue
             domain, host = classify(row["url"], text, rules)
+            if host_cap and host:
+                host_seen[host] += 1
+                if host_seen[host] > host_cap:
+                    stats.reasons["host_cap"] += 1
+                    stats.kept -= 1
+                    continue
             docs.append({
                 "doc_id": row["doc_id"], "text": text, "domain": domain,
                 "host": host, "date": row["date"] or "NA",
@@ -158,6 +169,10 @@ def main(argv: list | None = None) -> int:
                 print(f"      {stats.total:,}건 처리, {len(docs):,}건 통과")
         for line in stats.as_lines():
             print(line)
+        if host_cap:
+            over = [(h, n) for h, n in host_seen.most_common(5) if n > host_cap]
+            print(f"      호스트 상한 {host_cap:,}건/호스트"
+                  + (f" — 상한 초과: {over}" if over else " — 초과 없음"))
 
         if not docs:
             raise RuntimeError("통과한 문서가 없다 — 필터가 너무 빡빡하다")
