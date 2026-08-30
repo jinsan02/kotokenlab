@@ -1,0 +1,30 @@
+{
+  "config_file": "configs/evaluation/tokenizer.yaml",
+  "fertility_sample": 1500,
+  "gate": {
+    "code_degradation_hard": 0.4,
+    "code_degradation_report": 0.1,
+    "english_degradation_hard": 0.25,
+    "english_degradation_report": 0.05,
+    "korean_tok_per_char_improvement_min": 0.15
+  },
+  "morph_analyzer": "kiwipiepy-0.23.2",
+  "split": "dev",
+  "tokenizers": [
+    {
+      "name": "qwen_original",
+      "repo_id": "Qwen/Qwen2.5-0.5B",
+      "revision": "060db6499f32faf8b98477b0a26969ef7d8b9987"
+    },
+    {
+      "name": "hcx_seed",
+      "repo_id": "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-0.5B",
+      "revision": "3da5046fb0195d14f2497de198136987d35fd644"
+    },
+    {
+      "name": "ax_4_0_light",
+      "repo_id": "skt/A.X-4.0-Light",
+      "revision": "ba21c20ea1b31ded1ec3e2fb432335077dc4be98"
+    }
+  ]
+}

@@ -59,6 +59,8 @@ def main(argv: list | None = None) -> int:
     ap = argparse.ArgumentParser(description="영어·코드 대조군 코퍼스")
     ap.add_argument("--lang", choices=("en", "code"), required=True)
     ap.add_argument("--max-docs", type=int, default=8_000)
+    # 기본 120MB 가 --max-docs 보다 먼저 걸려서 조용히 절반 규모가 나온 적이 있다
+    # (코드 dev 4.64MB, 기준 5MB 미달). 이제 어느 쪽이 걸렸는지 아래에서 알린다.
     ap.add_argument("--max-bytes", type=int, default=120_000_000)
     ap.add_argument("--files", type=int, default=4, help="몇 개 파케이에 걸쳐 뽑을지")
     ap.add_argument("--tag", default=None)
@@ -118,6 +120,10 @@ def main(argv: list | None = None) -> int:
             })
         for line in stats.as_lines():
             print(line)
+        if raw_bytes >= args.max_bytes and stats.total < args.max_docs:
+            print(f"  [주의] --max-bytes ({args.max_bytes / 1e6:.0f}MB) 가 먼저 걸렸다. "
+                  f"--max-docs {args.max_docs:,} 중 {stats.total:,} 건만 봤다. "
+                  f"의도한 규모가 아니면 --max-bytes 를 올려라.")
         if not docs:
             raise RuntimeError(f"{args.lang} 프로파일로 통과한 문서가 없다 — 필터를 확인하라")
 

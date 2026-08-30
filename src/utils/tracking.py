@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import sys
 import time
+import traceback
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -27,6 +28,32 @@ from .hashing import sha256_obj
 from .seed import set_seed
 
 PHASES: tuple[str, ...] = ("data", "tok", "surgery", "align", "cpt", "eval", "sys")
+
+
+class _Tee:
+    """화면과 log.txt 에 동시에 쓴다.
+
+    백그라운드로 돌린 파이프라인의 stdout 이 통째로 사라진 적이 있다. 원장에는
+    종료 행만 남아서, 필터 탈락 사유 분포처럼 화면에만 찍히는 진단을 잃었다.
+    run 디렉터리에 남겨두면 세션이 끝나도 읽을 수 있다.
+    """
+
+    def __init__(self, stream: Any, fh: Any) -> None:
+        self._stream = stream
+        self._fh = fh
+
+    def write(self, s: str) -> int:
+        self._stream.write(s)
+        self._fh.write(s)
+        self._fh.flush()      # 죽어도 남아야 하므로 매번 flush 한다
+        return len(s)
+
+    def flush(self) -> None:
+        self._stream.flush()
+        self._fh.flush()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._stream, name)
 
 
 def make_run_id(phase: str, *parts: Any, seed: int | None = None) -> str:
@@ -102,6 +129,8 @@ class RunContext:
 
         self._t0 = 0.0
         self._dir: Path | None = None
+        self._log_fh: Any = None
+        self._saved_streams: Any = None
 
     # ── 경로 ──────────────────────────────────────────────────────────
     @property
@@ -133,6 +162,11 @@ class RunContext:
             encoding="utf-8", newline="\n",
         )
 
+        self._log_fh = (self.dir / "log.txt").open("a", encoding="utf-8", newline=chr(10))
+        self._saved_streams = (sys.stdout, sys.stderr)
+        sys.stdout = _Tee(sys.stdout, self._log_fh)
+        sys.stderr = _Tee(sys.stderr, self._log_fh)
+
         _reset_vram_stats()
         self._t0 = time.time()
         self._ledger_row("start")
@@ -142,8 +176,22 @@ class RunContext:
         status = "ok" if exc_type is None else "fail"
         if exc_type is not None and not self.note:
             self.note = f"{exc_type.__name__}: {exc}"
+        # 트레이스백은 __exit__ 이후에 인터프리터가 찍으므로 tee 로는 못 잡는다.
+        if exc_type is not None:
+            print("".join(traceback.format_exception(exc_type, exc, tb)), file=sys.stderr)
         self._ledger_row(status)
+        self._restore_streams()
         return False  # 예외를 삼키지 않는다
+
+    def _restore_streams(self) -> None:
+        saved = getattr(self, "_saved_streams", None)
+        if saved is not None:
+            sys.stdout, sys.stderr = saved
+            self._saved_streams = None
+        fh = getattr(self, "_log_fh", None)
+        if fh is not None:
+            fh.close()
+            self._log_fh = None
 
     def _ledger_row(self, status: str) -> None:
         row: dict = {
