@@ -145,7 +145,17 @@ def main(argv: list | None = None) -> int:
         # configs 의 max_docs_per_host 는 선언만 되어 있고 강제되지 않았다.
         # 4샤드 조사에서 tripadvisor 한 호스트가 6.66% 를 차지했다 — 상한이 없으면
         # 한 사이트의 문체가 토크나이저 통계를 끌고 간다.
+        # 상한이 절대 건수라서 규모가 커질수록 조여든다. 2만 문서에서 400건은
+        # 점유율 2% 지만 150만 문서에서는 0.027% 다 — v1 에서 host_cap 이 15.79%
+        # 를 걷어냈고 ko.wikipedia.org 가 6,652건에서 400건으로 잘렸다.
+        # max_host_share 를 주면 목표 규모에 비례해 상한이 함께 커진다.
+        # 설정에 없으면 v1 과 같은 동작이다 (기본값을 조용히 바꾸지 않는다).
         host_cap = int(rules.spam.get("max_docs_per_host", 0) or 0)
+        host_share = float(rules.spam.get("max_host_share", 0) or 0)
+        if host_share > 0:
+            host_cap = max(host_cap, int(host_share * args.max_docs))
+            print(f"      호스트 상한: 비율 {host_share:.3%} x {args.max_docs:,} "
+                  f"-> {host_cap:,}건/호스트")
         host_seen: Counter = Counter()
         for row in stream_docs(args.max_docs, args.max_bytes,
                                shards=args.shards, seed=args.seed):
@@ -175,8 +185,20 @@ def main(argv: list | None = None) -> int:
             print(line)
         if host_cap:
             over = [(h, n) for h, n in host_seen.most_common(5) if n > host_cap]
-            print(f"      호스트 상한 {host_cap:,}건/호스트"
-                  + (f" — 상한 초과: {over}" if over else " — 초과 없음"))
+            n_over = sum(1 for n in host_seen.values() if n > host_cap)
+            from_capped = sum(min(n, host_cap) for n in host_seen.values() if n > host_cap)
+            print(f"      호스트 상한 {host_cap:,}건/호스트   전체 호스트 {len(host_seen):,}개")
+            print(f"      상한에 걸린 호스트 {n_over:,}개, 거기서 남긴 문서 {from_capped:,}건")
+            print(f"      상한 초과 상위: {over}" if over else "      초과 없음")
+            # 이 분포를 manifest 에 넣으면 v1 의 manifest_sha256 이 바뀌어
+            # phase1-tokenizer-freeze 가 깨진다. 그래서 별도 파일로 남긴다.
+            hosts_tsv = ROOT / "data" / "manifests" / "HOSTS.tsv"
+            with hosts_tsv.open("w", encoding="utf-8", newline=chr(10)) as fh:
+                fh.write(chr(9).join(("host", "n_seen", "n_kept", "capped")) + chr(10))
+                for h, n in host_seen.most_common():
+                    fh.write(chr(9).join(
+                        (h, str(n), str(min(n, host_cap)), str(int(n > host_cap)))) + chr(10))
+            print(f"      HOSTS.tsv  {len(host_seen):,}행 (상한 감사용, 커밋 대상)")
 
         if not docs:
             raise RuntimeError("통과한 문서가 없다 — 필터가 너무 빡빡하다")
