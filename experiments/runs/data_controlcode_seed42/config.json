@@ -1,8 +1,8 @@
 {
   "domain": "code",
   "lang": "code",
-  "max_bytes": 60000000,
-  "max_docs": 8000,
+  "max_bytes": 120000000,
+  "max_docs": 60000,
   "minhash": {
     "bands": 16,
     "max_shingles": 512,

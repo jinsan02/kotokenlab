@@ -1,7 +1,7 @@
 {
   "domain": "english",
   "lang": "en",
-  "max_bytes": 120000000,
+  "max_bytes": 250000000,
   "max_docs": 60000,
   "minhash": {
     "bands": 16,

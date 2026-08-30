@@ -1,8 +1,10 @@
 {
-  "domain": "english",
-  "lang": "en",
-  "max_bytes": 120000000,
-  "max_docs": 60000,
+  "config": "kor_Hang",
+  "dataset": "HuggingFaceFW/fineweb-2",
+  "domain_rules_sha256": "8483e893ed163306d41cebd1d445597da732283a8f0d8edc4d630be432da67d8",
+  "domain_rules_version": "v5",
+  "max_bytes": 6000000000,
+  "max_docs": 1500000,
   "minhash": {
     "bands": 16,
     "max_shingles": 512,
@@ -11,14 +13,6 @@
     "shingle": 8,
     "threshold": 0.8
   },
-  "paths": [
-    "sample/10BT/000_00000.parquet",
-    "sample/10BT/003_00000.parquet",
-    "sample/10BT/006_00000.parquet",
-    "sample/10BT/009_00000.parquet"
-  ],
-  "prefix": "sample/10BT/",
-  "purpose": "regression_control_only",
   "quality": {
     "check_line_repeat": true,
     "check_ngram": true,
@@ -27,14 +21,15 @@
     "max_line_repeat_ratio": 0.3,
     "min_chars": 200,
     "min_distinct_ngram_ratio": 0.25,
-    "min_hangul_ratio": 0.0,
-    "min_language_score": 0.0,
-    "min_latin_ratio": 0.5,
+    "min_hangul_ratio": 0.15,
+    "min_language_score": 0.6,
+    "min_latin_ratio": 0.0,
     "min_mean_line_chars": 10.0,
     "ngram_n": 5
   },
-  "repo": "HuggingFaceFW/fineweb-edu",
+  "sampling": "row_group_strided",
   "seed": 42,
+  "shards": 4,
   "split": {
     "dev": 0.05,
     "final_test": 0.05,

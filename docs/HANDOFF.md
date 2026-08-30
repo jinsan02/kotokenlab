@@ -8,8 +8,9 @@
 
 ## 한 줄 상태
 
-**전체 규모 실행 직전.** 소규모 관통, Level 1(영어·코드 대조군 포함), 도메인 라벨
-검증, Candidate Gate 임계값 확정까지 끝났다. 남은 것은 정식 코퍼스를 만드는 일이다.
+**v1 코퍼스 확보 완료. Level 1 정식 측정 직전.** 한국어 118.7만 문서(정제 4.73GB)와
+영어·코드 대조군을 만들었고 `manifest_sha256` 을 [`PLAN.md`](PLAN.md) 에 고정했다.
+남은 것은 그 코퍼스로 Level 1 을 다시 재고 얼리는 일이다.
 
 ```
 Step 0   저장소 · 원장 · 훅 · CI · 환경 · 자원 실측              완료
@@ -17,8 +18,9 @@ Step 1   한국어 파이프라인 (규칙 v4, 호스트 상한 400)            
 Step 1b  영어 · 코드 대조군                                     완료 (파일럿)
 Step 1c  도메인 라벨 블라인드 감사                               완료
 Step 2   Level 1 벤치마크 + Gate 임계값 확정                     완료
+Step 2b  전체 규모 코퍼스 v1 (한국어 + 영어·코드 대조군)          완료
          ────────────────────────────────────────────────
-현재     전체 규모 실행
+현재     Level 1 정식 측정 -> phase1-tokenizer-freeze
 다음     Step 3 토크나이저 학습 (T2a / T2b)
 금지     manifest 가 고정되기 전에 토크나이저를 학습하지 않는다
 ```
@@ -74,24 +76,37 @@ prefill 32,768 tok  0.5B 2,718MB / 1,310ms    1.5B 6,808MB / 2,972ms
 
 ## 다음에 할 일
 
-### 1. 전체 규모 실행 (지금)
+### 1. 전체 규모 실행 — 완료 (2026-08-30)
 
-```bash
-C:\llm_tokenizer\.conda\python.exe scripts\run_data_pipeline.py --max-docs 1500000 --max-bytes 6000000000 --shards 4 --tag v1
-C:\llm_tokenizer\.conda\python.exe scripts\run_control_pipeline.py --lang en --max-docs 60000
-C:\llm_tokenizer\.conda\python.exe scripts\run_control_pipeline.py --lang code --max-docs 60000
+만들어진 것 (계보와 한계는 [`PLAN.md`](PLAN.md) "고정된 계보"):
+
+```
+data_v1_seed42              한국어 1,186,892문서  정제 4,735MB  79분
+data_controlen_v1_seed42    영어      51,960문서  정제  247MB   5분
+data_controlcode_v1_seed42  코드      30,216문서  정제  187MB   2분
 ```
 
-예상: 다운로드 수 GB, CPU 처리 1~2시간, GPU 미사용.
+**dev 기준은 세분화 도메인이 아니라 보고 버킷 4개로 본다.** 한국어 news 38.2MB /
+기타 201.2MB / 영어 11.6MB / 코드 8.3MB 로 전부 5MB 를 넘겼다. encyclopedia
+0.4MB 등이 미달이지만 보고 대상이 아니다 ([`DOMAIN_LABELS.md`](DOMAIN_LABELS.md)).
 
-확인할 것:
-- 도메인당 dev 5MB 이상 (파일럿은 한국어 1.34MB, 영어 1.62MB, 코드 2.10MB 로 미달)
-- 필터 통과율 90~92%, 도메인 분포가 파일럿과 크게 다르지 않은지
-- 완료 후 `manifest_sha256` 을 [`PLAN.md`](PLAN.md) 에 고정하고 `data(data):` 커밋
+**필터 통과율은 79.2% 로 기준(90~92%)을 밑돈다.** 사유가 `host_cap` 하나에 몰려
+있고(15.79%, 파일럿 4.3%), 상한이 비율이 아니라 절대 건수라 규모가 커질수록 더
+빡빡해지기 때문이다. 위키백과가 6,652건에서 400건으로 잘렸다 — 코퍼스의 약 1.2%.
+v1 은 이대로 가되 백과 문체 과소대표를 전제로 해석한다.
 
-### 2. Level 1 정식 측정 → `phase1-tokenizer-freeze` 태그
+대조군을 다시 돌릴 일이 있으면 `--max-bytes` 를 반드시 올려라. 기본값 120MB 가
+`--max-docs` 보다 먼저 걸려서 조용히 절반 규모가 나온다. 처음 돌렸을 때
+코드 dev 가 4.64MB 로 미달했던 원인이다.
 
-전체 규모 dev 로 다시 재고, 그 수치가 리포트에 들어간다.
+### 2. Level 1 정식 측정 → `phase1-tokenizer-freeze` 태그 (지금)
+
+```bash
+C:\llm_tokenizer\.conda\python.exe -m src.evaluation.tokenizer_eval --split dev --tag v1
+```
+
+v1 dev 는 한국어만 239MB 라 파일럿(33초)보다 훨씬 오래 걸린다. 그 수치가
+리포트에 들어가고, 끝나면 `record(tok):` 커밋 후 태그를 찍는다.
 
 ### 3. Step 3 — 토크나이저 학습 T2a / T2b
 
