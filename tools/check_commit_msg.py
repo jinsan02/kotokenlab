@@ -101,6 +101,29 @@ def parse_trailers(lines: list) -> dict:
     return trailers
 
 
+def _check_config_sha(run_id: str, claimed: str | None, root: Path) -> list:
+    """Config-SHA256 이 그 run 의 실제 값과 같은지 확인한다.
+
+    형식(64 hex)만 보면 손으로 지어낸 해시도 통과한다. 실제로 그런 일이
+    한 번 있었다 — 앞 16자만 알고 나머지를 만들어 넣었는데 훅이 통과시켰다.
+    계보 해시를 날조하면 이 시스템 전체가 무의미해지므로 원장과 대조한다.
+    """
+    if not claimed or not is_sha256(claimed):
+        return []                       # 형식 오류는 위에서 이미 잡는다
+    actual = {r.get("config_sha256") for r in ledger.read_rows("ledger", root)
+              if r.get("run_id") == run_id} - {"", ledger.NA, None}
+    if not actual:
+        return []                       # 그 run 에 config 가 없으면 대조하지 않는다
+    if claimed not in actual:
+        return [
+            f"Config-SHA256 이 run {run_id!r} 의 실제 값과 다르다.",
+            f"    적힌 값: {claimed}",
+            f"    원장 값: {sorted(actual)[0]}",
+            "    해시를 손으로 적지 마라. 원장에서 읽어와라.",
+        ]
+    return []
+
+
 def check(message: str, root: Path | None = None) -> list:
     """규칙 위반 목록을 돌려준다. 빈 리스트면 통과."""
     root = Path(root or ledger.repo_root())
@@ -164,6 +187,8 @@ def check(message: str, root: Path | None = None) -> list:
                 f"Run-Id {run_id!r} 가 experiments/LEDGER.tsv 에 없다. "
                 "원장에 없는 run 은 기록할 수 없다"
             )
+        else:
+            errors += _check_config_sha(run_id, trailers.get("Config-SHA256"), root)
 
     invalidates = trailers.get("Invalidates")
     if invalidates and invalidates.lower() not in ("none", "없음"):

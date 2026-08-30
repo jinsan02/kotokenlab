@@ -177,3 +177,35 @@ def test_record_with_only_results_passes(repo, monkeypatch):
 def test_non_record_commit_may_touch_code(repo, monkeypatch):
     monkeypatch.setattr(cm, "staged_files", lambda root: ["src/training/cpt.py"])
     assert cm.check("upgrade(cpt): gradient checkpointing 활성화\n", repo) == []
+
+
+# ── Config-SHA256 은 원장의 실제 값과 대조한다 ────────────────────────────
+def test_fabricated_config_sha_rejected(repo):
+    """형식만 맞는 지어낸 해시를 통과시키면 계보 시스템이 무의미해진다."""
+    real = "a" * 64
+    ledger.append_row(
+        "ledger",
+        {"run_id": "data_real_seed42", "phase": "data", "status": "ok",
+         "config_sha256": real, "git_commit": "NA"},
+        root=repo,
+    )
+    fabricated = "a" * 16 + "b" * 48          # 앞자리만 맞는 가짜
+    errors = cm.check(
+        "record(data): 결과 기록\n\n본문\n\n"
+        f"Run-Id: data_real_seed42\nLedger: experiments/LEDGER.tsv\n"
+        f"Config-SHA256: {fabricated}\n", repo)
+    assert any("실제 값과 다르다" in e for e in errors)
+
+
+def test_matching_config_sha_passes(repo):
+    real = "c" * 64
+    ledger.append_row(
+        "ledger",
+        {"run_id": "data_ok_seed42", "phase": "data", "status": "ok",
+         "config_sha256": real, "git_commit": "NA"},
+        root=repo,
+    )
+    assert cm.check(
+        "record(data): 결과 기록\n\n본문\n\n"
+        f"Run-Id: data_ok_seed42\nLedger: experiments/LEDGER.tsv\n"
+        f"Config-SHA256: {real}\n", repo) == []
