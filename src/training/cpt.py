@@ -38,17 +38,25 @@ from src.training.callbacks import CurveLogger, cosine_lr_by_bytes  # noqa: E402
 from src.utils.tracking import RunContext, make_run_id  # noqa: E402
 
 
-def load_pool(path: Path, n_docs: int) -> list:
-    """앞에서 n_docs 개를 읽어 문서 풀을 만든다.
+def load_pool(path: Path, n_docs: int, skip: int = 0) -> list:
+    """앞의 skip 개를 건너뛰고 n_docs 개를 읽어 문서 풀을 만든다.
+
+    skip 은 정렬 단계가 이미 본 문서를 CPT 가 다시 보지 않게 한다. 겹치면
+    CPT 예산의 일부가 재학습이 되어 조건 간 비교는 유지되더라도 "168.5MB 를
+    학습했다" 는 서술이 부정확해진다.
 
     풀을 고정하고 **순서만** seed 로 섞는다. seed 마다 다른 문서를 뽑으면
     데이터 선택 분산까지 섞여 들어가는데, 실제 비교에서는 모든 조건이 같은
     데이터를 보므로(Equal-Raw-Data) 그 분산은 조건 간 차이의 원인이 아니다.
     """
     docs = []
+    seen = 0
     with path.open("r", encoding="utf-8") as fh:
         for line in fh:
             if not line.strip():
+                continue
+            seen += 1
+            if seen <= skip:
                 continue
             docs.append(json.loads(line)["text"])
             if len(docs) >= n_docs:
@@ -101,11 +109,15 @@ def main(argv: list | None = None) -> int:
     ap.add_argument("--accum", type=int, default=8)
     ap.add_argument("--lr", type=float, default=1e-5)
     ap.add_argument("--pool-docs", type=int, default=30_000)
+    ap.add_argument("--skip-docs", type=int, default=0,
+                    help="정렬 단계가 이미 본 문서 수. 겹쳐 학습하지 않기 위해")
     ap.add_argument("--eval-bytes", type=int, default=1_000_000,
                     help="dev BPB 를 몇 바이트마다 잴지")
     ap.add_argument("--eval-budget", type=int, default=1_000_000,
                     help="평가에 쓸 dev 원문 바이트 (언어별)")
     ap.add_argument("--tag", default="noise")
+    ap.add_argument("--save", action="store_true",
+                    help="학습된 모델을 artifacts/models/<run_id>/ 에 저장한다")
     ap.add_argument("--allow-short", action="store_true",
                     help="예산을 못 채워도 통과시킨다 (조건 간 비교에는 쓰지 마라)")
     ap.add_argument("--skip-env-check", action="store_true")
@@ -126,7 +138,8 @@ def main(argv: list | None = None) -> int:
         "model": args.model, "revision": args.revision, "seed": args.seed,
         "budget_bytes": args.budget_bytes, "seq_len": args.seq_len,
         "micro_bs": args.micro_bs, "accum": args.accum, "lr": args.lr,
-        "pool_docs": args.pool_docs, "optimizer": "adamw8bit",
+        "pool_docs": args.pool_docs, "skip_docs": args.skip_docs,
+        "optimizer": "adamw8bit",
         "dtype": "bfloat16", "grad_checkpointing": True,
         "lr_schedule": "cosine_by_raw_bytes",
     }
@@ -156,7 +169,7 @@ def main(argv: list | None = None) -> int:
             return total
 
         pool_path = ROOT / "data" / "interim" / "docs" / "train.jsonl"
-        docs = load_pool(pool_path, args.pool_docs)
+        docs = load_pool(pool_path, args.pool_docs, args.skip_docs)
         rng = random.Random(args.seed)
         rng.shuffle(docs)                     # seed 는 **순서만** 바꾼다
         print(f"{name}  seed {args.seed}  문서 풀 {len(docs):,}  "
@@ -278,6 +291,20 @@ def main(argv: list | None = None) -> int:
                     raw_bytes_seen=int(raw_bytes), split="dev", domain=lang,
                     n_bytes=None, total_nll=None, bpb=round(v, 6),
                     bpc=None, token_ppl=None)
+        # 저장하지 않으면 103분 학습한 가중치를 버리게 되고, Step 7 시스템
+        # 벤치마크와 Level 3 capability 가 쓸 체크포인트가 없어 다시 학습해야 한다.
+        if args.save:
+            out_dir = ROOT / "artifacts" / "models" / run_id
+            out_dir.mkdir(parents=True, exist_ok=True)
+            model.config.use_cache = True      # 학습 중 껐던 것을 되돌린다
+            model.save_pretrained(str(out_dir))
+            tokenizer.save_pretrained(str(out_dir))
+            from src.utils.hashing import sha256_file
+            sha = sha256_file(out_dir / "model.safetensors")
+            print(f"  저장 {out_dir}")
+            print(f"  model_sha256 = {sha}")
+            run.extra["tokenizer_sha256"] = sha
+
         run.tokens_seen = tokens_seen
         run.raw_bytes_seen = int(raw_bytes)
         run.extra["peak_vram_mb"] = int(torch.cuda.max_memory_allocated() / 1e6)

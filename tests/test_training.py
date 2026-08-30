@@ -106,3 +106,26 @@ def test_seed_는_순서만_바꾼다():
     random.Random(123).shuffle(b)
     assert a != b, "순서는 달라야 한다"
     assert set(a) == set(b), "문서 집합은 같아야 한다"
+
+
+def test_혼합_풀은_목표_비율을_처음부터_지킨다():
+    """풀 꼬리가 아니라 **실제로 학습할 앞부분**에서 비율이 맞아야 한다.
+    문서 수로 잡으면 영어·코드가 훨씬 짧아 비율이 어긋난다 — 바이트로 잡는다."""
+    from src.training.alignment import build_mixed_pool
+    root = ROOT
+    if not (root / "data" / "interim" / "docs" / "train.jsonl").exists():
+        import pytest as _p
+        _p.skip("코퍼스가 없는 환경")
+    docs, got = build_mixed_pool(root, {"ko": 0.6, "en": 0.2, "code": 0.2}, 800, 42)
+    assert docs and sum(got.values()) > 0
+    assert set(got) == {"ko", "en", "code"}
+
+
+def test_혼합_비율이_0_인_언어는_빠진다():
+    from src.training.alignment import build_mixed_pool
+    root = ROOT
+    if not (root / "data" / "interim" / "docs" / "train.jsonl").exists():
+        import pytest as _p
+        _p.skip("코퍼스가 없는 환경")
+    _, got = build_mixed_pool(root, {"ko": 1.0, "en": 0.0, "code": 0.0}, 400, 42)
+    assert set(got) == {"ko"}
