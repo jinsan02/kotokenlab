@@ -270,6 +270,41 @@ def main(argv: list | None = None) -> int:
             row += f"{v:>15.3f}" if v == v else f"{'—':>15}"
         print(row)
 
+    # ── 신뢰도 계층별 요약 ────────────────────────────────────────────────
+    # docs/DOMAIN_LABELS.md — 한국어 내부 세분화는 블라인드 감사에서 ~55% 라
+    # 주장하지 않는다. 언어 간 구분은 라벨이 규칙이 아니라 출처 데이터셋이라 확실하다.
+    def agg(res: dict, domains) -> tuple:
+        t = sum(res[d]["n_tokens"] for d in domains if d in res)
+        c = sum(res[d]["n_chars"] for d in domains if d in res)
+        return (t / c, c) if c else (float("nan"), 0)
+
+    ko_all = [d for d in domains if d not in ("english", "code")]
+    print(f"\n{'=' * 78}\n1층 — 언어 간 (라벨이 출처 데이터셋이라 신뢰 가능)\n")
+    head = f"{'구분':<16}{'문자':>12}" + "".join(f"{n:>15}" for n in names)
+    print(head); print("-" * len(head))
+    for label, doms in (("한국어(전체)", ko_all), ("영어", ["english"]), ("코드", ["code"])):
+        b, nc = agg(all_results[base], doms)
+        if not nc:
+            continue
+        row = f"{label:<16}{nc:>12,}"
+        for n in names:
+            v, _ = agg(all_results[n], doms)
+            row += f"{v:>15.4f}" if n == base else f"{v:>9.4f}{(v - b) / b * 100:>+6.1f}%"
+        print(row)
+
+    print(f"\n2층 — 한국어 내부 (규칙 라벨. 블라인드 감사 정확도 ~55%, news 정밀도 81%)")
+    print("  세분화는 재현율이 0~40% 라 보고하지 않는다. news / 기타 까지만 쓴다.\n")
+    for label, doms in (("news", ["news"]),
+                        ("기타(한국어)", [d for d in ko_all if d != "news"])):
+        b, nc = agg(all_results[base], doms)
+        if not nc:
+            continue
+        row = f"{label:<16}{nc:>12,}"
+        for n in names:
+            v, _ = agg(all_results[n], doms)
+            row += f"{v:>15.4f}" if n == base else f"{v:>9.4f}{(v - b) / b * 100:>+6.1f}%"
+        print(row)
+
     print(f"\n{'=' * 78}\nCandidate Gate (기준 {base})")
     print("  하드 상한을 넘으면 GPU 로 보내지 않는다. 보고 기준 초과는 경고로 남긴다.\n")
     for n in names[1:]:

@@ -84,6 +84,7 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 | **계획** | [`docs/PLAN.md`](docs/PLAN.md) — 범위·일정·사전 등록 질문 |
 | **인수인계** | [`docs/HANDOFF.md`](docs/HANDOFF.md) — 현재 상태와 다음 할 일 |
 | **프롬프트** | [`docs/PROMPTS.md`](docs/PROMPTS.md) — 에이전트에 붙여 넣는 지시문 |
+| **도메인 라벨** | [`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md) — 라벨 검증 기록과 신뢰 범위 |
 | **검토** | [`docs/REVIEW.md`](docs/REVIEW.md) — 결함·헛점과 보강 우선순위 |
 
 특히:

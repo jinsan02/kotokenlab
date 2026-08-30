@@ -228,6 +228,7 @@ BBPE 는 임의 바이트열을 표현하기 위해 **256개 바이트 토큰**�
 | [`PLAN.md`](PLAN.md) | 범위·일정·사전 등록 질문 (시작과 끝) |
 | [`HANDOFF.md`](HANDOFF.md) | 지금까지 된 것과 다음 할 일 |
 | [`PROMPTS.md`](PROMPTS.md) | 에이전트에 붙여 넣는 프롬프트 모음 |
+| [`DOMAIN_LABELS.md`](DOMAIN_LABELS.md) | 도메인 라벨 신뢰도 — 무엇을 주장할 수 있나 |
 | [`REVIEW.md`](REVIEW.md) | 설계·인프라 검토와 보강 항목 |
 | [`ENVIRONMENT.md`](ENVIRONMENT.md) | 가상환경과 그 버전 관리 |
 | [`SPEC_KoTokenLab.md`](SPEC_KoTokenLab.md) | 원본 연구 설계 (변경하지 않는다) |

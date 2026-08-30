@@ -37,7 +37,8 @@ os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 import numpy as np  # noqa: E402
 
 from src.data import dedup as dd  # noqa: E402
-from src.data.normalize import byte_len, normalize_text  # noqa: E402
+from src.data.domain import latin_share  # noqa: E402
+from src.data.normalize import byte_len, hangul_ratio, normalize_text  # noqa: E402
 from src.data.quality import FilterStats, QualityConfig, check  # noqa: E402
 from src.data.source import list_parquet, stream_parquet  # noqa: E402
 from src.data.split import SplitConfig, assign  # noqa: E402
@@ -112,6 +113,8 @@ def main(argv: list | None = None) -> int:
                 "doc_id": f"{domain}:{doc_id}", "text": text, "domain": domain,
                 "sha256": dd.content_sha256(text),
                 "date": str(row.get("dump") or row.get("language") or "NA")[:10],
+                "latin_share": round(latin_share(text), 4),
+                "hangul_ratio": round(hangul_ratio(text), 4),
             })
         for line in stats.as_lines():
             print(line)
@@ -150,7 +153,9 @@ def main(argv: list | None = None) -> int:
                 {"doc_id": d["doc_id"], "source": repo, "domain": domain,
                  "date": d["date"], "language": args.lang, "sha256": d["sha256"],
                  "split": sp, "char_count": len(d["text"]),
-                 "byte_count": byte_len(d["text"])}
+                 "byte_count": byte_len(d["text"]),
+                 "latin_share": d["latin_share"],
+                 "hangul_ratio": d["hangul_ratio"]}
                 for d in group])
             shas[sp] = sha256_file(path)
 

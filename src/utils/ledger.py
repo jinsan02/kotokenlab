@@ -124,6 +124,11 @@ ENV_SNAPSHOT_COLUMNS: tuple[str, ...] = (
 MANIFEST_COLUMNS: tuple[str, ...] = (
     "doc_id", "source", "domain", "date", "language",
     "sha256", "split", "char_count", "byte_count",
+    # 검토(docs/DOMAIN_LABELS.md) 이후 추가. ko_en_mixed 라벨은 블라인드 감사에서
+    # 정밀도·재현율 모두 0% 였다. 라벨 대신 연속값을 남겨서 사후에 임의의 구간으로
+    # 문서군을 나눌 수 있게 한다 — 도메인 라벨이 아니라 문서 속성이므로 규칙
+    # 정확도 문제를 우회한다.
+    "latin_share", "hangul_ratio",
 )
 
 # 테이블명 -> (저장소 상대경로, 컬럼)

@@ -34,8 +34,10 @@ os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 import numpy as np  # noqa: E402
 
 from src.data import dedup as dd  # noqa: E402
-from src.data.domain import DomainRules, classify  # noqa: E402
-from src.data.normalize import byte_len, count_eojeol, normalize_text  # noqa: E402
+from src.data.domain import DomainRules, classify, latin_share  # noqa: E402
+from src.data.normalize import (  # noqa: E402
+    byte_len, count_eojeol, hangul_ratio, normalize_text,
+)
 from src.data.quality import FilterStats, QualityConfig, check  # noqa: E402
 from src.data.split import SplitConfig, assign  # noqa: E402
 from src.utils import ledger  # noqa: E402
@@ -164,6 +166,8 @@ def main(argv: list | None = None) -> int:
                 "doc_id": row["doc_id"], "text": text, "domain": domain,
                 "host": host, "date": row["date"] or "NA",
                 "sha256": dd.content_sha256(text),
+                "latin_share": round(latin_share(text), 4),
+                "hangul_ratio": round(hangul_ratio(text), 4),
             })
             if stats.total % 20_000 == 0:
                 print(f"      {stats.total:,}건 처리, {len(docs):,}건 통과")
@@ -230,7 +234,9 @@ def main(argv: list | None = None) -> int:
                 {"doc_id": d["doc_id"], "source": "fineweb-2", "domain": d["domain"],
                  "date": d["date"], "language": "ko", "sha256": d["sha256"],
                  "split": sp, "char_count": len(d["text"]),
-                 "byte_count": byte_len(d["text"])}
+                 "byte_count": byte_len(d["text"]),
+                 "latin_share": d["latin_share"],
+                 "hangul_ratio": d["hangul_ratio"]}
                 for d in group
             ])
             manifest_shas[sp] = sha256_file(path)
