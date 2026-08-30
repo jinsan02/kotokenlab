@@ -23,7 +23,13 @@ jobs:
           python-version: "3.11"
 
       - name: 의존성 설치 (GPU 없이 도는 것만)
-        run: python -m pip install --quiet pytest tokenizers
+        # torch 는 설치하지 않는다. 아래는 GPU 없이 도는 테스트가 실제로 import 하는 것들이다.
+        #   numpy      dedup MinHash, 테스트
+        #   pyyaml     configs/data/domain_rules.yaml 로드
+        #   tokenizers byte-level alphabet (protected.py)
+        # 새 테스트가 서드파티를 쓰기 시작하면 여기에 추가해야 한다. 안 그러면
+        # 로컬은 통과하는데 CI 만 ModuleNotFoundError 로 죽는다 (실제로 5커밋 동안 그랬다).
+        run: python -m pip install --quiet pytest numpy pyyaml tokenizers
 
       - name: 테스트
         run: python -m pytest tests/ -q
