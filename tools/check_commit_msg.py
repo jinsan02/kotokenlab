@@ -24,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.utils import ledger  # noqa: E402
+from src.utils import gitindex, ledger  # noqa: E402
 from src.utils.hashing import is_sha256  # noqa: E402
 
 TYPES: dict = {
@@ -101,7 +101,8 @@ def parse_trailers(lines: list) -> dict:
     return trailers
 
 
-def _check_config_sha(run_id: str, claimed: str | None, root: Path) -> list:
+def _check_config_sha(run_id: str, claimed: str | None, root: Path,
+                      source: str = "worktree") -> list:
     """Config-SHA256 이 그 run 의 실제 값과 같은지 확인한다.
 
     형식(64 hex)만 보면 손으로 지어낸 해시도 통과한다. 실제로 그런 일이
@@ -110,7 +111,8 @@ def _check_config_sha(run_id: str, claimed: str | None, root: Path) -> list:
     """
     if not claimed or not is_sha256(claimed):
         return []                       # 형식 오류는 위에서 이미 잡는다
-    actual = {r.get("config_sha256") for r in ledger.read_rows("ledger", root)
+    rows = ledger.read_rows("ledger", root, source=source)
+    actual = {r.get("config_sha256") for r in rows
               if r.get("run_id") == run_id} - {"", ledger.NA, None}
     if not actual:
         return []                       # 그 run 에 config 가 없으면 대조하지 않는다
@@ -124,8 +126,39 @@ def _check_config_sha(run_id: str, claimed: str | None, root: Path) -> list:
     return []
 
 
-def check(message: str, root: Path | None = None) -> list:
-    """규칙 위반 목록을 돌려준다. 빈 리스트면 통과."""
+def _missing_run_hint(source: str) -> str:
+    """원장에 없는 run 을 가리켰을 때의 안내.
+
+    source="index" 면 원인이 거의 항상 "순서" 다. 작업 트리에는 그 행이
+    있는데 아직 스테이지·커밋을 안 한 것이다. 예전에는 훅이 작업 트리를
+    봐서 통과시키고 CI 가 거부했다 (커밋 1e8b379).
+    """
+    if source != "index":
+        return "원장에 없는 run 은 기록할 수 없다"
+    return (
+        "원장에 없는 run 은 기록할 수 없다. 작업 트리에는 있는데 이 "
+        "오류가 나면 아직 스테이지하지 않은 것이다 — "
+        "git add experiments/LEDGER.tsv 를 먼저 하거나 원장 행을 먼저 커밋하라"
+    )
+
+
+def _path_exists(rel: str, root: Path, source: str) -> bool:
+    """그 경로가 커밋될 트리에 있는가."""
+    if source == "index":
+        staged = gitindex.is_staged(rel, root)
+        if staged is not None:
+            return staged
+    return (root / rel).exists()
+
+
+def check(message: str, root: Path | None = None, *,
+          source: str = "worktree") -> list:
+    """규칙 위반 목록을 돌려준다. 빈 리스트면 통과.
+
+    source="index" 는 **이 커밋이 만들 트리** 를 기준으로 계보를 검사한다.
+    훅은 이걸 쓴다. 작업 트리를 보면 CI 와 다른 것을 보게 되기 때문이다
+    (docs/COMMIT_CONVENTION.md 의 "훅과 CI 는 같은 것을 본다" 절).
+    """
     root = Path(root or ledger.repo_root())
     errors: list = []
 
@@ -171,7 +204,10 @@ def check(message: str, root: Path | None = None) -> list:
                 f"(docs/COMMIT_CONVENTION.md 참조)"
             )
 
-    known_runs = ledger.known_run_ids(root)
+    # 원장이 비어 있어도 검사를 건너뛰지 않는다. 예전에는 'known_runs and'
+    # 로 감쌌는데, 그러면 원장이 아직 커밋되지 않은 바로 그 상황에서
+    # 검사가 통째로 꺼졌다. run 을 이름으로 가리켰으면 원장에 있어야 한다.
+    known_runs = ledger.known_run_ids(root, source=source)
 
     for key in ("Config-SHA256", "Tokenizer-SHA256", "Manifest-SHA256"):
         value = trailers.get(key)
@@ -182,24 +218,27 @@ def check(message: str, root: Path | None = None) -> list:
     if run_id:
         if not RUN_ID_RE.match(run_id):
             errors.append(f"Run-Id 형식이 틀렸다: {run_id!r} (소문자·숫자·_.- 만)")
-        elif known_runs and run_id not in known_runs:
+        elif run_id not in known_runs:
             errors.append(
                 f"Run-Id {run_id!r} 가 experiments/LEDGER.tsv 에 없다. "
-                "원장에 없는 run 은 기록할 수 없다"
+                + _missing_run_hint(source)
             )
         else:
-            errors += _check_config_sha(run_id, trailers.get("Config-SHA256"), root)
+            errors += _check_config_sha(
+                run_id, trailers.get("Config-SHA256"), root, source)
 
     invalidates = trailers.get("Invalidates")
     if invalidates and invalidates.lower() not in ("none", "없음"):
         for rid in [r.strip() for r in invalidates.split(",") if r.strip()]:
-            if known_runs and rid not in known_runs:
-                errors.append(f"Invalidates 의 run_id {rid!r} 가 LEDGER.tsv 에 없다")
+            if rid not in known_runs:
+                errors.append(
+                    f"Invalidates 의 run_id {rid!r} 가 LEDGER.tsv 에 없다. "
+                    + _missing_run_hint(source))
 
     ledger_field = trailers.get("Ledger")
     if ledger_field:
         for rel in [p.strip() for p in ledger_field.split(",") if p.strip()]:
-            if not (root / rel).exists():
+            if not _path_exists(rel, root, source):
                 errors.append(f"Ledger 에 적힌 경로가 없다: {rel}")
 
     if ctype == "record":
@@ -219,13 +258,18 @@ def check(message: str, root: Path | None = None) -> list:
 
 def main(argv: list | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
+    # 훅은 --staged 로 부른다. 커밋 대기 중인 인덱스가 곧 커밋될 트리이므로,
+    # 그것을 봐야 CI 와 판정이 갈리지 않는다.
+    source = "index" if "--staged" in args else "worktree"
+    args = [a for a in args if a != "--staged"]
     if not args:
-        print("usage: check_commit_msg.py <COMMIT_MSG_FILE>", file=sys.stderr)
+        print("usage: check_commit_msg.py [--staged] <COMMIT_MSG_FILE>",
+              file=sys.stderr)
         return 2
     msg_path = Path(args[0])
     message = msg_path.read_text(encoding="utf-8", errors="replace")
 
-    errors = check(message)
+    errors = check(message, source=source)
     if not errors:
         return 0
 

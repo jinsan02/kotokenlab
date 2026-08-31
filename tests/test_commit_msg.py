@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -209,3 +210,65 @@ def test_matching_config_sha_passes(repo):
         "record(data): 결과 기록\n\n본문\n\n"
         f"Run-Id: data_ok_seed42\nLedger: experiments/LEDGER.tsv\n"
         f"Config-SHA256: {real}\n", repo) == []
+
+
+# ── 훅과 CI 는 같은 트리를 본다 (커밋 1e8b379 회귀) ───────────────────────
+#
+# 실제로 일어난 일: fix 커밋에 Invalidates 를 적었는데 그 run 의 원장 행이
+# 아직 커밋되지 않았다. 훅은 작업 트리를 읽어 통과시켰고, CI 는 커밋된 트리를
+# 읽어 거부했다. 훅이 인덱스(= 이 커밋이 만들 트리)를 읽으면 둘이 일치한다.
+
+FIX_TMPL = """fix(align): 정렬 절차의 마지막 칸 평가 누락
+
+작업 트리에만 있는 run 을 가리키는 커밋이다.
+
+Invalidates: {rid}
+"""
+
+
+def _git(root, *args):
+    subprocess.run(["git", *args], cwd=str(root), check=True, capture_output=True)
+
+
+@pytest.fixture
+def gitrepo(tmp_path):
+    """진짜 git 저장소. 커밋은 만들지 않는다 — 인덱스만 있으면 된다."""
+    try:
+        subprocess.run(["git", "--version"], capture_output=True, check=True)
+    except (OSError, subprocess.SubprocessError):
+        pytest.skip("git 이 없는 환경")
+    _git(tmp_path, "init", "-q")
+    ledger.append_row(
+        "ledger",
+        {"run_id": RUN, "phase": "cpt", "status": "ok", "git_commit": "NA"},
+        root=tmp_path,
+    )
+    return tmp_path
+
+
+def test_unstaged_ledger_row_is_rejected_in_index_mode(gitrepo):
+    """작업 트리에만 있는 run 을 CI 는 거부한다. 훅도 거부해야 한다."""
+    msg = FIX_TMPL.format(rid=RUN)
+    # 예전 동작 — 이것 때문에 CI 만 빨개졌다
+    assert cm.check(msg, gitrepo, source="worktree") == []
+    errors = cm.check(msg, gitrepo, source="index")
+    assert any("Invalidates" in e for e in errors)
+    assert any("스테이지" in e for e in errors), "고치는 방법을 알려줘야 한다"
+
+
+def test_staged_ledger_row_passes_in_index_mode(gitrepo):
+    _git(gitrepo, "add", "experiments/LEDGER.tsv")
+    assert cm.check(FIX_TMPL.format(rid=RUN), gitrepo, source="index") == []
+
+
+def test_ledger_path_is_checked_against_the_committed_tree(gitrepo):
+    """Ledger: 트레일러의 경로도 커밋될 트리에 있어야 한다."""
+    errors = cm.check(record_msg(), gitrepo, source="index")
+    assert any("Ledger 에 적힌 경로가 없다" in e for e in errors)
+    _git(gitrepo, "add", "experiments/LEDGER.tsv")
+    assert cm.check(record_msg(), gitrepo, source="index") == []
+
+
+def test_index_mode_falls_back_outside_a_repo(repo):
+    """git 밖(tmp_path)에서는 인덱스라는 개념이 없다. 작업 트리로 폴백한다."""
+    assert cm.check(record_msg(), repo, source="index") == []

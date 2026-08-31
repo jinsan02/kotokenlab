@@ -1,12 +1,16 @@
 #!/bin/sh
 # 커밋 메시지 규칙 집행. 본체는 tools/check_commit_msg.py.
+#
+# --staged 를 주는 이유: 계보 트레일러(Run-Id, Invalidates)를 **인덱스** 의
+# 원장과 대조하게 한다. 인덱스가 곧 이 커밋이 만들 트리이고, CI 는 나중에
+# 그 트리를 본다. 작업 트리를 보면 훅만 통과하고 CI 가 거부한다 (1e8b379).
 # python 이 없으면 최소한의 제목 형식만 sh 로 검사한다.
 set -e
 ROOT="$(git rev-parse --show-toplevel)"
 
 for PY in "$ROOT/.conda/python.exe" "$ROOT/.conda/bin/python" python python3; do
     if command -v "$PY" >/dev/null 2>&1 || [ -x "$PY" ]; then
-        exec "$PY" "$ROOT/tools/check_commit_msg.py" "$1"
+        exec "$PY" "$ROOT/tools/check_commit_msg.py" --staged "$1"
     fi
 done
 

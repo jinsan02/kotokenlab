@@ -22,6 +22,7 @@ import os
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+from . import gitindex
 from .gitinfo import git_commit, git_dirty, repo_root
 
 NA = "NA"
@@ -300,13 +301,38 @@ def append_manifest_rows(
 
 
 # ── 읽기 ──────────────────────────────────────────────────────────────────
-def read_rows(table: str, root: Path | str | None = None) -> list:
-    """원장을 dict 리스트로 읽는다. 파일이 없으면 빈 리스트."""
-    path = table_path(table, root)
+def _table_text(table: str, root, source: str) -> str:
+    """원장 본문을 읽는다.
+
+    source="worktree"  지금 디스크에 있는 것 (실험 코드가 보는 것)
+    source="index"     이 커밋이 만들 트리 (훅이 보아야 하는 것 - gitindex 참조)
+
+    저장소가 아니면 index 도 작업 트리로 폴백한다. 테스트의 tmp_path 처럼
+    git 밖에서 부르는 경우가 있고, 거기서는 인덱스라는 개념 자체가 없다.
+    """
+    rel = TABLES[table][0]
+    if source == "index":
+        text = gitindex.read_text(rel, root)
+        if text is not None:
+            return text
+    elif source != "worktree":
+        raise LedgerError(f"알 수 없는 source: {source!r} (worktree|index)")
+    path = Path(root or repo_root()) / rel
     if not path.exists():
-        return []
+        return ""
     with io.open(path, "r", encoding="utf-8", newline="") as fh:
-        raw = fh.read().replace("\r\n", "\n")
+        return fh.read()
+
+
+def read_rows(
+    table: str,
+    root: Path | str | None = None,
+    *,
+    source: str = "worktree",
+) -> list:
+    """원장을 dict 리스트로 읽는다. 파일이 없으면 빈 리스트."""
+    columns(table)                       # 알 수 없는 테이블은 여기서 걸린다
+    raw = _table_text(table, root, source).replace("\r\n", "\n")
     lines = [ln for ln in raw.split("\n") if ln]
     if not lines:
         return []
@@ -314,6 +340,11 @@ def read_rows(table: str, root: Path | str | None = None) -> list:
     return [dict(zip(header, ln.split("\t"))) for ln in lines[1:]]
 
 
-def known_run_ids(root: Path | str | None = None) -> set:
+def known_run_ids(
+    root: Path | str | None = None,
+    *,
+    source: str = "worktree",
+) -> set:
     """LEDGER.tsv 에 등록된 run_id 집합. 참조 무결성 검사에 쓴다."""
-    return {r.get("run_id", "") for r in read_rows("ledger", root)} - {"", NA}
+    rows = read_rows("ledger", root, source=source)
+    return {r.get("run_id", "") for r in rows} - {"", NA}
