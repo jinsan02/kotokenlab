@@ -1,0 +1,8 @@
+{
+  "max_bytes": 2000000,
+  "model": "Qwen/Qwen2.5-0.5B",
+  "purpose": "pre_cpt_bpb",
+  "revision": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+  "seq_len": 2048,
+  "split": "dev"
+}
