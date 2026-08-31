@@ -25,7 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.utils import ledger  # noqa: E402
+from src.utils import gitindex, ledger  # noqa: E402
 
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
@@ -37,16 +37,28 @@ SHA_COLUMNS = (
 )
 
 
-def _read(path: Path) -> tuple:
+def _read(rel: str, root: Path, source: str) -> str | None:
+    """검사 대상 트리에서 rel 의 내용을 읽는다. 없으면 None.
+
+    source="index" 는 **이 커밋이 만들 트리** 를 본다. 훅은 그걸 써야 CI 와
+    판정이 갈리지 않는다 — 작업 트리에서 고쳐 놓고 깨진 것을 스테이지하면
+    로컬만 통과하는 경로가 생긴다 (src/utils/gitindex.py).
+    """
+    if source == "index":
+        text = gitindex.read_text(rel, root)
+        if text is not None:
+            return text or None
+    path = Path(root) / rel
+    if not path.exists():
+        return None
     with io.open(path, "r", encoding="utf-8", newline="") as fh:
-        raw = fh.read()
-    return raw, raw.count("\r\n")
+        return fh.read()
 
 
-def _check_table(path: Path, expected: tuple, label: str) -> tuple:
+def _check_table(raw: str, expected: tuple, label: str) -> tuple:
     """(errors, rows) 를 돌려준다. rows 는 dict 리스트."""
     errors: list = []
-    raw, crlf = _read(path)
+    crlf = raw.count("\r\n")
     if crlf:
         errors.append(f"{label}: CRLF 줄바꿈 {crlf}개. LF 로 통일하라")
     lines = [ln for ln in raw.replace("\r\n", "\n").split("\n") if ln != ""]
@@ -125,7 +137,7 @@ def _check_duplicates(rows: list, label: str, keys: tuple) -> list:
 
 
 def validate(root: Path | str | None = None, *,
-             check_lifecycle: bool = True) -> list:
+             check_lifecycle: bool = True, source: str = "worktree") -> list:
     """원장 무결성 검사.
 
     check_lifecycle 을 끄면 "start 만 있고 안 끝난 run" 검사를 건너뛴다.
@@ -140,9 +152,9 @@ def validate(root: Path | str | None = None, *,
     clock_check_ids: set = set()
 
     # 1) LEDGER 먼저 — 다른 테이블의 참조 대상이다.
-    ledger_path = ledger.table_path("ledger", root)
-    if ledger_path.exists():
-        errs, rows = _check_table(ledger_path, ledger.LEDGER_COLUMNS, "LEDGER.tsv")
+    ledger_raw = _read(ledger.TABLES["ledger"][0], root, source)
+    if ledger_raw is not None:
+        errs, rows = _check_table(ledger_raw, ledger.LEDGER_COLUMNS, "LEDGER.tsv")
         errors += errs
         ledger_rows = rows
         run_ids = {r["run_id"] for r in rows if r.get("run_id") not in (None, "", "NA")}
@@ -160,10 +172,10 @@ def validate(root: Path | str | None = None, *,
     for table, (rel, cols) in ledger.TABLES.items():
         if table == "ledger":
             continue
-        path = Path(root) / rel
-        if not path.exists():
+        raw = _read(rel, root, source)
+        if raw is None:
             continue
-        errs, rows = _check_table(path, cols, Path(rel).name)
+        errs, rows = _check_table(raw, cols, Path(rel).name)
         errors += errs
         if table == "models":
             errors += _check_duplicates(rows, "models.tsv", ("repo_id", "revision"))
@@ -204,7 +216,10 @@ def validate(root: Path | str | None = None, *,
         for path in sorted(manifest_dir.glob("*.tsv")):
             if path.name == "SUMMARY.tsv":
                 continue          # 요약은 다른 스키마다 (커밋되는 유일한 매니페스트 파일)
-            errs, _ = _check_table(path, ledger.MANIFEST_COLUMNS, path.name)
+            raw = _read("data/manifests/" + path.name, root, source)
+            if raw is None:
+                continue   # 이 커밋의 트리에 없는 매니페스트는 검사 대상이 아니다
+            errs, _ = _check_table(raw, ledger.MANIFEST_COLUMNS, path.name)
             errors += errs
 
     return errors

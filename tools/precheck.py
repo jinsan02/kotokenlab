@@ -113,7 +113,10 @@ def check(root: Path | None = None) -> list:
     touches_ledger = any(
         f.startswith("experiments/") or f.startswith("data/manifests/")
         for f in files)
-    errors.extend(validate(root, check_lifecycle=touches_ledger))
+    # 인덱스를 본다 — CI 는 커밋된 트리를 보므로, 작업 트리에서 고쳐 놓고 깨진
+    # 것을 스테이지하면 로컬만 통과하는 경로가 생긴다 (check_commit_msg 와 같은
+    # 이유. docs/COMMIT_CONVENTION.md "훅과 CI 는 같은 트리를 본다").
+    errors.extend(validate(root, check_lifecycle=touches_ledger, source="index"))
     return errors
 
 

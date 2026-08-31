@@ -239,3 +239,81 @@ def test_migration_skips_summary_manifest(tmp_path):
     (manifest_dir / "SUMMARY.tsv").write_text("summary\n", encoding="utf-8")
 
     assert [path.name for path in manifest_paths(tmp_path)] == ["train.tsv"]
+
+
+# ── 훅과 CI 는 같은 트리를 본다 (validate 편) ─────────────────────────────
+#
+# check_commit_msg 와 같은 이유다. 훅이 작업 트리를 보면, 깨진 것을 스테이지해
+# 놓고 작업 트리에서만 고쳐도 로컬은 통과하고 CI 는 거부한다.
+
+def _git(root, *args):
+    import subprocess
+    subprocess.run(["git", *args], cwd=str(root), check=True, capture_output=True)
+
+
+def test_validate_index_mode_sees_the_staged_tree(tmp_path):
+    import subprocess
+
+    import pytest as _p
+    try:
+        subprocess.run(["git", "--version"], capture_output=True, check=True)
+    except (OSError, subprocess.SubprocessError):
+        _p.skip("git 이 없는 환경")
+
+    _git(tmp_path, "init", "-q")
+    ledger.append_row(
+        "ledger",
+        {"run_id": "cpt_ok_seed42", "phase": "cpt", "status": "ok",
+         "git_commit": "NA"},
+        root=tmp_path,
+    )
+    _git(tmp_path, "add", "experiments/LEDGER.tsv")     # 멀쩡한 것을 스테이지
+
+    # 작업 트리만 망가뜨린다 — 컬럼 수가 안 맞는 행
+    path = ledger.table_path("ledger", tmp_path)
+    path.write_text(path.read_text(encoding="utf-8") + "깨진행\n",
+                    encoding="utf-8", newline="\n")
+
+    assert validate(tmp_path, source="worktree"), "작업 트리는 깨져 있다"
+    assert validate(tmp_path, source="index") == [], \
+        "커밋될 트리는 멀쩡하므로 통과해야 한다"
+
+
+def test_validate_index_mode_catches_a_staged_break(tmp_path):
+    import subprocess
+
+    import pytest as _p
+    try:
+        subprocess.run(["git", "--version"], capture_output=True, check=True)
+    except (OSError, subprocess.SubprocessError):
+        _p.skip("git 이 없는 환경")
+
+    _git(tmp_path, "init", "-q")
+    ledger.append_row(
+        "ledger",
+        {"run_id": "cpt_ok_seed42", "phase": "cpt", "status": "ok",
+         "git_commit": "NA"},
+        root=tmp_path,
+    )
+    path = ledger.table_path("ledger", tmp_path)
+    path.write_text(path.read_text(encoding="utf-8") + "깨진행\n",
+                    encoding="utf-8", newline="\n")
+    _git(tmp_path, "add", "experiments/LEDGER.tsv")     # 깨진 것을 스테이지
+
+    # 작업 트리는 되돌려 놔도 인덱스가 깨졌으면 거부해야 한다
+    lines = path.read_text(encoding="utf-8").split("\n")
+    path.write_text("\n".join(lines[:-2]) + "\n", encoding="utf-8", newline="\n")
+
+    assert validate(tmp_path, source="worktree") == [], "작업 트리는 멀쩡하다"
+    assert validate(tmp_path, source="index"), "커밋될 트리가 깨졌으므로 거부"
+
+
+def test_validate_falls_back_outside_a_repo(tmp_path):
+    """git 밖에서는 인덱스가 없다. 작업 트리로 폴백한다."""
+    ledger.append_row(
+        "ledger",
+        {"run_id": "cpt_ok_seed42", "phase": "cpt", "status": "ok",
+         "git_commit": "NA"},
+        root=tmp_path,
+    )
+    assert validate(tmp_path, source="index") == []
