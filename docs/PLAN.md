@@ -83,6 +83,25 @@ C0 의 σ 를 T2b 비교에 쓰면 차이를 21배 과대 검출한다.
 | **Q5** | vocab 을 **줄이는 것**(T2a)과 **크기를 유지한 채 치환하는 것**(T2b)은 다른 결과를 내는가? | Korean BPB + 영어 regression | Step 6 |
 | **Q6** | 실제 GPU 에서 prefill / TTFT / VRAM / KV cache 가 얼마나 개선되는가? 이론 감소율과 실측의 괴리는? | `system_bench.tsv` 전체 | Step 7 |
 
+### 정렬 혼합비 — 사전 등록이 발동했고, 기준이 나빴다 (2026-08-31)
+
+정렬 코퍼스의 언어 혼합비를 데이터로 고르기로 하고 판정 기준을 먼저 고정했다:
+**영어·코드가 2 sigma(0.000115 BPB) 안에 머무는 비율 중 한국어가 가장 좋은 것.
+어느 비율도 만족하지 못하면 멈추고 보고한다.**
+
+세 비율(ko100 / ko80 / ko60) 모두 통과하지 못했다. 규칙대로 멈췄고 본 CPT 로
+넘어가지 않았다. 전체 표는
+[`reports/tables/alignment_probe.md`](../reports/tables/alignment_probe.md).
+
+**기준 자체가 틀렸다.** ko60 의 영어 손해 +0.0299 BPB 는 기준의 260배로,
+어떤 비율도 통과할 수 없었다. sigma 는 CPT 의 seed 노이즈를 잰 값이지 정렬이
+낼 수 있는 손해의 척도가 아니다. 결과를 보고 기준을 완화하지는 않았고
+(§107 evaluation freeze), 대신 다른 축(lr)을 갈라 정렬 단계 자체를 뺐다.
+
+**다음 사전 등록에 옮길 교훈**: 임계값을 sigma 로 적기 전에 "무엇의 sigma 인가,
+그 잡음원이 지금 재려는 효과와 같은 축인가" 를 먼저 답한다. 축이 다르면 sigma 는
+임계값이 아니라 그냥 작은 숫자다.
+
 ### Candidate Gate 임계값 — 2026-08-30 확정
 
 **T2 후보를 만들기 전에** 정했다. 결과를 보고 완화하면 §107 evaluation freeze 를
@@ -237,8 +256,9 @@ Step 3  T2a / T2b 수술 — N=30,000, 한국어 -30.2%           완료
 Step 4  embedding surgery — E1 부품 평균 채택, Pre-CPT BPB 2.3803   완료
         ─────────────────────────────────────────────
 Step 5  노이즈 플로어 — 조건별 sigma 측정 (C0 / T2a / T2b)      완료
+        Embedding Alignment — 3라운드 탐침 끝에 **폐기**              완료
         ─────────────────────────────────────────────
-현재    Embedding Alignment (3조건) -> 본 CPT (168.5MB, Equal Raw Data)
+현재    Step 6 본 CPT 3조건 (168.5MB, Equal Raw Data)
 다음    Equal Token Budget 실험 (스펙 §32~33) -> T3 New BBPE
 ```
 

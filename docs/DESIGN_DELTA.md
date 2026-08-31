@@ -55,6 +55,8 @@ Windows 빌드가 불안정해서 PyTorch SDPA 로 대체하고 백엔드를 강
 | 실제 | 그 단계가 없다. 수술 산출물에서 바로 CPT 로 간다 |
 | 왜 | 손해를 안 내면서 제 일을 하는 lr 이 존재하지 않는다. 아래 3라운드로 확인했다 |
 
+전체 표와 한계: [`reports/tables/alignment_probe.md`](../reports/tables/alignment_probe.md)
+
 **1라운드 — 한국어 전용 정렬 (원장 `align_c0_qwen_v1_seed42`)**
 C0 는 수술을 안 받아 임베딩이 이미 정렬돼 있다. 여기서 나빠지는 것은 전부
 절차가 낸 손해다. 34MB 지점에서 영어 +8.8%, 코드 +13.1%, 회복 없이 **가속**.
