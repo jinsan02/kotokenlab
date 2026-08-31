@@ -63,9 +63,10 @@ Config-SHA256: <config.json 의 sha256>
 
 ## 개발 순서 (스펙 §97~§112)
 
-현재 위치는 **Step 5 Embedding Alignment 실행 중**이다. v1 코퍼스와 Level 1 은
+현재 위치는 **Step 6 본 CPT 실행 중**이다. v1 코퍼스와 Level 1 은
 `phase1-tokenizer-freeze` 로 얼렸고, T2a/T2b 토크나이저와 embedding 수술,
-노이즈 플로어(조건별 sigma)까지 끝났다. 남은 것은 정렬과 본 CPT 다.
+노이즈 플로어(조건별 sigma)까지 끝났다. Embedding Alignment 는 탐침 끝에
+**뺐다** ([`DESIGN_DELTA.md`](DESIGN_DELTA.md) 1-5). 남은 것은 본 CPT 다.
 
 스펙과 다르게 한 결정들은 [`DESIGN_DELTA.md`](DESIGN_DELTA.md) 에 모여 있다.
 
