@@ -74,6 +74,15 @@ LR 감쇠가 섞여 있다. "완전히 수렴" 보다 "이 예산·이 스케줄
   10,000회 이상    115개  ( 0.4%)
 ```
 
+재현:
+
+```
+.conda/python.exe -m src.evaluation.token_exposure \
+    --model artifacts/models/kot2b_v2_n30000_mean \
+    --id-map artifacts/tokenizers/kot2b_v2_n30000/id_map.json \
+    --pool-docs 50000 --sample-bytes 20000000 --full-bytes 168500000
+```
+
 **총량은 크지만 개별 토큰은 굶었다.** 전체 토큰의 43% 가 새 토큰인데도 그렇다 —
 상위 0.4% 가 45,000번씩 나오는 동안 중앙값 토큰은 168.5MB 전체에서 143번 봤다.
 896차원 벡터를 lr 1e-5 로 143번 업데이트해서 밑바닥부터 학습할 수 없다.
