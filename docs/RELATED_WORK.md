@@ -19,6 +19,13 @@ subword 기반 초기화**를 단계적으로 적용한다.
 > **이 프로젝트의 T1(Extend) + §25 Embedding Alignment 와 골격이 거의 같다.**
 > 가장 가까운 선행 연구다. E0/E1/E2 초기화 비교와 "임베딩만 먼저 학습" 전략은
 > 여기서 이미 검증됐다고 봐야 한다.
+>
+> **2026-08-31 갱신** — T1 은 폐기했고 Embedding Alignment 도 폐기했다. 우리
+> 환경(Qwen2.5-0.5B, `tie_word_embeddings=True`, 임베딩 비중 27.6%)에서는
+> "임베딩만 먼저 학습" 이 손해를 안 내면서 제 일을 하는 lr 이 없었다
+> ([`DESIGN_DELTA.md`](DESIGN_DELTA.md) 1-5). EEVE 는 10.7B 급이고 임베딩
+> 비중이 훨씬 작다 — **결론이 갈리는 것이 스케일 때문인지 tie 때문인지는
+> 우리 데이터로 가릴 수 없다.** 재현 실패로 주장하지 말고 조건 차이를 명시한다.
 
 ### Optimizing Korean-Centric LLMs via Token Pruning
 [arXiv:2604.16235](https://arxiv.org/pdf/2604.16235) (2026-04, Hoyeol Kim · Hyeonwoo Kim)
@@ -83,6 +90,12 @@ Qwen 토크나이저는 BPE 라서 단어만 추가해서는 확장되지 않고
 > 이 프로젝트의 §20~25 전체(surgery → init → alignment)를 우회하는 접근이다.
 > **정면으로 경쟁하지 말고 강한 baseline 으로 넣는 편이 낫다** — "우리 E1/E2 가
 > ZeTT 대비 어디에 있는가"를 보이면 결과가 훨씬 설득력 있다.
+>
+> **2026-08-31 갱신** — 이 비교의 무게가 커졌다. 우리 E1(부품 평균)은 통제된
+> CPT 후에도 C0 를 따라잡지 못했다(한국어 BPB 1.5671 vs 1.1375). 하이퍼네트워크
+> 초기화가 그 간격을 메우는지가 곧 "초기화로 될 일인가, 노출의 문제인가" 에
+> 대한 외부 증거가 된다. 우리 진단은 노출 쪽이다 — 새 토큰 중앙값 발화 143회
+> ([`../reports/tables/cpt_main.md`](../reports/tables/cpt_main.md)).
 
 ### Teaching Old Tokenizers New Words
 [arXiv:2512.03989](https://arxiv.org/html/2512.03989v2)
@@ -154,7 +167,7 @@ CPT 진행에 따라 추적하는 작업. `train_curve.tsv` 에 `grad_norm_emb /
 
 ## 6. 읽는 순서 (구현 전)
 
-1. **EEVE** — T1 + alignment 의 기준선
+1. **EEVE** — T1 + alignment 의 기준선 (둘 다 우리는 폐기했다. 조건 차이를 확인할 것)
 2. **Qwen tokenization_note + Qwen-Tokenizer-Pruner** — T1/T2 구현 함정
 3. **Token Pruning (2604.16235)** — T2 와의 차별점 확정용
 4. **ZeTT** — baseline 으로 넣을지 결정

@@ -11,9 +11,11 @@ Codex / Claude Code 에 그대로 붙여 넣는 프롬프트다.
 C:\llm_tokenizer 프로젝트를 이어서 작업한다.
 
 먼저 이 순서로 읽고 현재 상태를 복원해라.
-1. docs/RULES.md        하드룰 17개 — 매 세션 읽는다
-2. docs/HANDOFF.md      지금까지 된 것과 다음 할 일
-3. docs/PLAN.md         범위·일정·사전 등록 질문 6개
+1. docs/RULES.md         하드룰 17개 — 매 세션 읽는다
+2. docs/HANDOFF.md       지금까지 된 것과 다음 할 일
+3. docs/PLAN.md          범위·일정·사전 등록 질문 6개
+4. docs/DESIGN_DELTA.md  스펙과 다르게 한 것과 그 이유
+   — 스펙만 읽고 코드를 고치면 이미 반증된 가설을 되살리게 된다
 
 그 다음 아래를 실행해서 상태를 확인해라.
   git log --oneline -20
@@ -192,7 +194,7 @@ tok(tok) 커밋에 Tokenizer-SHA256 트레일러가 필요하다.
 
 ---
 
-## 5. 노이즈 플로어 측정 — Step 5 (CPT 전에 반드시)
+## 5. 노이즈 플로어 측정 — **새 조건이 생길 때마다**
 
 ```
 동일 config 를 seed 42 / 123 / 2026 으로 3회 돌려 σ_BPB 를 측정해라.
@@ -201,7 +203,11 @@ tok(tok) 커밋에 Tokenizer-SHA256 트레일러가 필요하다.
 의미 있는 차이인지 판단할 근거가 없고, Candidate Gate 가 노이즈로 후보를
 탈락시킬 수 있다 (docs/RULES.md 10번).
 
-- 예산은 각 5M 토큰, 총 15M. 약 30분.
+- 예산은 각 17.5MB **원문 바이트**. 토큰이 아니다 — 토크나이저가 다르면
+  같은 토큰수가 다른 분량이 된다 (docs/RULES.md 12번). 조건당 약 33분.
+- **조건마다 따로 잰다.** sigma 는 조건별로 21배까지 다르다 — 손상된 조건일수록
+  seed 에 따라 회복 궤적이 갈린다 (reports/tables/noise_floor.md).
+  안 잰 조건의 비교는 규칙대로 "구별 불가" 로 남긴다.
 - run_id 는 noise_ 로 시작한다.
 - 학습 설정: seq 2048 / micro_bs 2 / AdamW 8bit / bf16 / gradient checkpointing
   (실측 13.3GB, 9,089 tok/s — reports/tables/resource_probe.md)
@@ -224,11 +230,35 @@ tok(tok) 커밋에 Tokenizer-SHA256 트레일러가 필요하다.
 - 커밋은 record(<scope>) 이고 코드·설정을 함께 스테이지하면 훅이 거부한다.
   코드를 고쳐야 하면 먼저 fix/upgrade/feat 로 커밋하고 다시 돌린 뒤 기록해라.
 - 트레일러 필수: Run-Id, Ledger, Config-SHA256
-- Run-Id 는 experiments/LEDGER.tsv 에 실재해야 한다 (훅이 확인한다)
+- Run-Id 와 Invalidates 의 run_id 는 **인덱스(= 이 커밋이 만들 트리)의**
+  LEDGER.tsv 에 있어야 한다. 작업 트리에 있는 것만으로는 안 된다.
+  원장 행을 같은 커밋에 함께 스테이지하거나, 먼저 record 로 커밋하고 참조해라
+  (docs/COMMIT_CONVENTION.md 3번 — 이 순서를 어겨 CI 가 한 번 빨개졌다)
 
 커밋 메시지 본문에는 **무엇을 했는지가 아니라 무엇을 알게 됐는지**를 써라.
 그리고 이 결과의 한계를 반드시 한 문단 적어라 — 표본이 작다, 대조군이 없다,
 도메인 편향이 있다 같은 것. 한계를 적지 않은 기록은 나중에 과신하게 만든다.
+```
+
+---
+
+## 7. Phase 4 — 등토큰 예산과 N 스윕 (다음 실험)
+
+```
+scripts/run_phase4.sh 를 돌린다. 약 4.3시간.
+
+먼저 읽어라: reports/tables/cpt_main.md 와 docs/PLAN.md "Phase 4 사전 등록".
+**예측이 이미 적혀 있다.** 결과가 예측과 다르면 그게 더 중요한 발견이다 —
+예측을 사후에 고치지 마라 (docs/RULES.md 14번).
+
+시작 전에 반드시:
+  - nvidia-smi 로 GPU 여유를 확인한다. 지난 CPT 에서 peak_alloc 11.4GB 에
+    데스크톱 앱까지 더해져 16.3GB 중 96% 가 찼다. 여유 550MB 였다
+  - 사용자에게 "게임·영상 편집을 켜면 OOM 으로 몇 시간이 날아간다" 고 알린다
+  - tools/check_clock.py --record
+
+돌리는 중에는 GPU 작업을 하나만 띄운다 (CLAUDE.md).
+끝나면 6번 프롬프트로 기록하고, 조건별 최종표를 reports/tables/ 에 남겨라.
 ```
 
 ---

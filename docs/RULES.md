@@ -77,10 +77,18 @@ HCX / A.X 는 **External Reference / Industry Baseline** 이지 인과 실험이
 - **강제**: 원장의 모든 학습 행이 `tokens_seen` 과 `raw_bytes_seen` 을 함께 갖는다.
   학습 곡선의 x축은 `step` 이 아니라 이 둘이다.
 
-## 8. Tokenizer Surgery / Embedding Alignment / CPT 를 분리한다
+## 8. Tokenizer Surgery / 초기화 / CPT 를 분리한다
 
-한 번에 하면 네 가지 효과(토크나이저·초기화·정렬·CPT)를 분리할 수 없다.
-Embedding 초기화 직후 **CPT 없이** 평가하는 Pre-CPT 지점을 반드시 남긴다.
+한 번에 하면 효과를 분리할 수 없다. Embedding 초기화 직후 **CPT 없이**
+평가하는 Pre-CPT 지점을 반드시 남긴다.
+
+> **Embedding Alignment 단계는 2026-08-31 에 폐기했다.** 손해를 안 내면서 제
+> 일을 하는 lr 이 없다는 것을 3라운드 탐침으로 확인했다
+> ([`DESIGN_DELTA.md`](DESIGN_DELTA.md) 1-5,
+> [`../reports/tables/alignment_probe.md`](../reports/tables/alignment_probe.md)).
+> `align` phase 와 `src/training/alignment.py` 는 그 측정을 재현할 수 있도록
+> 남겨 둔다 — 지우면 왜 뺐는지가 사라진다. 새 실험에서 되살리려면 그 보고표를
+> 먼저 읽어라.
 
 - **강제**: `phase` 컬럼이 `surgery`/`align`/`cpt` 를 구분하고, run 은 phase 하나만 담는다.
 
@@ -152,7 +160,8 @@ seed 분산을 모르면 "BPB 1.207 vs 1.198" 이 의미 있는 차이인지 알
 
 0.5B(Qwen2.5-0.5B Base)는 full-parameter CPT 와 ablation 의 무대다.
 1.5B 는 0.5B 에서 이미 결론 난 항목을 반복하지 않고, `Original vs Best KoTokenizer`
-하나만 Embedding Alignment + LoRA/QLoRA 로 확인한다. (16GB VRAM 제약)
+하나만 LoRA/QLoRA 로 확인한다. (16GB VRAM 제약. 원래 여기에 Embedding Alignment
+가 붙어 있었으나 8번의 이유로 뺐다)
 
 **임베딩 비중이 스케일마다 크게 다르다** (`experiments/models.tsv` 실측):
 

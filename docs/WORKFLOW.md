@@ -63,33 +63,41 @@ Config-SHA256: <config.json 의 sha256>
 
 ## 개발 순서 (스펙 §97~§112)
 
-현재 위치는 **Step 6 본 CPT 실행 중**이다. v1 코퍼스와 Level 1 은
-`phase1-tokenizer-freeze` 로 얼렸고, T2a/T2b 토크나이저와 embedding 수술,
-노이즈 플로어(조건별 sigma)까지 끝났다. Embedding Alignment 는 탐침 끝에
-**뺐다** ([`DESIGN_DELTA.md`](DESIGN_DELTA.md) 1-5). 남은 것은 본 CPT 다.
+현재 위치는 **Phase 4 진입 직전**이다 (2026-08-31). 본 CPT 3조건이 끝나
+사전 등록 질문 Q4(부정)·Q5(긍정)에 답이 붙었다
+([`../reports/tables/cpt_main.md`](../reports/tables/cpt_main.md)).
+Embedding Alignment 는 탐침 끝에 **폐기했다**
+([`DESIGN_DELTA.md`](DESIGN_DELTA.md) 1-5).
+
+남은 것은 Phase 4(등토큰 예산 · N 스윕), 그다음 Level 3 능력 평가와
+시스템 벤치마크다.
 
 스펙과 다르게 한 결정들은 [`DESIGN_DELTA.md`](DESIGN_DELTA.md) 에 모여 있다.
 
 | Step | 내용 | 상태 |
 |---|---|---|
 | 0 | 저장소 뼈대 · 원장 · 커밋 위생 · 환경 · 자원 실측 | **완료** |
-| 1 | 데이터 파이프라인: 정규화 → dedup → 도메인 라벨 → split | 파일럿 완료 · **본편 대기** |
-| 1b | 영어·코드 대조군 (fineweb-edu / github-code-clean) | **완료** (파일럿 규모) |
+| 1 | 데이터 파이프라인: 정규화 → dedup → 도메인 라벨 → split | **완료** — v1, 한국어 118.7만 문서 4.73GB |
+| 1b | 영어·코드 대조군 (fineweb-edu / github-code-clean) | **완료** — 영어 51,960 · 코드 30,216 |
 | 1c | 도메인 라벨 정확도 검증 (블라인드 감사) | **완료** — 세분화는 ~55%, `news`/`기타`만 보고 |
-| 2 | 토크나이저 벤치마크 (Qwen / HCX / A.X / Custom 동일 조건) | 파일럿 완료 · 정식 측정 대기 |
-| 3 | 토크나이저 학습기: Extend / Substitute / New BBPE + 버전 관리 | |
-| 4 | Candidate Gate — CPU 단계에서 후보 거르기 | |
-| 5 | Qwen 0.5B tokenizer surgery (resize, LM head, special token, ID mapping) | |
-| 6 | Embedding init ablation: Random / Mean / Weighted | |
-| 7 | Embedding alignment (Transformer freeze) | |
-| 8 | 0.5B Full CPT | |
+| 2 | 토크나이저 벤치마크 (Qwen / HCX / A.X / Custom 동일 조건) | **완료** — `phase1-tokenizer-freeze` 로 고정 |
+| 3 | 토크나이저 학습기: Extend / Substitute / New BBPE + 버전 관리 | **부분** — Substitute 완료, Extend(T1) 폐기, New BBPE(T3) 미착수 |
+| 4 | Candidate Gate — CPU 단계에서 후보 거르기 | **완료** — report/hard 이원화 ([DESIGN_DELTA](DESIGN_DELTA.md) 1-1) |
+| 5 | Qwen 0.5B tokenizer surgery (resize, LM head, special token, ID mapping) | **완료** — T2a n=30,000 · T2b v2 n=30,000 |
+| 6 | Embedding init ablation: Random / Mean / Weighted | **완료** — 부품 평균(E1) 채택, 노름 보정은 반증 |
+| 7 | Embedding alignment (Transformer freeze) | **폐기** — 쓸 만한 lr 작동점이 없다 ([DESIGN_DELTA](DESIGN_DELTA.md) 1-5) |
+| 8 | 0.5B Full CPT | **완료** — 3조건 168.5MB Equal-Raw-Data |
+| 8b | Phase 4: 등토큰 예산 + N 스윕 | **다음** — `scripts/run_phase4.sh` |
 | 9 | 평가 파이프라인 고정 → `eval-freeze-v1` 태그 | |
-| 10 | 최종 후보 multi-seed (42 / 123 / 2026) | |
+| 10 | 최종 후보 multi-seed (42 / 123 / 2026) | 노이즈 플로어로 3시드는 측정 완료 |
 | 11 | 1.5B scale validation | |
-| 12 | 시스템 벤치마크 (RTX 5070 Ti) | |
+| 12 | 시스템 벤치마크 (RTX 5070 Ti) — Q6 | |
 
 **Step 1 을 모델 학습보다 먼저 한다.** 분할이 확정되지 않은 상태에서 토크나이저를
 학습하면 그 뒤의 모든 결과가 오염된다 ([RULES.md](RULES.md) 1번).
+
+위 번호는 스펙 §97~§112 의 것이다. [`HANDOFF.md`](HANDOFF.md) 는 실제로 밟은
+순서로 번호를 매기므로 둘이 어긋난다 — 상태를 복원할 때는 HANDOFF 를 본다.
 
 ---
 

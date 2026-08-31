@@ -7,12 +7,14 @@ Qwen2.5-0.5B
         ↓
 Vocabulary Surgery
         ↓
-Embedding Alignment
-        ↓
 Continued Pretraining
         ↓
 Ko-Qwen
 ```
+
+> Embedding Alignment 단계는 스펙에 있었으나 **폐기했다.** 손해를 안 내면서
+> 제 일을 하는 lr 이 없다는 것을 3라운드 탐침으로 확인했다
+> ([`docs/DESIGN_DELTA.md`](docs/DESIGN_DELTA.md) 1-5).
 
 한국어 특화 토크나이저가 LLM 의 언어 모델링 품질, 학습 효율, 시퀀스 길이,
 Attention 연산량, KV Cache, 추론 지연에 미치는 영향을 **통제된 실험**으로 분석한다.
@@ -27,33 +29,51 @@ Attention 연산량, KV Cache, 추론 지연에 미치는 영향을 **통제된 
 
 ## 결과
 
-> 아래 표는 정식 데이터와 자체 토크나이저가 고정된 뒤 채운다. 현재는 Step 1
-> 소규모 관통, Step 2 Level 1(영어·코드 대조군 포함), 도메인 라벨 검증까지
-> 끝낸 **전체 규모 직전** 단계다.
->
-> 지금까지 측정된 것 (dev 파일럿, 자체 토크나이저 이전):
->
-> ```
-> 한국어  Qwen 0.6831 tok/char   HCX -25.2%   A.X -39.4%
-> 영어    Qwen 0.2169            HCX  -0.5%   A.X  +7.3%
-> 코드    Qwen 0.2955            HCX +20.9%   A.X +26.6%
-> ```
->
-> 한국어 압축을 얻는 만큼 코드에서 20~27% 를 잃는다 — 스펙 §16 이 경고한
-> trade-off 가 실측으로 확인됐다. 도메인 라벨 신뢰 범위는
-> [`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md).
+**2026-08-31 현재 — 압축은 됐고, 품질은 안 따라왔다.**
+
+Qwen2.5-0.5B 에 T2b(크기 보존 치환, n=30,000) 수술을 하고 세 조건에 **같은
+원문 168.5MB** 로 통제된 CPT 를 돌린 결과다. 전체 표:
+[`reports/tables/cpt_main.md`](reports/tables/cpt_main.md).
 
 ```
-Korean Tokens        -XX.X%
-P95 Sequence Length  -XX.X%
-Korean BPB           -X.X%
-English Regression   +X.X%
-Code Regression      +X.X%
+한국어 토큰 수        -30.2%    tok/char, v1 dev (약속대로 압축됨)
+같은 원문의 토큰      49.9M -> 34.8M  (비율 0.6977, 예측 0.696 과 일치)
 
-Prefill Latency      -XX.X%
-TTFT                 -XX.X%
-Peak VRAM            -XX.X%
+한국어 BPB           +37.8%    C0 대비 **악화** (1.5671 vs 1.1375, 348 sigma)
+영어 regression       +0.98%
+코드 regression       +1.84%
+
+Prefill / TTFT / VRAM   미측정 (Step 12)
 ```
+
+**토크나이저 수술은 설계대로 작동했다. 못 따라온 것은 언어모델이다.**
+T2b 는 수술 직후 BPB 2.3803 에서 출발해 1.5671 까지 왔지만 C0 는 1.1375 다 —
+메워야 할 1.2428 중 65.4% 를 메우고 0.4296 을 남겼다.
+
+원인은 노출이다. 새 토큰 30,000개의 **중앙값 발화가 168.5MB 전체에서 143회** 다.
+전체 토큰의 43% 가 새 토큰인데도 그렇다 — 상위 0.4% 가 45,000번씩 먹기 때문이다.
+896차원 벡터를 143번 업데이트로 밑바닥부터 학습할 수 없다. 초기화 문제가 아니다
+(E0/E1/E2 에서 부품 평균이 이미 최선이었고 노름 보정은 반증됐다).
+
+한편 **T2a(제거만, 크기 축소)는 거의 공짜다.** embedding 27.1M(5.5%)을 줄이고
+한국어 -0.064%, 영어 구별 불가, 코드 +0.26% 다. "수술을 받았는가" 가 아니라
+**"수술로 손상됐는가"** 가 결과를 가른다.
+
+아직 열려 있는 문 두 개 — 같은 **토큰수** 를 주는 조건(스펙 §32~33)과 더 작은
+N. [`scripts/run_phase4.sh`](scripts/run_phase4.sh) 가 둘 다 잰다. 예측은
+[`docs/PLAN.md`](docs/PLAN.md) 에 미리 박아 뒀다.
+
+### 토크나이저만 놓고 본 참조점 (Level 1, `phase1-tokenizer-freeze`)
+
+```
+한국어  Qwen 0.6834 tok/char   HCX -24.9%   A.X -39.4%   T2b v2 -30.2%
+영어    Qwen 기준               HCX  +0.0%   A.X  +7.3%   T2b v2  -0.0%
+코드    Qwen 기준               HCX +17.6%   A.X +22.5%   T2b v2  -0.8%
+```
+
+한국어 압축을 얻는 만큼 코드에서 잃는 것이 보통인데 T2b v2 는 코드 손실이
+거의 없다. 도메인 라벨 신뢰 범위는
+[`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md).
 
 > The final test set was never used for tokenizer design, hyperparameter tuning,
 > model selection, or checkpoint selection.
