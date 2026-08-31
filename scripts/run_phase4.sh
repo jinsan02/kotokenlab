@@ -57,4 +57,23 @@ $P -m src.training.cpt --model artifacts/models/kot2b_v2_n10000_mean \
    --name t2b10k_mean --seed 42 --budget-bytes 168500000 --pool-docs 50000 \
    --eval-bytes 20000000 --eval-budget 2000000 --tag main --save
 
+########################################################################
+# 3. N=10,000 의 노이즈 플로어 — 새 조건에는 자기 sigma 가 필요하다
+#
+# RULES 는 "조건이 늘어나면 그 조건의 sigma 를 따로 재고, 재지 않았으면
+# 구별 불가로 남긴다" 고 못박는다. N=10,000 은 새 조건이다.
+#
+# T2b(N=30,000)의 sigma 0.001234 를 보수적 상한으로 쓸 수도 있다 — 손상이
+# 덜한 조건이니 실제 sigma 는 그보다 작을 것이고, 큰 sigma 를 쓰면 차이를
+# 덜 검출하는 쪽으로만 틀린다. 다만 33분이면 실측할 수 있으므로 실측한다.
+#
+# 조건은 노이즈 플로어와 동일하게 17.5MB (reports/tables/noise_floor.md).
+########################################################################
+echo "########## 3. N=10,000 노이즈 플로어 (3 seed) ##########"
+for S in 42 123 2026; do
+  $P -m src.training.cpt --model artifacts/models/kot2b_v2_n10000_mean \
+     --name t2b10k_mean --seed $S --budget-bytes 17500000 --pool-docs 5000 \
+     --tag noise
+done
+
 echo "########## PHASE 4 DONE ##########"
