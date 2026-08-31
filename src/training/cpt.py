@@ -3,11 +3,17 @@
     .conda/python.exe -m src.training.cpt --model Qwen/Qwen2.5-0.5B --seed 42 \
         --budget-bytes 18000000 --tag noise
 
-Equal-Raw-Data
+Equal-Raw-Data (기본)
     예산을 토큰이 아니라 **원문 바이트** 로 센다. 토크나이저가 다른 조건을
     tokens_seen 으로 맞추면 압축이 좋은 쪽이 같은 예산에서 더 적은 원문을 보게
     되어, 압축 개선이 곧 데이터 손해로 바뀐다. 바이트로 맞추면 모든 조건이
     **같은 글** 을 본다 ([RULES.md](../../docs/RULES.md) 12).
+
+Equal Token Budget (--budget-tokens, 스펙 §32~33)
+    보완 축이다. 같은 **연산·문맥** 을 주면 압축이 좋은 쪽이 더 많은 원문을 본다 —
+    실무에서 토크나이저를 바꾸는 이유가 그것이다. 예산도 LR 스케줄도 토큰 기준이
+    된다. 조건마다 tok/byte 가 일정하므로 '진행률 대비 LR' 곡선은 바이트 기준과
+    같은 모양이고, 따라서 이미 돌린 바이트 기준 run 과 비교가 성립한다.
 
 노이즈 플로어
     같은 config 를 seed 만 바꿔 여러 번 돌리면 sigma_BPB 가 나온다. 이걸 먼저
@@ -104,6 +110,9 @@ def main(argv: list | None = None) -> int:
     ap.add_argument("--name", default=None)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--budget-bytes", type=int, default=18_000_000)
+    ap.add_argument("--budget-tokens", type=int, default=0,
+                    help="0 이 아니면 토큰 예산으로 돈다 (스펙 §32~33 등토큰). "
+                         "예산도 LR 스케줄도 토큰 기준이 된다")
     ap.add_argument("--seq-len", type=int, default=2048)
     ap.add_argument("--micro-bs", type=int, default=2)
     ap.add_argument("--accum", type=int, default=8)
@@ -136,12 +145,14 @@ def main(argv: list | None = None) -> int:
     eos_id = tokenizer.eos_token_id or 0
     config = {
         "model": args.model, "revision": args.revision, "seed": args.seed,
-        "budget_bytes": args.budget_bytes, "seq_len": args.seq_len,
+        "budget_bytes": args.budget_bytes,
+        "budget_tokens": args.budget_tokens, "seq_len": args.seq_len,
         "micro_bs": args.micro_bs, "accum": args.accum, "lr": args.lr,
         "pool_docs": args.pool_docs, "skip_docs": args.skip_docs,
         "optimizer": "adamw8bit",
         "dtype": "bfloat16", "grad_checkpointing": True,
-        "lr_schedule": "cosine_by_raw_bytes",
+        "lr_schedule": ("cosine_by_tokens" if args.budget_tokens
+                        else "cosine_by_raw_bytes"),
     }
     run_id = make_run_id("cpt", name, args.tag, seed=args.seed)
 
@@ -172,8 +183,9 @@ def main(argv: list | None = None) -> int:
         docs = load_pool(pool_path, args.pool_docs, args.skip_docs)
         rng = random.Random(args.seed)
         rng.shuffle(docs)                     # seed 는 **순서만** 바꾼다
-        print(f"{name}  seed {args.seed}  문서 풀 {len(docs):,}  "
-              f"예산 {args.budget_bytes / 1e6:.1f}MB")
+        budget_txt = (f"{args.budget_tokens / 1e6:.1f}M 토큰" if args.budget_tokens
+                      else f"{args.budget_bytes / 1e6:.1f}MB 원문")
+        print(f"{name}  seed {args.seed}  문서 풀 {len(docs):,}  예산 {budget_txt}")
 
         opt = bnb.optim.AdamW8bit(model.parameters(), lr=args.lr,
                                   betas=(0.9, 0.95), weight_decay=0.1)
@@ -210,6 +222,21 @@ def main(argv: list | None = None) -> int:
         base_bpb = base["ko"]
         print(f"  학습 전 dev BPB  {fmt(base)}")
 
+        # 학습 전 지점을 반드시 원장에 남긴다. 예전에는 출력만 하고 버려서,
+        # '얼마나 회복했나' 를 말하려면 나중에 같은 예산으로 다시 재야 했다.
+        # 평가 예산이 run 마다 다르면 사후 측정과 대조도 못 한다.
+        for lang, v in base.items():
+            run.log("lm_metrics", checkpoint="step0", tokens_seen=0,
+                    raw_bytes_seen=0, split="dev", domain=lang,
+                    n_bytes=None, total_nll=None, bpb=round(v, 6),
+                    bpc=None, token_ppl=None)
+
+        # 등토큰 예산이면 진행량·LR·중단 판정이 전부 토큰 기준이 된다.
+        # 조건마다 tok/byte 가 일정하므로 '진행률 대비 LR' 곡선은 바이트 기준과
+        # 같은 모양이다 — 즉 이미 돌린 바이트 기준 run 과 비교가 성립한다.
+        by_tokens = args.budget_tokens > 0
+        budget = args.budget_tokens if by_tokens else args.budget_bytes
+
         model.train()
         torch.cuda.reset_peak_memory_stats()
         step = micro = 0
@@ -236,7 +263,8 @@ def main(argv: list | None = None) -> int:
                 micro += 1
 
                 if micro % args.accum == 0:
-                    lr = cosine_lr_by_bytes(int(raw_bytes), args.budget_bytes, args.lr)
+                    progress = tokens_seen if by_tokens else int(raw_bytes)
+                    lr = cosine_lr_by_bytes(progress, budget, args.lr)
                     for g in opt.param_groups:
                         g["lr"] = lr
                     gnorm = float(torch.nn.utils.clip_grad_norm_(
@@ -266,13 +294,13 @@ def main(argv: list | None = None) -> int:
                                     domain=lang, n_bytes=None, total_nll=None,
                                     bpb=round(v, 6), bpc=None, token_ppl=None)
 
-                if raw_bytes >= args.budget_bytes:
+                if (tokens_seen if by_tokens else raw_bytes) >= budget:
                     break
 
         # 문서 풀이 예산보다 작으면 스트림이 먼저 끝나고 그냥 종료된다. 그러면
         # 조건마다 다른 분량을 학습하고도 모른 채 비교하게 된다 — Equal-Raw-Data 가
         # 깨지는 두 번째 경로다. 조용히 넘어가지 않는다.
-        shortfall = 1.0 - raw_bytes / args.budget_bytes
+        shortfall = 1.0 - (tokens_seen if by_tokens else raw_bytes) / budget
         if shortfall > 0.01:
             msg = (f"예산 미달: {raw_bytes / 1e6:.2f}MB / "
                    f"{args.budget_bytes / 1e6:.2f}MB ({shortfall:.1%} 부족). "
