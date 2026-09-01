@@ -141,6 +141,78 @@ sigma 는 차이를 덜 검출하는 쪽으로만 틀린다 — 33분이면 실�
 
 Phase 4 총 소요는 등토큰 1.7시간 + N 스윕 2시간 + sigma 0.6시간 = **약 4.3시간**.
 
+### Q6 시스템 벤치마크 — 2026-09-01 사전 등록
+
+**아직 안 돌렸다. 예측을 먼저 적는다.**
+
+압축 -30.2% 가 품질에서는 값을 하지 못했다 (Q4 부정). 남은 물음은 **지연과
+메모리에서는 값을 하는가** 다. 토크나이저를 바꾸는 실무적 이유가 여기 있고,
+T2b 가 이길 수 있는 유일한 축이다.
+
+**두 모드로 잰다.** 스키마의 `mode` 컬럼이 이걸 위해 있다.
+
+| mode | 무엇을 고정하나 | 무엇을 답하나 |
+|---|---|---|
+| `raw_prompt` | 같은 **한국어 원문** | 실제 사용자가 겪는 차이. T2b 는 같은 글을 30% 적은 토큰으로 넣는다 |
+| `equal_tokens` | 같은 **입력 토큰 수** | 개선이 시퀀스 길이에서 오는가, vocab 크기에서 오는가를 가른다 |
+
+`equal_tokens` 의 T2b vs C0 는 **널 대조군** 이다. vocab 도 아키텍처도 같으므로
+차이가 나오면 안 된다. 나오면 계측기가 고장난 것이다.
+
+**대상**: CPT 를 마친 체크포인트 3종 (실제로 배포할 물건).
+C0 · T2a(vocab 121,728) · T2b(vocab 151,936).
+
+**길이**: 한국어 원문 5,000 / 10,000 / 20,000 / 40,000자.
+40,000자는 약 27,300 토큰으로, 실측상 안전한 상한 근처다
+([`reports/tables/resource_probe.md`](../reports/tables/resource_probe.md)).
+
+#### 예측
+
+| # | 예측 | 근거 |
+|---|---|---|
+| 1 | `raw_prompt` 에서 T2b 의 KV cache 가 **정확히 -30.2%** | 토큰 수에 선형이다. 이것이 안 맞으면 계측이 틀린 것 |
+| 2 | `raw_prompt` 에서 T2b 의 prefill 이 **-33~42%** — 토큰 감소율보다 크다 | prefill 은 초선형이다. 실측 기울기가 1,024→4,096 구간 1.1 에서 16,384→32,768 구간 1.47 로 올라간다. 0.698^1.1=0.67, 0.698^1.5=0.58 |
+| 3 | `equal_tokens` 에서 T2b ≈ C0 (**구별 불가**) | 널 대조군. vocab·아키텍처 동일 |
+| 4 | `equal_tokens` 에서 T2a 의 peak_alloc 가 **약 54MB 낮다** | embedding 27.1M x bf16 2바이트. prefill 은 `logits_to_keep=1` 이라 lm_head 가 1행만 곱하므로 시간 차이는 거의 없어야 한다 |
+
+**2번이 Q6 의 본체다.** "이론 감소율과 실측의 괴리" 라는 질문에 대한 답은
+*괴리가 T2b 에게 유리한 쪽으로 난다* 여야 한다 — 토큰이 30% 줄면 시간은 30%
+보다 더 준다. 이것이 확인되면 **압축의 값어치는 품질이 아니라 시스템에 있다** 는
+결론이 서고, 부정 결과였던 프로젝트가 조건부 권고를 낼 수 있게 된다.
+
+#### 측정 규약 ([RULES.md](RULES.md) 9번)
+
+warm-up 후 `torch.cuda.synchronize()`. mean / median / std / P95 를 모두 남긴다.
+attention 은 `EFFICIENT_ATTENTION + CUDNN_ATTENTION` 안에서만 (강제 안 하면
+8,192 토큰에서 메모리 7.1배, 시간 10.3배).
+
+**반복 횟수는 경로마다 다르게 잡고 원장에 남긴다.** prefill 은 warm-up 20 /
+측정 100 회. 생성 경로(TTFT·decode)는 한 회가 수 초라 warm-up 5 / 측정 20 회로
+줄인다 — 규칙이 요구하는 것은 고정된 100 이 아니라 `n_warmup`·`n_runs` 를
+비우지 않는 것이다. 줄인 사실이 컬럼에 남는다.
+
+프롬프트는 `data/interim/docs/dev.jsonl` 에서 만든다. **final_test 는 열지 않는다.**
+
+#### 구현 계약 — `latency.py` 와 `memory.py` 는 아직 스텁이다
+
+내일은 측정 전에 구현부터다. 두 모듈이 채워야 할 것:
+
+```
+latency.prefill(model, ids, n_warmup, n_runs) -> dict
+    logits_to_keep=1 로 생성 경로와 같은 모양을 만든다.
+    반환: mean/median/std/p95 (ms)
+
+latency.generate(model, ids, gen_tokens, ...) -> dict
+    반환: ttft_ms(mean/p95), decode_tok_s_mean, total_ms(mean/std)
+
+memory.snapshot() -> dict
+    peak_alloc_mb, peak_reserved_mb. 측정 전 reset_peak_memory_stats.
+
+memory.kv_cache_mb(config, n_tokens) -> float
+    n_layers x n_kv_heads x head_dim x 2(K,V) x 2바이트 x n_tokens.
+    실측이 아니라 이론값이므로 컬럼 이름도 kv_cache_mb_est 다.
+```
+
 ### Candidate Gate 임계값 — 2026-08-30 확정
 
 **T2 후보를 만들기 전에** 정했다. 결과를 보고 완화하면 §107 evaluation freeze 를
