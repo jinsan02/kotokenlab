@@ -124,6 +124,26 @@ MATH 는 `n×n` attention 행렬을 실제로 만든다. 강제하지 않으면 
       ...
   ```
 
+#### 예외 하나 — 생성의 decode 단계 (2026-09-01 추가)
+
+`seq_len=1` 에서는 **두 융합 커널이 모두 거부한다.**
+
+```
+mem_efficient  GQA 브로드캐스트 미지원 — query 14 heads vs key 2 heads
+cuDNN          sequence length 1 미지원
+결과           RuntimeError: No available kernel
+```
+
+그래서 decode 루프만 `MATH` 를 목록에 **더한다.** 우회가 아니라 조건이 다르기
+때문이다 — 위 표의 7.1배·10.3배는 `n x n` 행렬을 실제로 만드는 비용인데,
+decode 의 attention 행렬은 `1 x n` 이라 27,300 토큰에서도 1.5MB 다.
+prefill 에서는 규칙 그대로 두 커널만 쓴다.
+
+정책을 호출자에게 맡기지 않고 [`src/evaluation/latency.py`](../src/evaluation/latency.py)
+가 경로마다 상수로 못 박는다. 그리고 `system_bench` run 의 config 에
+`attn_prefill` 과 `attn_decode` 를 따로 남긴다 — 경로마다 백엔드가 달랐다는
+사실 자체가 기록돼야 나중에 지연 차이를 해석할 수 있다.
+
 - `attn_backend` 가 `env_sha256` 에 포함된다. 백엔드가 달라지면 다른 환경이다.
 - 토크나이저 비교는 **같은 백엔드에서** 한다. 구현이 섞이면 지연 차이의 원인을 알 수 없다.
 

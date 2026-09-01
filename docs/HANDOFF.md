@@ -251,9 +251,22 @@ prefill·TTFT·KV cache 에서 얼마로 나타나는가 — **T2b 가 유일하
 증폭돼야 한다.** 확인되면 "압축의 값어치는 품질이 아니라 시스템에 있다" 는
 조건부 권고가 선다.
 
-**내일은 측정 전에 구현부터다.** `src/evaluation/latency.py` 와 `memory.py` 가
-아직 9줄짜리 스텁이다. 채워야 할 함수 시그니처는 PLAN 의 "구현 계약" 에 적었다.
-예상 1.5시간 구현 + 2시간 측정.
+**계측기는 구현을 마쳤다** (2026-09-01 밤). `latency.py` · `memory.py` ·
+`scripts/run_system_bench.py` · 단위 테스트 7개. GPU 스모크로 두 모드가 실제로
+도는 것까지 확인했다.
+
+바로 실행하면 된다:
+
+```
+sh scripts/run_phase5.sh          # 3모델 x (raw 4단 + equal 4단), 약 2시간
+```
+
+스모크에서 **버그를 하나 잡았다.** decode 단계(seq_len=1)에서 강제한 두 융합
+커널이 모두 거부해 `No available kernel` 로 죽었다 — mem_efficient 는 GQA
+브로드캐스트를, cuDNN 은 길이 1 자체를 지원하지 않는다. decode 에만 MATH 를
+더하도록 고쳤고 [`RULES.md`](RULES.md) 9번에 예외로 명시했다. 우회가 아니라
+조건이 다르기 때문이다 — decode 의 attention 행렬은 1 x n 이라 27,300 토큰에서도
+1.5MB 다.
 
 시작 전에 `nvidia-smi` 로 GPU 여유를 확인하고 사용자에게 알린다. 장시간 run 은
 `tools/watch_run.py` 로 감시를 건다.
