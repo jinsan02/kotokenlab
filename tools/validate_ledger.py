@@ -103,12 +103,39 @@ def _check_table(raw: str, expected: tuple, label: str) -> tuple:
     return errors, rows
 
 
-def _check_run_lifecycle(rows: list) -> list:
+ALIVE_MIN = 60      # 지표 행을 이만큼 안에 썼으면 살아 있는 것으로 본다
+
+
+def _recent_activity(metric_rows: list) -> dict:
+    """run_id -> 가장 최근 지표 행의 ts_utc. 살아 있는지 판단하는 증거다."""
+    latest: dict = {}
+    for row in metric_rows:
+        rid, ts = row.get("run_id"), row.get("ts_utc")
+        if not rid or not ts or ts == ledger.NA:
+            continue
+        if ts > latest.get(rid, ""):
+            latest[rid] = ts
+    return latest
+
+
+def _check_run_lifecycle(rows: list, activity: dict | None = None) -> list:
     """start 만 있고 끝나지 않은 run 을 찾는다 (REVIEW D2).
 
     OOM·정전으로 프로세스가 죽으면 종료 행이 남지 않는다. 그대로 두면 원장이
     성공한 실험처럼 보인다. 의도적으로 중단했다면 status=abort 행을 직접 붙여라.
+
+    **지금 돌고 있는 run 은 예외다.** 학습 중인 run 은 정상적으로 start 만 있는
+    상태이므로, 그때 다른 실험 결과를 기록하려 하면 살아 있는 run 을 죽은 것으로
+    보고 커밋을 막는다. 추측으로 봐주지 않고 증거를 본다 — train_curve 나
+    lm_metrics 에 ALIVE_MIN 분 안에 쓴 행이 있으면 살아 있다. 진짜 죽은 run 은
+    행이 멎으므로 그 시간이 지나면 그대로 잡힌다.
     """
+    from datetime import datetime, timedelta, timezone
+
+    activity = activity or {}
+    cutoff = (datetime.now(timezone.utc)
+              - timedelta(minutes=ALIVE_MIN)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
     started, ended = {}, set()
     for row in rows:
         rid, status = row.get("run_id"), row.get("status")
@@ -116,11 +143,19 @@ def _check_run_lifecycle(rows: list) -> list:
             started.setdefault(rid, row.get("ts_utc", "NA"))
         elif status in ledger.TERMINAL_STATUSES:
             ended.add(rid)
-    return [
-        f"LEDGER.tsv: run {rid!r} 이 start({ts}) 이후 끝나지 않았다. "
-        "죽은 run 이면 status=abort 행을 붙여라"
-        for rid, ts in started.items() if rid not in ended
-    ]
+
+    errors = []
+    for rid, ts in started.items():
+        if rid in ended:
+            continue
+        if activity.get(rid, "") >= cutoff:
+            continue                      # 최근에 지표를 썼다 — 돌고 있다
+        errors.append(
+            f"LEDGER.tsv: run {rid!r} 이 start({ts}) 이후 끝나지 않았다. "
+            f"최근 {ALIVE_MIN}분 안에 지표 행도 없다. "
+            "죽은 run 이면 status=abort 행을 붙여라"
+        )
+    return errors
 
 
 def _check_duplicates(rows: list, label: str, keys: tuple) -> list:
@@ -164,7 +199,14 @@ def validate(root: Path | str | None = None, *,
             if row.get("status") not in ledger.RUN_STATUSES:
                 errors.append(f"LEDGER.tsv:{n}: 알 수 없는 status {row.get('status')!r}")
         if check_lifecycle:
-            errors += _check_run_lifecycle(rows)
+            metric_rows: list = []
+            for t in ("train_curve", "lm_metrics"):
+                raw_m = _read(ledger.TABLES[t][0], root, source)
+                if raw_m:
+                    _, mrows = _check_table(raw_m, ledger.TABLES[t][1],
+                                            Path(ledger.TABLES[t][0]).name)
+                    metric_rows += mrows
+            errors += _check_run_lifecycle(rows, _recent_activity(metric_rows))
         errors += _check_duplicates(rows, "LEDGER.tsv",
                                     ("run_id", "status", "ts_utc"))
 

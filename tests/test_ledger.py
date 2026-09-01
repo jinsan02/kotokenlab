@@ -317,3 +317,56 @@ def test_validate_falls_back_outside_a_repo(tmp_path):
         root=tmp_path,
     )
     assert validate(tmp_path, source="index") == []
+
+
+# ── 돌고 있는 run 을 죽은 것으로 보지 않는다 ──────────────────────────────
+#
+# 학습 중인 run 은 정상적으로 start 만 있다. 그때 다른 실험 결과를 기록하려
+# 하면 예전 검사는 살아 있는 run 을 죽은 것으로 보고 커밋을 막았다.
+# 추측이 아니라 증거를 본다 — 최근에 지표 행을 썼는가.
+
+def _ts(minutes_ago: int) -> str:
+    from datetime import datetime, timedelta, timezone
+    return (datetime.now(timezone.utc)
+            - timedelta(minutes=minutes_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _running_repo(tmp_path, curve_age_min: int):
+    """끝난 run 하나 + start 만 있는 run 하나. 후자가 지표를 쓴 지 curve_age_min 분."""
+    ledger.append_row("ledger", {"run_id": "cpt_done_seed42", "phase": "cpt",
+                                 "status": "start", "git_commit": "NA"},
+                      root=tmp_path)
+    ledger.append_row("ledger", {"run_id": "cpt_done_seed42", "phase": "cpt",
+                                 "status": "ok", "git_commit": "NA"},
+                      root=tmp_path)
+    ledger.append_row("ledger", {"run_id": "cpt_live_seed42", "phase": "cpt",
+                                 "status": "start", "git_commit": "NA"},
+                      root=tmp_path)
+    ledger.append_row("train_curve", {"run_id": "cpt_live_seed42", "step": 10,
+                                      "tokens_seen": 1000,
+                                      "ts_utc": _ts(curve_age_min),
+                                      "git_commit": "NA"},
+                      root=tmp_path)
+    return tmp_path
+
+
+def test_lifecycle_lets_a_live_run_through(tmp_path):
+    """방금 지표를 쓴 run 은 돌고 있는 것이다. 기록 커밋을 막으면 안 된다."""
+    root = _running_repo(tmp_path, curve_age_min=5)
+    assert validate(root) == []
+
+
+def test_lifecycle_still_catches_a_dead_run(tmp_path):
+    """지표가 멎은 지 오래면 죽은 것이다. 그대로 잡아야 한다."""
+    root = _running_repo(tmp_path, curve_age_min=600)
+    errors = validate(root)
+    assert any("cpt_live_seed42" in e for e in errors)
+    assert not any("cpt_done_seed42" in e for e in errors)
+
+
+def test_lifecycle_catches_a_run_with_no_metrics_at_all(tmp_path):
+    """지표 행이 아예 없으면 살아 있다는 증거가 없다."""
+    ledger.append_row("ledger", {"run_id": "cpt_ghost_seed42", "phase": "cpt",
+                                 "status": "start", "git_commit": "NA"},
+                      root=tmp_path)
+    assert any("cpt_ghost_seed42" in e for e in validate(tmp_path))
