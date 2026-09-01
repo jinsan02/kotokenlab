@@ -1,0 +1,17 @@
+{
+  "accum": 8,
+  "budget_bytes": 18000000,
+  "budget_tokens": 49922048,
+  "dtype": "bfloat16",
+  "grad_checkpointing": true,
+  "lr": 1e-05,
+  "lr_schedule": "cosine_by_tokens",
+  "micro_bs": 2,
+  "model": "artifacts/models/kot2b_v2_n30000_mean",
+  "optimizer": "adamw8bit",
+  "pool_docs": 70000,
+  "revision": null,
+  "seed": 42,
+  "seq_len": 2048,
+  "skip_docs": 0
+}
