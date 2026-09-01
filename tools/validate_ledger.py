@@ -126,9 +126,16 @@ def _check_run_lifecycle(rows: list, activity: dict | None = None) -> list:
 
     **지금 돌고 있는 run 은 예외다.** 학습 중인 run 은 정상적으로 start 만 있는
     상태이므로, 그때 다른 실험 결과를 기록하려 하면 살아 있는 run 을 죽은 것으로
-    보고 커밋을 막는다. 추측으로 봐주지 않고 증거를 본다 — train_curve 나
-    lm_metrics 에 ALIVE_MIN 분 안에 쓴 행이 있으면 살아 있다. 진짜 죽은 run 은
-    행이 멎으므로 그 시간이 지나면 그대로 잡힌다.
+    보고 커밋을 막는다. 추측으로 봐주지 않고 증거를 두 가지 본다.
+
+        1. train_curve 나 lm_metrics 에 ALIVE_MIN 분 안에 쓴 행이 있다
+        2. start 행 자체가 ALIVE_MIN 분 안이다
+
+    2번이 필요한 이유는 첫 평가 지점까지의 공백이다. 모델 로드와 문서 풀 적재,
+    그리고 첫 eval-bytes 를 지나기 전까지 run 은 지표를 하나도 안 쓴다 — 실측
+    10분 안팎이다. 그 창에서 다른 실험을 기록하려 하면 1번만으로는 막힌다.
+
+    진짜 죽은 run 은 두 조건이 모두 지나므로 그대로 잡힌다.
     """
     from datetime import datetime, timedelta, timezone
 
@@ -150,9 +157,11 @@ def _check_run_lifecycle(rows: list, activity: dict | None = None) -> list:
             continue
         if activity.get(rid, "") >= cutoff:
             continue                      # 최근에 지표를 썼다 — 돌고 있다
+        if ts != ledger.NA and ts >= cutoff:
+            continue                      # 방금 시작했다 — 아직 지표가 없을 뿐
         errors.append(
             f"LEDGER.tsv: run {rid!r} 이 start({ts}) 이후 끝나지 않았다. "
-            f"최근 {ALIVE_MIN}분 안에 지표 행도 없다. "
+            f"최근 {ALIVE_MIN}분 안에 지표 행도 없고 시작한 지도 그보다 오래됐다. "
             "죽은 run 이면 status=abort 행을 붙여라"
         )
     return errors

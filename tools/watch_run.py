@@ -1,0 +1,83 @@
+"""장시간 GPU 작업 감시 — 문제가 생기면 즉시 빠져나와 알린다.
+
+    .conda/python.exe tools/watch_run.py artifacts/logs/phase4.log --done "PHASE 4 DONE"
+
+세 가지를 본다.
+    1. 로그의 치명 키워드 (Traceback / CUDA OOM / RuntimeError / AssertionError)
+    2. 원장에 fail·abort 상태 행이 붙었는가
+    3. 진척이 멎었는가 — 원장 행도 학습 곡선도 --stall 분 동안 그대로
+
+정지 임계를 넉넉히(기본 30분) 잡는 이유는 **정상인데도 조용한 구간** 이 있기
+때문이다. 문서 풀 적재가 5~10분, 모델 저장과 다음 모델 로드가 몇 분, 수술
+단계는 학습 곡선을 아예 안 남긴다. 20분으로 잡으면 오탐이 난다.
+
+GPU 를 쓰지 않고 torch 를 import 하지 않는다. 감시가 학습과 경합하면
+그 자체가 측정을 오염시킨다 — 실제로 한 번 자기 감시를 의심한 적이 있다.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from src.utils import ledger  # noqa: E402
+
+FATAL = ("Traceback (most recent call last)", "out of memory",
+         "CUDA error", "RuntimeError", "AssertionError")
+
+
+def snapshot(since: str) -> tuple:
+    lg = ledger.read_rows("ledger")
+    cv = ledger.read_rows("train_curve")
+    bad = [r for r in lg if r.get("status") in ("fail", "abort")
+           and r.get("ts_utc", "") >= since]
+    return len(lg), len(cv), bad
+
+
+def report(msg: str) -> None:
+    print("!! 감시 발동 —", msg)
+    for r in ledger.read_rows("ledger")[-3:]:
+        print("  ", r["ts_utc"], r["run_id"], r["status"])
+
+
+def main(argv: list | None = None) -> int:
+    ap = argparse.ArgumentParser(description="장시간 run 감시")
+    ap.add_argument("log", help="감시할 로그 파일")
+    ap.add_argument("--done", default="DONE", help="정상 종료를 뜻하는 문자열")
+    ap.add_argument("--poll", type=int, default=120, help="확인 주기(초)")
+    ap.add_argument("--stall", type=int, default=30, help="정지 판정(분)")
+    ap.add_argument("--since", default=ledger.utcnow()[:10],
+                    help="이 날짜 이후의 fail·abort 만 본다")
+    args = ap.parse_args(argv)
+
+    log = Path(args.log)
+    last, last_change = snapshot(args.since)[:2], time.time()
+
+    while True:
+        time.sleep(args.poll)
+        text = log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
+        if args.done in text:
+            print("정상 종료 확인")
+            return 0
+        for kw in FATAL:
+            if kw in text:
+                report(f"로그에 {kw!r}")
+                return 1
+        n_lg, n_cv, bad = snapshot(args.since)
+        if bad:
+            report(f"원장에 실패 행: {[r['run_id'] for r in bad]}")
+            return 1
+        if (n_lg, n_cv) != last:
+            last, last_change = (n_lg, n_cv), time.time()
+        elif time.time() - last_change > args.stall * 60:
+            report(f"{args.stall}분 동안 진척 없음 (원장 {n_lg}행 / 곡선 {n_cv}행)")
+            return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

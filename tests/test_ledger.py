@@ -246,6 +246,12 @@ def test_migration_skips_summary_manifest(tmp_path):
 # check_commit_msg 와 같은 이유다. 훅이 작업 트리를 보면, 깨진 것을 스테이지해
 # 놓고 작업 트리에서만 고쳐도 로컬은 통과하고 CI 는 거부한다.
 
+def _ts(minutes_ago: int) -> str:
+    from datetime import datetime, timedelta, timezone
+    return (datetime.now(timezone.utc)
+            - timedelta(minutes=minutes_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _git(root, *args):
     import subprocess
     subprocess.run(["git", *args], cwd=str(root), check=True, capture_output=True)
@@ -325,22 +331,23 @@ def test_validate_falls_back_outside_a_repo(tmp_path):
 # 하면 예전 검사는 살아 있는 run 을 죽은 것으로 보고 커밋을 막았다.
 # 추측이 아니라 증거를 본다 — 최근에 지표 행을 썼는가.
 
-def _ts(minutes_ago: int) -> str:
-    from datetime import datetime, timedelta, timezone
-    return (datetime.now(timezone.utc)
-            - timedelta(minutes=minutes_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
+def _running_repo(tmp_path, curve_age_min: int, start_age_min: int = 300):
+    """끝난 run 하나 + start 만 있는 run 하나.
 
-
-def _running_repo(tmp_path, curve_age_min: int):
-    """끝난 run 하나 + start 만 있는 run 하나. 후자가 지표를 쓴 지 curve_age_min 분."""
+    후자는 start_age_min 분 전에 시작해 curve_age_min 분 전에 지표를 썼다.
+    start 를 오래전으로 두는 이유: 그래야 "최근 지표" 규칙만 시험한다.
+    갓 시작한 run 은 별도 규칙으로 통과하므로 여기서 섞이면 안 된다.
+    """
     ledger.append_row("ledger", {"run_id": "cpt_done_seed42", "phase": "cpt",
-                                 "status": "start", "git_commit": "NA"},
+                                 "status": "start", "ts_utc": _ts(start_age_min),
+                                 "git_commit": "NA"},
                       root=tmp_path)
     ledger.append_row("ledger", {"run_id": "cpt_done_seed42", "phase": "cpt",
                                  "status": "ok", "git_commit": "NA"},
                       root=tmp_path)
     ledger.append_row("ledger", {"run_id": "cpt_live_seed42", "phase": "cpt",
-                                 "status": "start", "git_commit": "NA"},
+                                 "status": "start", "ts_utc": _ts(start_age_min),
+                                 "git_commit": "NA"},
                       root=tmp_path)
     ledger.append_row("train_curve", {"run_id": "cpt_live_seed42", "step": 10,
                                       "tokens_seen": 1000,
@@ -365,8 +372,30 @@ def test_lifecycle_still_catches_a_dead_run(tmp_path):
 
 
 def test_lifecycle_catches_a_run_with_no_metrics_at_all(tmp_path):
-    """지표 행이 아예 없으면 살아 있다는 증거가 없다."""
+    """오래전에 시작했고 지표 행이 아예 없으면 살아 있다는 증거가 없다."""
     ledger.append_row("ledger", {"run_id": "cpt_ghost_seed42", "phase": "cpt",
-                                 "status": "start", "git_commit": "NA"},
+                                 "status": "start", "ts_utc": _ts(300),
+                                 "git_commit": "NA"},
                       root=tmp_path)
     assert any("cpt_ghost_seed42" in e for e in validate(tmp_path))
+
+
+def test_lifecycle_lets_a_just_started_run_through(tmp_path):
+    """첫 평가 지점 전에는 지표 행이 없다. 그 창에서도 기록을 막으면 안 된다.
+
+    모델 로드 + 문서 풀 적재 + 첫 eval-bytes 까지 실측 10분 안팎이다.
+    """
+    ledger.append_row("ledger", {"run_id": "cpt_juststarted_seed42",
+                                 "phase": "cpt", "status": "start",
+                                 "ts_utc": _ts(2), "git_commit": "NA"},
+                      root=tmp_path)
+    assert validate(tmp_path) == []
+
+
+def test_lifecycle_catches_an_old_start_with_no_metrics(tmp_path):
+    """오래전에 시작했는데 지표가 하나도 없으면 죽은 것이다."""
+    ledger.append_row("ledger", {"run_id": "cpt_ghost2_seed42",
+                                 "phase": "cpt", "status": "start",
+                                 "ts_utc": _ts(600), "git_commit": "NA"},
+                      root=tmp_path)
+    assert any("cpt_ghost2_seed42" in e for e in validate(tmp_path))
