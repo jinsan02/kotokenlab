@@ -10,7 +10,15 @@ Q6 본 측정은 배치 1 단일 요청이었다. 그래서 "메모리를 30% �
 두 가지를 잰다.
 
     최대 배치   같은 한국어 원문을 몇 개까지 동시에 넣을 수 있는가.
-                OOM 이 날 때까지 올린다. 이것이 "요청을 몇 개 받는가" 다.
+                **OOM 을 기다리면 안 된다.** Windows WDDM 드라이버는 장치
+                메모리가 모자라면 시스템 RAM 으로 흘린다 — 죽지 않고
+                느려지기만 한다. 실측에서 배치 26 이 peak 17,495MB 로 장치
+                총량 16,303MB 를 넘겼는데도 OOM 이 안 났고, 처리량만
+                3.85 -> 2.04 seq/s 로 무너졌다. 그대로 두면 "최대 배치 48"
+                이라는 무의미한 답이 나온다.
+
+                그래서 **peak_alloc 이 장치 총량을 넘는 순간** 을 경계로 쓴다.
+                그것이 원래 OOM 으로 표시하려던 "안 들어간다" 지점이다.
     처리량      배치마다 초당 몇 개를 prefill 하는가.
 
 **raw_prompt 모드만 쓴다.** 같은 원문을 넣어야 사용자가 겪는 차이가 된다.
@@ -116,6 +124,8 @@ def main(argv: list | None = None) -> int:
               f"-> {n_tok:,}토큰  KV {memory.kv_cache_mb(cfg, n_tok):.1f}MB/시퀀스"
               f"  시작 여유 {free_mb:,.0f}MB")
 
+        total_mb = (torch.cuda.get_device_properties(0).total_memory / 1024 / 1024
+                    if torch.cuda.is_available() else 0)
         max_ok = 0
         for b in BATCHES:
             ids = one.repeat(b, 1).to(device)
@@ -130,9 +140,13 @@ def main(argv: list | None = None) -> int:
             peak = memory.peaks()
             thr = b / (pf["mean"] / 1000)
             kv = memory.kv_cache_mb(cfg, n_tok) * b
-            max_ok = b
+            spilled = peak["peak_alloc_mb"] > total_mb
+            if not spilled:
+                max_ok = b
             print(f"  배치 {b:3d}  prefill {pf['mean']:8.1f}ms (p95 {pf['p95']:8.1f})  "
-                  f"처리량 {thr:6.2f} seq/s  KV {kv:7.1f}MB  peak {peak['peak_alloc_mb']:7.0f}MB")
+                  f"처리량 {thr:6.2f} seq/s  KV {kv:7.1f}MB  "
+                  f"peak {peak['peak_alloc_mb']:7.0f}MB"
+                  + ("  <- 장치 초과. 여기서 멈춘다" if spilled else ""))
 
             run.log("system_bench", model=args.model, tokenizer_version=name,
                     mode="raw_prompt", raw_chars=args.raw_chars,
@@ -152,8 +166,10 @@ def main(argv: list | None = None) -> int:
                     throughput_docs_s=round(thr, 4))
             del ids
             torch.cuda.empty_cache()
+            if spilled:
+                break
 
-        print(f"  최대 배치 {max_ok}")
+        print(f"  장치 안에 들어가는 최대 배치 {max_ok}  (총 {total_mb:,.0f}MB)")
     return 0
 
 

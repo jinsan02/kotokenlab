@@ -45,8 +45,16 @@ def failures() -> set:
             if r.get("status") in ("fail", "abort")}
 
 
+# 진척의 증거가 되는 테이블. train_curve 만 보면 CPT 밖의 run 에 눈이 먼다 —
+# system_bench run 을 감시하다 "20분 동안 진척 없음" 오탐을 냈다. run 이 실제로
+# 무엇에 쓰는지 모르므로 결과가 쌓이는 테이블을 전부 본다.
+PROGRESS = ("train_curve", "lm_metrics", "system_bench",
+            "tokenizer_metrics", "capability")
+
+
 def snapshot() -> tuple:
-    return len(ledger.read_rows("ledger")), len(ledger.read_rows("train_curve"))
+    return (len(ledger.read_rows("ledger")),
+            sum(len(ledger.read_rows(t)) for t in PROGRESS))
 
 
 def report(msg: str) -> None:
