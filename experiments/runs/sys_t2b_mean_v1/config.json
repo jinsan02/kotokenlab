@@ -1,0 +1,25 @@
+{
+  "attn_decode": "efficient+cudnn+math",
+  "attn_prefill": "efficient+cudnn",
+  "dtype": "bfloat16",
+  "equal_tokens": [
+    2048,
+    4096,
+    8192,
+    16384
+  ],
+  "gen_runs": 20,
+  "gen_tokens": 128,
+  "gen_warmup": 5,
+  "model": "artifacts/models/cpt_t2b_mean_main_seed42",
+  "prefill_runs": 100,
+  "prefill_warmup": 20,
+  "purpose": "q6_system_bench",
+  "raw_chars": [
+    5000,
+    10000,
+    20000,
+    40000
+  ],
+  "revision": null
+}
