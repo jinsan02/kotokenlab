@@ -63,14 +63,15 @@ Config-SHA256: <config.json 의 sha256>
 
 ## 개발 순서 (스펙 §97~§112)
 
-현재 위치는 **Phase 4 진입 직전**이다 (2026-08-31). 본 CPT 3조건이 끝나
-사전 등록 질문 Q4(부정)·Q5(긍정)에 답이 붙었다
-([`../reports/tables/cpt_main.md`](../reports/tables/cpt_main.md)).
+현재 위치는 **1차 종료** 다 (2026-09-02). 사전 등록 질문 Q1~Q6 와 유효 범위
+Phase 6(A·C·E)이 모두 닫혔다 —
+[`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md).
+
 Embedding Alignment 는 탐침 끝에 **폐기했다**
 ([`DESIGN_DELTA.md`](DESIGN_DELTA.md) 1-5).
 
-남은 것은 Phase 4(등토큰 예산 · N 스윕), 그다음 Level 3 능력 평가와
-시스템 벤치마크다.
+남은 것은 전부 새 사전 등록이 필요한 선택지다 — Level 3 능력 평가,
+N<10,000, 65% 벽의 정체. [`HANDOFF.md`](HANDOFF.md) 10번 참조.
 
 스펙과 다르게 한 결정들은 [`DESIGN_DELTA.md`](DESIGN_DELTA.md) 에 모여 있다.
 
@@ -90,8 +91,8 @@ Embedding Alignment 는 탐침 끝에 **폐기했다**
 | 8b | Phase 4: 등토큰 예산 + N 스윕 | **다음** — `scripts/run_phase4.sh` |
 | 9 | 평가 파이프라인 고정 → `eval-freeze-v1` 태그 | |
 | 10 | 최종 후보 multi-seed (42 / 123 / 2026) | 노이즈 플로어로 3시드는 측정 완료 |
-| 11 | 1.5B scale validation | |
-| 12 | 시스템 벤치마크 (RTX 5070 Ti) — Q6 | |
+| 11 | 1.5B scale validation | **부분** — Pre-CPT 손상만 측정 (Phase 6-A). CPT 는 미실행 |
+| 12 | 시스템 벤치마크 (RTX 5070 Ti) — Q6 | **완료** — [system_bench.md](../reports/tables/system_bench.md) · 배치는 [phase6.md](../reports/tables/phase6.md) |
 
 **Step 1 을 모델 학습보다 먼저 한다.** 분할이 확정되지 않은 상태에서 토크나이저를
 학습하면 그 뒤의 모든 결과가 오염된다 ([RULES.md](RULES.md) 1번).
