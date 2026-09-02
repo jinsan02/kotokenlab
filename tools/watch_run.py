@@ -31,12 +31,22 @@ FATAL = ("Traceback (most recent call last)", "out of memory",
          "CUDA error", "RuntimeError", "AssertionError")
 
 
-def snapshot(since: str) -> tuple:
-    lg = ledger.read_rows("ledger")
-    cv = ledger.read_rows("train_curve")
-    bad = [r for r in lg if r.get("status") in ("fail", "abort")
-           and r.get("ts_utc", "") >= since]
-    return len(lg), len(cv), bad
+def failures() -> set:
+    """지금 원장에 있는 실패 행 전부. (run_id, ts, status) 로 식별한다.
+
+    **감시 시작 시점의 집합을 기준선으로 잡고 새로 늘어난 것만 본다.**
+    날짜로 거르면 두 가지를 놓친다 — 감시 전에 이미 있던 실패를 잡아 오탐을
+    내고(실제로 한 번 그랬다), 실패 뒤에 ok 가 붙어 되살아난 run 도 실패로
+    센다. 한 run_id 에 fail 과 ok 가 함께 있는 것은 정상이다: 고쳐서 다시
+    돌린 흔적이고 원장은 append-only 라 지우지 않는다.
+    """
+    return {(r.get("run_id"), r.get("ts_utc"), r.get("status"))
+            for r in ledger.read_rows("ledger")
+            if r.get("status") in ("fail", "abort")}
+
+
+def snapshot() -> tuple:
+    return len(ledger.read_rows("ledger")), len(ledger.read_rows("train_curve"))
 
 
 def report(msg: str) -> None:
@@ -51,12 +61,11 @@ def main(argv: list | None = None) -> int:
     ap.add_argument("--done", default="DONE", help="정상 종료를 뜻하는 문자열")
     ap.add_argument("--poll", type=int, default=120, help="확인 주기(초)")
     ap.add_argument("--stall", type=int, default=30, help="정지 판정(분)")
-    ap.add_argument("--since", default=ledger.utcnow()[:10],
-                    help="이 날짜 이후의 fail·abort 만 본다")
     args = ap.parse_args(argv)
 
     log = Path(args.log)
-    last, last_change = snapshot(args.since)[:2], time.time()
+    base_fail = failures()          # 감시 시작 시점의 실패 집합
+    last, last_change = snapshot(), time.time()
 
     while True:
         time.sleep(args.poll)
@@ -68,10 +77,11 @@ def main(argv: list | None = None) -> int:
             if kw in text:
                 report(f"로그에 {kw!r}")
                 return 1
-        n_lg, n_cv, bad = snapshot(args.since)
-        if bad:
-            report(f"원장에 실패 행: {[r['run_id'] for r in bad]}")
+        new_fail = failures() - base_fail
+        if new_fail:
+            report(f"새 실패 행: {sorted({r for r, _, _ in new_fail})}")
             return 1
+        n_lg, n_cv = snapshot()
         if (n_lg, n_cv) != last:
             last, last_change = (n_lg, n_cv), time.time()
         elif time.time() - last_change > args.stall * 60:
