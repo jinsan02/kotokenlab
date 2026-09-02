@@ -28,6 +28,10 @@ class CurveLogger:
     def due(self, raw_bytes_seen: int) -> bool:
         return raw_bytes_seen >= self._next_eval
 
+    @staticmethod
+    def _r(v):
+        return round(v, 6) if v is not None else None
+
     def mark(self, raw_bytes_seen: int) -> None:
         while self._next_eval <= raw_bytes_seen:
             self._next_eval += self.eval_every_bytes
@@ -35,7 +39,10 @@ class CurveLogger:
     def log(self, *, step: int, tokens_seen: int, raw_bytes_seen: int,
             train_loss: float, dev_bpb: float | None = None,
             dev_loss: float | None = None, lr: float,
-            grad_norm: float | None = None, peak_vram_mb: int | None = None) -> None:
+            grad_norm: float | None = None, peak_vram_mb: int | None = None,
+            grad_norm_emb: float | None = None,
+            grad_norm_attn: float | None = None,
+            grad_norm_ffn: float | None = None) -> None:
         elapsed = time.time() - self._t0
         self.run.log(
             "train_curve", step=step, tokens_seen=tokens_seen,
@@ -44,6 +51,9 @@ class CurveLogger:
             dev_loss=round(dev_loss, 6) if dev_loss is not None else None,
             dev_bpb=round(dev_bpb, 6) if dev_bpb is not None else None,
             lr=lr, grad_norm=round(grad_norm, 6) if grad_norm is not None else None,
+            grad_norm_emb=self._r(grad_norm_emb),
+            grad_norm_attn=self._r(grad_norm_attn),
+            grad_norm_ffn=self._r(grad_norm_ffn),
             peak_vram_mb=peak_vram_mb,
             tok_per_s=round(tokens_seen / elapsed, 2) if elapsed > 0 else None,
             raw_bytes_per_s=round(raw_bytes_seen / elapsed, 2) if elapsed > 0 else None,

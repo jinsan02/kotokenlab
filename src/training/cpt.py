@@ -189,6 +189,29 @@ def main(argv: list | None = None) -> int:
 
         opt = bnb.optim.AdamW8bit(model.parameters(), lr=args.lr,
                                   betas=(0.9, 0.95), weight_decay=0.1)
+
+        # 모듈별 기울기 노름. 스키마에 컬럼이 있는데 오래 비워 뒀다.
+        # 회복이 멎을 때 임베딩 기울기가 죽는지 살아 있는지가 기전을 가른다 —
+        # 죽으면 최적화 문제이고, 살아 있는데도 BPB 가 안 내려가면 표현 공간
+        # 문제다. tie_word_embeddings 라 lm_head 는 embed_tokens 와 같은
+        # 텐서이고 named_parameters 가 중복을 지우므로 한 번만 잡힌다.
+        GROUPS = {"emb": [], "attn": [], "ffn": []}
+        for pname, param in model.named_parameters():
+            if "embed_tokens" in pname:
+                GROUPS["emb"].append(param)
+            elif "self_attn" in pname:
+                GROUPS["attn"].append(param)
+            elif "mlp" in pname:
+                GROUPS["ffn"].append(param)
+
+        def group_norms() -> dict:
+            """클리핑 **전에** 부른다. clip_grad_norm_ 은 grad 를 제자리에서 줄인다."""
+            out = {}
+            for key, params in GROUPS.items():
+                g = [p.grad for p in params if p.grad is not None]
+                out[key] = float(torch.linalg.vector_norm(
+                    torch.stack([torch.linalg.vector_norm(x) for x in g]))) if g else None
+            return out
         backends = [SDPBackend.EFFICIENT_ATTENTION, SDPBackend.CUDNN_ATTENTION]
         curve = CurveLogger(run, args.eval_bytes)
 
@@ -267,6 +290,7 @@ def main(argv: list | None = None) -> int:
                     lr = cosine_lr_by_bytes(progress, budget, args.lr)
                     for g in opt.param_groups:
                         g["lr"] = lr
+                    gn = group_norms()          # 클리핑 전에 잰다
                     gnorm = float(torch.nn.utils.clip_grad_norm_(
                         model.parameters(), 1.0))
                     opt.step()
@@ -286,7 +310,10 @@ def main(argv: list | None = None) -> int:
                         curve.log(step=step, tokens_seen=tokens_seen,
                                   raw_bytes_seen=int(raw_bytes),
                                   train_loss=train_loss, dev_bpb=final_bpb,
-                                  lr=lr, grad_norm=gnorm, peak_vram_mb=peak)
+                                  lr=lr, grad_norm=gnorm, peak_vram_mb=peak,
+                                  grad_norm_emb=gn["emb"],
+                                  grad_norm_attn=gn["attn"],
+                                  grad_norm_ffn=gn["ffn"])
                         for lang, v in cur.items():
                             run.log("lm_metrics", checkpoint=f"step{step}",
                                     tokens_seen=tokens_seen,
