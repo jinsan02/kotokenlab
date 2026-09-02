@@ -17,8 +17,18 @@ Q6 본 측정은 배치 1 단일 요청이었다. 그래서 "메모리를 30% �
                 3.85 -> 2.04 seq/s 로 무너졌다. 그대로 두면 "최대 배치 48"
                 이라는 무의미한 답이 나온다.
 
-                그래서 **peak_alloc 이 장치 총량을 넘는 순간** 을 경계로 쓴다.
-                그것이 원래 OOM 으로 표시하려던 "안 들어간다" 지점이다.
+                경계는 **peak_reserved** 다. allocated 가 아니다 — 캐싱
+                할당자가 잡아 둔 것이 실제로 장치를 차지한다. 실측에서
+                무너지는 지점이 reserved 가 장치 용량을 넘는 지점과 정확히
+                일치했다:
+
+                    C0   배치 20 reserved 15,412  처리량 3.85  <- 마지막 정상
+                         배치 22 reserved 16,848  처리량 2.84
+                    T2b  배치 28 reserved 15,048  처리량 6.18  <- 마지막 정상
+                         배치 30 reserved 16,054  처리량 4.97
+
+                allocated 로 재면 C0 가 배치 24 까지 "들어간다" 고 나오는데
+                거기서는 이미 처리량이 39% 무너져 있다.
     처리량      배치마다 초당 몇 개를 prefill 하는가.
 
 **raw_prompt 모드만 쓴다.** 같은 원문을 넣어야 사용자가 겪는 차이가 된다.
@@ -140,7 +150,7 @@ def main(argv: list | None = None) -> int:
             peak = memory.peaks()
             thr = b / (pf["mean"] / 1000)
             kv = memory.kv_cache_mb(cfg, n_tok) * b
-            spilled = peak["peak_alloc_mb"] > total_mb
+            spilled = peak["peak_reserved_mb"] > total_mb
             if not spilled:
                 max_ok = b
             print(f"  배치 {b:3d}  prefill {pf['mean']:8.1f}ms (p95 {pf['p95']:8.1f})  "
