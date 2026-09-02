@@ -150,15 +150,23 @@ def main(argv: list | None = None) -> int:
         # ── equal_tokens: 같은 토큰 수. 원문은 조건마다 다르다 ─────────────
         # 어휘 분포가 지연에 섞이지 않도록 실제 한국어를 잘라 쓴다. 무작위 id 는
         # 존재하지 않는 토큰열이라 캐시 거동이 실제와 달라질 수 있다.
-        long_text = load_prompt(RAW_CHARS[-1] * 2)
-        full = tokenizer(long_text, add_special_tokens=False,
+        #
+        # 필요한 원문 길이는 EQUAL_TOKENS 에서 정한다. RAW_CHARS 에 매달아 두면
+        # raw_prompt 를 건너뛰는 순간 IndexError 로 죽는다.
+        need_chars = max(EQUAL_TOKENS) * 4        # 최악 0.45 tok/char 기준 여유
+        full = tokenizer(load_prompt(need_chars), add_special_tokens=False,
                          return_tensors="pt")["input_ids"]
         for n_tok in EQUAL_TOKENS:
             if full.shape[1] < n_tok:
                 print(f"  (equal_tokens {n_tok:,} 건너뜀 — dev 원문이 짧다)")
                 continue
             ids = full[:, :n_tok].to(device)
-            measure("equal_tokens", ids, None, None, None)
+            # 같은 토큰 예산에 **원문이 얼마나 들어가는가** 를 남긴다. 압축이
+            # 좋은 조건은 같은 문맥 창에 더 많은 글을 담는데, 이걸 안 남기면
+            # Q6 의 절반(문맥 길이 이득)을 통째로 버리게 된다.
+            held = tokenizer.decode(ids[0], skip_special_tokens=True)
+            measure("equal_tokens", ids, len(held), len(held.encode("utf-8")),
+                    None)
 
     return 0
 
