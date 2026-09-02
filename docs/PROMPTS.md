@@ -16,6 +16,8 @@ C:\llm_tokenizer 프로젝트를 이어서 작업한다.
 3. docs/PLAN.md          범위·일정·사전 등록 질문 6개
 4. docs/DESIGN_DELTA.md  스펙과 다르게 한 것과 그 이유
    — 스펙만 읽고 코드를 고치면 이미 반증된 가설을 되살리게 된다
+5. reports/FINAL_REPORT.md  1차 결과 전체 (2026-09-02 종료)
+   — Q1~Q6 의 답, 반증된 가설 셋, 권고, 한계
 
 그 다음 아래를 실행해서 상태를 확인해라.
   git log --oneline -20

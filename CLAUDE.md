@@ -12,6 +12,8 @@
 3. [`docs/COMMIT_CONVENTION.md`](docs/COMMIT_CONVENTION.md) — 커밋할 일이 있으면
 4. [`docs/LEDGER_SCHEMA.md`](docs/LEDGER_SCHEMA.md) — 결과를 기록할 일이 있으면
 5. [`docs/HANDOFF.md`](docs/HANDOFF.md) — 지금까지 된 것과 다음 할 일
+5b. [`reports/FINAL_REPORT.md`](reports/FINAL_REPORT.md) — **1차 결과 전체.**
+   무엇이 답이 났고 무엇이 반증됐는지. 새 실험을 설계하기 전에 읽는다
 6. [`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md) — 도메인 라벨로 무엇을
    주장할 수 있는지. 도메인별 수치를 인용하기 전에 반드시 본다
 6b. [`docs/DESIGN_DELTA.md`](docs/DESIGN_DELTA.md) — **스펙과 다르게 한 것과 그 이유.**

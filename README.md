@@ -23,6 +23,8 @@ Attention 연산량, KV Cache, 추론 지연에 미치는 영향을 **통제된 
 `Tokenizer → Embedding → Transformer → Training → Evaluation → GPU Systems` 를
 하나의 재현 가능한 파이프라인으로 연결하는 것이 목표다.
 
+**결과 전체: [`reports/FINAL_REPORT.md`](reports/FINAL_REPORT.md)** (1차 종료, 2026-09-02)
+
 전체 연구 설계: [`docs/SPEC_KoTokenLab.md`](docs/SPEC_KoTokenLab.md)
 
 ---
