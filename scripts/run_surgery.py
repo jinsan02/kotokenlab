@@ -39,6 +39,9 @@ from src.surgery.resize import (  # noqa: E402
 from src.utils.hashing import sha256_file  # noqa: E402
 from src.utils.tracking import RunContext, make_run_id  # noqa: E402
 
+# 기본은 0.5B 다. --base 로 다른 스케일에 같은 수술을 걸 수 있다 —
+# Qwen2.5-1.5B 는 vocab 도 merges 도 0.5B 와 완전히 같으므로 같은 토크나이저
+# 산출물이 그대로 적용된다. 임베딩 비중만 27.6% -> 15.1% 로 다르다.
 BASE_REPO = "Qwen/Qwen2.5-0.5B"
 BASE_REV = "060db6499f32faf8b98477b0a26969ef7d8b9987"
 
@@ -73,6 +76,11 @@ def main(argv: list | None = None) -> int:
     ap.add_argument("--stats-tag", default="v1")
     ap.add_argument("--rescale", action="store_true",
                     help="채운 행의 표준편차를 살아남은 행에 맞춘다")
+    ap.add_argument("--base", default=BASE_REPO,
+                    help="수술 대상 모델. 토크나이저가 같아야 한다")
+    ap.add_argument("--base-revision", default=BASE_REV)
+    ap.add_argument("--suffix", default="",
+                    help="산출물 이름 뒤에 붙일 꼬리표 (스케일 구분용)")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--skip-env-check", action="store_true")
     args = ap.parse_args(argv)
@@ -98,24 +106,28 @@ def main(argv: list | None = None) -> int:
         version += f"-{args.weight_scheme}"
     if args.rescale:
         version += "-rescaled"
+    if args.suffix:
+        version += f"_{args.suffix}"
     config = {
-        "base_repo": BASE_REPO, "base_revision": BASE_REV,
+        "base_repo": args.base, "base_revision": args.base_revision,
         "tokenizer": args.tokenizer, "mode": mode, "init": args.init,
         "weight_scheme": args.weight_scheme if args.init == "weighted" else None,
         "stats_tag": args.stats_tag, "seed": args.seed,
         "rescale": args.rescale,
     }
     run_id = make_run_id("surgery", args.tokenizer,
-                         args.init + ("rescaled" if args.rescale else ""),
+                         args.init + ("rescaled" if args.rescale else "")
+                         + (args.suffix or ""),
                          seed=args.seed)
 
     with RunContext(run_id, phase="surgery", config=config, seed=args.seed,
                     skip_env_check=args.skip_env_check) as run:
         print(f"[1/4] 모델·토크나이저 적재  ({mode}, init={args.init})")
-        base_tok = AutoTokenizer.from_pretrained(BASE_REPO, revision=BASE_REV)
+        base_tok = AutoTokenizer.from_pretrained(args.base,
+                                                 revision=args.base_revision)
         new_tok = AutoTokenizer.from_pretrained(str(tok_dir))
         model = AutoModelForCausalLM.from_pretrained(
-            BASE_REPO, revision=BASE_REV, torch_dtype=torch.float32)
+            args.base, revision=args.base_revision, torch_dtype=torch.float32)
         old_emb = model.get_input_embeddings().weight.detach().cpu().numpy()
         print(f"      원본 embedding {old_emb.shape}  tie={model.config.tie_word_embeddings}")
 
