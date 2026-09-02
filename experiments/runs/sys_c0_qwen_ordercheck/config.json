@@ -1,0 +1,17 @@
+{
+  "attn_decode": "efficient+cudnn+math",
+  "attn_prefill": "efficient+cudnn",
+  "dtype": "bfloat16",
+  "equal_tokens": [
+    16384
+  ],
+  "gen_runs": 20,
+  "gen_tokens": 128,
+  "gen_warmup": 5,
+  "model": "artifacts/models/cpt_c0_qwen_main_seed42",
+  "prefill_runs": 100,
+  "prefill_warmup": 20,
+  "purpose": "q6_system_bench",
+  "raw_chars": [],
+  "revision": null
+}
