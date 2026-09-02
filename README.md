@@ -2,6 +2,11 @@
 
 **Korean Tokenizer Surgery & LLM Adaptation on a Single RTX 5070 Ti 16GB**
 
+> **1차 종료** (2026-08-29 → 09-02, 태그 `p1-closed`). 사전 등록 질문 Q1~Q6 와
+> 유효 범위 Phase 6 이 모두 닫혔다. **결과 전체:
+> [`reports/FINAL_REPORT.md`](reports/FINAL_REPORT.md)** ·
+> 2차 설계: [`docs/SPEC_P2.md`](docs/SPEC_P2.md)
+
 ```
 Qwen2.5-0.5B
         ↓
@@ -22,8 +27,6 @@ Attention 연산량, KV Cache, 추론 지연에 미치는 영향을 **통제된 
 "한국어 성능이 올라갔다"를 보이는 것이 목표가 아니다.
 `Tokenizer → Embedding → Transformer → Training → Evaluation → GPU Systems` 를
 하나의 재현 가능한 파이프라인으로 연결하는 것이 목표다.
-
-**결과 전체: [`reports/FINAL_REPORT.md`](reports/FINAL_REPORT.md)** (1차 종료, 2026-09-02)
 
 전체 연구 설계: [`docs/SPEC_KoTokenLab.md`](docs/SPEC_KoTokenLab.md)
 
@@ -85,6 +88,29 @@ N. [`scripts/run_phase4.sh`](scripts/run_phase4.sh) 가 둘 다 잰다. 예측�
 거의 없다. 도메인 라벨 신뢰 범위는
 [`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md).
 
+### 유효 범위 (Phase 6)
+
+```
+스케일   1.5B 에서 손상 배율이 2.058 -> 2.324배로 오히려 커졌다.
+         수술 후 상태는 스케일 무관인데 기준선만 좋아지기 때문이다 —
+         큰 모델일수록 잃을 것이 많다. 회복력은 아직 안 쟀다.
+기울기   임베딩 기울기가 끝까지 죽지 않는다 (attn 의 1.57배).
+         신호는 받는데 못 따라간다 — 병목은 최적화가 아니다.
+배치     동시 처리 1.40배, 처리량 1.605배. 배치를 20~28배 늘려도
+         처리량은 +1~2% 다 — 시퀀스 하나가 이미 GPU 를 포화시킨다.
+```
+
+### 세 번 가설을 세웠고 세 번 반증했다
+
+| 가설 | 결과 |
+|---|---|
+| 노름 보정이 초기화를 공정하게 만든다 | 한국어 2.3803 → **3.0017**. 영어까지 함께 나빠졌다 |
+| Embedding Alignment 로 예열한다 | 손해 없이 제 일을 하는 lr 이 **없다.** 단계를 폐기 |
+| 노출이 부족해서 못 배웠다 | 노출 4.4배에도 회복률 65.4% → **65.9%** |
+
+셋 다 우리가 세운 가설이고 우리가 무너뜨렸다. 셋 다 `tie_word_embeddings`
+구조를 가리키는데, **아직 검증하지 않았다** — 그것이 2차의 본안이다.
+
 > The final test set was never used for tokenizer design, hyperparameter tuning,
 > model selection, or checkpoint selection.
 
@@ -129,6 +155,16 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 | **프롬프트** | [`docs/PROMPTS.md`](docs/PROMPTS.md) — 에이전트에 붙여 넣는 지시문 |
 | **도메인 라벨** | [`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md) — 라벨 검증 기록과 신뢰 범위 |
 | **검토** | [`docs/REVIEW.md`](docs/REVIEW.md) — 결함·헛점과 보강 우선순위 |
+| **스펙과의 차이** | [`docs/DESIGN_DELTA.md`](docs/DESIGN_DELTA.md) — 다르게 한 것과 **그 이유.** 반증된 가설이 여기 있다 |
+| **2차 설계** | [`docs/SPEC_P2.md`](docs/SPEC_P2.md) — 손상된 임베딩의 회복 한계 |
+
+### 결과물
+
+| | |
+|---|---|
+| **최종 보고서** | [`reports/FINAL_REPORT.md`](reports/FINAL_REPORT.md) — 1차 전체 |
+| **보고표 9종** | [`reports/tables/`](reports/tables/) — 측정마다 하나. 각 문서 끝에 **한계** 절이 있다 |
+| **원장** | `experiments/*.tsv` — 모든 숫자의 출처. 239행, append-only |
 
 특히:
 
@@ -147,19 +183,23 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 ## 구조
 
 ```
-configs/      실험 설정 (tokenizer / alignment / cpt / evaluation)
+configs/      실험 설정 (tokenizer / cpt / evaluation)
 data/         raw·interim·final_test 는 git 제외, manifests/*.tsv 만 커밋
 src/
   data/       정규화 · dedup · 문서 단위 split
-  tokenizer/  Extend · Substitute · New BBPE 학습, vocab 분석
-  surgery/    embedding resize · 초기화 4종 · distillation
-  training/   embedding alignment · CPT
-  evaluation/ Level 1~4 (intrinsic / BPB / capability / system)
+  tokenizer/  Substitute(T2b) 채굴 · pruning(T2a) · vocab/merge DAG 분석
+  surgery/    embedding resize · 초기화 E0/E1/E2 · distillation(스텁)
+  training/   CPT · alignment(폐기, 재현용으로 보존)
+  evaluation/ bpb · token_exposure · latency · memory · capability(스텁)
   utils/      seed · hashing · env · ledger · run tracking
-tools/        원장 검사, git hook 본체
+tools/        원장 검사 · git hook 본체 · 장시간 run 감시
 experiments/  TSV 원장 + runs/<run_id>/
-reports/      figures · tables
+reports/      FINAL_REPORT.md · tables/ · figures/
 ```
+
+`alignment.py` 와 `align` phase 는 **폐기했지만 지운다 하지 않았다** — 그
+측정을 재현할 수 있어야 왜 뺐는지가 남는다. 되살리기 전에
+[`reports/tables/alignment_probe.md`](reports/tables/alignment_probe.md) 를 읽어라.
 
 외부 모델 원본은 `experiments/models.tsv`, 프로젝트가 만든 토크나이저·체크포인트·
 리포트는 `experiments/artifacts.tsv`에 기록한다. 실험 시각은
@@ -179,8 +219,30 @@ torch   2.7.1+cu128
 | 규모 | 역할 |
 |---|---|
 | Qwen2.5-0.5B | 핵심 실험 모델 — Full CPT · tokenizer surgery · ablation |
-| Qwen2.5-1.5B | scale validation — embedding alignment · LoRA/QLoRA |
+| Qwen2.5-1.5B | scale validation — Pre-CPT 손상 측정 완료. **전면 CPT 는 16GB 에 안 들어간다** (추정 21.6GB) |
 | HyperCLOVA X SEED 0.5B | 한국어 특화 external baseline |
 | A.X 4.0 | Qwen 기반 한국어 adaptation 산업 사례 (4-bit 추론 · 토크나이저 분석) |
 
 HCX / A.X 는 **참조**이지 인과 실험이 아니다 ([`docs/RULES.md`](docs/RULES.md) 4번).
+
+---
+
+## 이 저장소가 실제로 잡아낸 것
+
+규율이 값을 한 자리들이다. 하나라도 안 잡혔으면 보고서에 틀린 숫자가 들어갔다.
+
+- **BPB 분모가 한국어에서 2배였다** — ByteLevel 토큰의 바이트 길이는
+  `len(token)` 이지 `len(token.encode())` 가 아니다
+- **`pack()` 의 바이트 귀속이 구성에 따라 부호가 뒤집혔다** — 한국어만 −0.38%,
+  한영 혼합 +0.73%. Equal-Raw-Data 통제축이 조용히 깨지는 경로였다
+- **CPT 문서 풀이 예산보다 작았다** — 103.8MB 로 168.5MB 를 채우려 했다.
+  그대로 걸었으면 죽었다
+- **훅과 CI 가 다른 트리를 봤다** — 로컬은 통과하고 CI 만 빨개졌다.
+  훅이 인덱스를 읽도록 고쳤다
+- **배치 한계를 `allocated` 로 쟀다** — `reserved` 가 맞다. allocated 로 재면
+  이미 성능이 39% 무너진 지점을 "들어간다" 고 보고하게 된다
+- **OOM 을 정지 조건으로 쓴 설계가 Windows 에서 성립하지 않았다** — WDDM
+  드라이버가 시스템 RAM 으로 흘려 죽지 않고 느려지기만 한다
+
+실패한 run 도 원장에 남아 있다 (`fail` 9건 · `abort` 5건). 지우지 않는 이유는
+무엇이 왜 깨졌는지가 규칙의 근거이기 때문이다.
