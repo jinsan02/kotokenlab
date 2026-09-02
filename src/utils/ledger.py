@@ -101,6 +101,12 @@ SYSTEM_BENCH_COLUMNS: tuple[str, ...] = (
     "decode_tok_s_mean", "total_ms_mean", "total_ms_std",
     "kv_cache_mb_est", "peak_alloc_mb", "peak_reserved_mb",
     "git_commit", "config_sha256",
+    # ── 아래는 Q6 이후 추가. 컬럼은 뒤에만 붙인다 ─────────────────────────
+    # 배치 1 로만 재면 "메모리를 30% 아끼니 요청을 1.4배 받는다" 를 말할 수 없다.
+    # 동시 처리 수와 처리량은 KV 절감과 다른 속도로 움직인다 — 배치가 커지면
+    # 메모리가 아니라 연산이 먼저 병목이 되기 때문이다.
+    "batch_size",        # 동시에 넣은 시퀀스 수
+    "throughput_docs_s",  # 초당 처리한 시퀀스 수 (prefill 기준)
 )
 
 TRAIN_CURVE_COLUMNS: tuple[str, ...] = (
