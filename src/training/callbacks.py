@@ -78,3 +78,31 @@ def cosine_lr_by_bytes(raw_bytes_seen: int, total_bytes: int, peak_lr: float,
         return peak_lr * (frac / warmup_frac)
     p = (frac - warmup_frac) / max(1.0 - warmup_frac, 1e-9)
     return peak_lr * (min_frac + (1 - min_frac) * 0.5 * (1 + math.cos(math.pi * p)))
+
+
+def constant_lr_by_bytes(raw_bytes_seen: int, total_bytes: int, peak_lr: float,
+                         warmup_frac: float = 0.02) -> float:
+    """워밍업만 하고 이후 상수 (P2 의 R5).
+
+    1차에서 회복 곡선이 65% 근처에서 멎었는데, 같은 100MB 지점을 짧은 예산 run
+    은 65.0%, 긴 예산 run 은 66.9% 로 통과했다. 같은 데이터량에서 갈렸다는 것은
+    남은 예산에 따라 lr 이 달랐다는 뜻이다. 곡선이 천장에 닿아 멎은 것인지
+    lr 이 꺼지면서 멎은 것인지 이 스케줄로 가른다.
+
+    **워밍업은 남긴다.** 첫 스텝부터 peak_lr 을 때리면 새로 초기화된 행이
+    발산할 수 있고, 그러면 "상수 LR 이라서" 인지 "워밍업이 없어서" 인지
+    구별할 수 없게 된다 — 1차 정렬 실험에서 freeze 와 lr 을 한꺼번에 바꿨다가
+    겪은 함정과 같다. 코사인과 다른 것은 **감쇠뿐** 이어야 한다.
+
+    x 축이 raw_bytes 인 것도 그대로다 (RULES 12b). 상수 구간에서는 x 축이
+    결과를 안 바꾸지만, 워밍업 구간은 바꾼다.
+    """
+    if total_bytes <= 0:
+        return peak_lr
+    frac = min(max(raw_bytes_seen / total_bytes, 0.0), 1.0)
+    if frac < warmup_frac:
+        return peak_lr * (frac / warmup_frac)
+    return peak_lr
+
+
+SCHEDULES = {"cosine": cosine_lr_by_bytes, "constant": constant_lr_by_bytes}

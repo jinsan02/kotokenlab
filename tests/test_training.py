@@ -129,3 +129,32 @@ def test_혼합_비율이_0_인_언어는_빠진다():
         _p.skip("코퍼스가 없는 환경")
     _, got = build_mixed_pool(root, {"ko": 1.0, "en": 0.0, "code": 0.0}, 400, 42)
     assert set(got) == {"ko"}
+
+
+def test_constant_schedule_warms_up_then_holds():
+    """R5 의 상수 LR — 코사인과 다른 것은 감쇠뿐이어야 한다.
+
+    워밍업까지 없애면 "상수 LR 이라서" 인지 "워밍업이 없어서" 인지 갈 수 없다.
+    """
+    from src.training.callbacks import constant_lr_by_bytes, cosine_lr_by_bytes
+
+    total, peak = 1_000_000, 1e-5
+
+    # 워밍업 구간(2%)은 두 스케줄이 같아야 한다
+    for frac in (0.0, 0.005, 0.01, 0.019):
+        seen = int(total * frac)
+        assert constant_lr_by_bytes(seen, total, peak) == cosine_lr_by_bytes(
+            seen, total, peak)
+
+    # 워밍업 뒤로는 끝까지 peak 을 유지한다
+    for frac in (0.02, 0.5, 0.99, 1.0):
+        assert constant_lr_by_bytes(int(total * frac), total, peak) == peak
+
+    # 코사인은 같은 지점에서 내려가 있어야 한다 (안 그러면 실험이 성립 안 한다)
+    assert cosine_lr_by_bytes(total, total, peak) < peak * 0.2
+
+
+def test_schedules_registry_matches_cli_choices():
+    from src.training.callbacks import SCHEDULES
+
+    assert set(SCHEDULES) == {"cosine", "constant"}

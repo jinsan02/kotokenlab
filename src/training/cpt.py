@@ -40,7 +40,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 os.environ.setdefault("HF_HOME", str(ROOT / ".hf_cache"))
 
-from src.training.callbacks import CurveLogger, cosine_lr_by_bytes  # noqa: E402
+from src.training.callbacks import SCHEDULES, CurveLogger  # noqa: E402
 from src.utils.tracking import RunContext, make_run_id  # noqa: E402
 
 
@@ -117,6 +117,9 @@ def main(argv: list | None = None) -> int:
     ap.add_argument("--micro-bs", type=int, default=2)
     ap.add_argument("--accum", type=int, default=8)
     ap.add_argument("--lr", type=float, default=1e-5)
+    # R5 는 "65% 가 벽인가 lr 이 꺼진 것인가" 를 묻는다. 감쇠만 빼고 나머지는
+    # 전부 같아야 그 물음에 답이 된다.
+    ap.add_argument("--lr-schedule", choices=tuple(SCHEDULES), default="cosine")
     ap.add_argument("--pool-docs", type=int, default=30_000)
     ap.add_argument("--skip-docs", type=int, default=0,
                     help="정렬 단계가 이미 본 문서 수. 겹쳐 학습하지 않기 위해")
@@ -151,8 +154,8 @@ def main(argv: list | None = None) -> int:
         "pool_docs": args.pool_docs, "skip_docs": args.skip_docs,
         "optimizer": "adamw8bit",
         "dtype": "bfloat16", "grad_checkpointing": True,
-        "lr_schedule": ("cosine_by_tokens" if args.budget_tokens
-                        else "cosine_by_raw_bytes"),
+        "lr_schedule": (f"{args.lr_schedule}_by_tokens" if args.budget_tokens
+                        else f"{args.lr_schedule}_by_raw_bytes"),
     }
     run_id = make_run_id("cpt", name, args.tag, seed=args.seed)
 
@@ -273,6 +276,7 @@ def main(argv: list | None = None) -> int:
         # 같은 모양이다 — 즉 이미 돌린 바이트 기준 run 과 비교가 성립한다.
         by_tokens = args.budget_tokens > 0
         budget = args.budget_tokens if by_tokens else args.budget_bytes
+        lr_fn = SCHEDULES[args.lr_schedule]
 
         model.train()
         torch.cuda.reset_peak_memory_stats()
@@ -301,7 +305,7 @@ def main(argv: list | None = None) -> int:
 
                 if micro % args.accum == 0:
                     progress = tokens_seen if by_tokens else int(raw_bytes)
-                    lr = cosine_lr_by_bytes(progress, budget, args.lr)
+                    lr = lr_fn(progress, budget, args.lr)
                     for g in opt.param_groups:
                         g["lr"] = lr
                     gn = group_norms()          # 클리핑 전에 잰다
