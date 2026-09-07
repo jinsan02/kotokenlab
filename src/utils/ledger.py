@@ -115,6 +115,10 @@ TRAIN_CURVE_COLUMNS: tuple[str, ...] = (
     "grad_norm", "grad_norm_emb", "grad_norm_attn", "grad_norm_ffn",
     "peak_vram_mb", "tok_per_s", "raw_bytes_per_s", "elapsed_sec",
     "git_commit", "config_sha256",
+    # P2/Q7 이후 추가. tie 를 끊으면 lm_head 가 embed_tokens 와 다른 텐서가 되어
+    # 셋 중 어느 그룹에도 안 걸린다 — 에러 없이 기록에서 사라진다. tied run 은
+    # 두 경로의 기울기가 한 텐서에 합쳐져 있으므로 이 값이 NA 다.
+    "grad_norm_head",
 )
 
 ENV_SNAPSHOT_COLUMNS: tuple[str, ...] = (

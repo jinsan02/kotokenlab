@@ -195,14 +195,28 @@ def main(argv: list | None = None) -> int:
         # 죽으면 최적화 문제이고, 살아 있는데도 BPB 가 안 내려가면 표현 공간
         # 문제다. tie_word_embeddings 라 lm_head 는 embed_tokens 와 같은
         # 텐서이고 named_parameters 가 중복을 지우므로 한 번만 잡힌다.
-        GROUPS = {"emb": [], "attn": [], "ffn": []}
+        #
+        # tie 를 끊으면(P2/Q7) lm_head 가 별도 파라미터가 되는데, 그러면 아래
+        # 셋 중 어느 조건에도 안 걸려 **에러 없이 기록에서 빠진다.** 하필 Q7 의
+        # 관심사가 출력 방향의 기울기라 그것만 사라지면 안 된다. 따로 잡는다.
+        # tied run 에서는 head 그룹이 비어 있고 값이 NA 로 남는다 — 없는 것이
+        # 맞다. 한 텐서에 두 경로가 합쳐져 있어 나눌 수 없기 때문이다.
+        GROUPS = {"emb": [], "attn": [], "ffn": [], "head": []}
         for pname, param in model.named_parameters():
             if "embed_tokens" in pname:
                 GROUPS["emb"].append(param)
+            elif "lm_head" in pname:
+                GROUPS["head"].append(param)
             elif "self_attn" in pname:
                 GROUPS["attn"].append(param)
             elif "mlp" in pname:
                 GROUPS["ffn"].append(param)
+        ungrouped = [n for n, _ in model.named_parameters()
+                     if not any(k in n for k in
+                                ("embed_tokens", "lm_head", "self_attn", "mlp"))]
+        print(f"      기울기 그룹  emb {len(GROUPS['emb'])}  head {len(GROUPS['head'])}"
+              f"  attn {len(GROUPS['attn'])}  ffn {len(GROUPS['ffn'])}"
+              f"  (norm/bias 등 {len(ungrouped)}개는 grad_norm 전체에만 든다)")
 
         def group_norms() -> dict:
             """클리핑 **전에** 부른다. clip_grad_norm_ 은 grad 를 제자리에서 줄인다."""
@@ -313,7 +327,8 @@ def main(argv: list | None = None) -> int:
                                   lr=lr, grad_norm=gnorm, peak_vram_mb=peak,
                                   grad_norm_emb=gn["emb"],
                                   grad_norm_attn=gn["attn"],
-                                  grad_norm_ffn=gn["ffn"])
+                                  grad_norm_ffn=gn["ffn"],
+                                  grad_norm_head=gn["head"])
                         for lang, v in cur.items():
                             run.log("lm_metrics", checkpoint=f"step{step}",
                                     tokens_seen=tokens_seen,

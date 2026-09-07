@@ -149,11 +149,15 @@ long format 이다. 지표 하나가 한 행. bootstrap CI 는 문제 단위로 
 ## `train_curve.tsv` — 학습 곡선
 
 `step` `tokens_seen` `raw_bytes_seen` `train_loss` `dev_loss` `dev_bpb` `lr`
-`grad_norm` `grad_norm_emb` `grad_norm_attn` `grad_norm_ffn`
+`grad_norm` `grad_norm_emb` `grad_norm_attn` `grad_norm_ffn` `grad_norm_head`
 `peak_vram_mb` `tok_per_s` `raw_bytes_per_s` `elapsed_sec`
 
 - x축은 `step` 이 아니라 `tokens_seen` / `raw_bytes_seen` 이다 (스펙 §26)
 - 모듈별 gradient norm 은 "어느 모듈에 적응 압력이 걸리는가"에 답한다 (스펙 §72)
+- `grad_norm_head` 는 **`tie_word_embeddings=false` 인 run 에서만 값이 있다.**
+  tied 에서는 `lm_head` 가 `embed_tokens` 와 같은 텐서라 두 경로의 기울기가
+  한 곳에 합쳐져 있어 나눌 수 없다 — 그 경우 `NA` 가 맞다. P2/Q7 이전의
+  182행은 전부 tied 라 `NA` 로 채웠다
 - `raw_bytes_per_s` 는 토크나이저가 다른 run 사이에서 공정한 처리량 지표다 (스펙 §79)
 
 ## `models.tsv` — 외부 모델 레지스트리
