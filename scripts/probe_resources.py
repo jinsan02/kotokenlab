@@ -8,9 +8,21 @@ allocated 와 reserved 를 둘 다 남긴다.
     .conda/python.exe scripts/probe_resources.py
     .conda/python.exe scripts/probe_resources.py --skip-train
 
-결과는 reports/tables/resource_probe.md 에 저장된다. 이건 실험이 아니라
-환경 측정이므로 원장(LEDGER.tsv)에는 기록하지 않는다 — 코퍼스도 없고
-비교 대상도 없다. 실험 결과는 RunContext 를 통해서만 원장에 들어간다.
+    # 로컬 산출물을 잰다 (Q7 의 S0)
+    .conda/python.exe scripts/probe_resources.py --skip-infer --only-cpt-config \
+        --model artifacts/models/untied_t2b_mean \
+        --out reports/tables/resource_probe_untied.md
+
+`--model` 은 hub repo 든 로컬 경로든 받는다. 주지 않으면 1차와 같은 대상
+(학습 0.5B, 추론 0.5B/1.5B)을 잰다.
+
+결과는 `--out` 이 가리키는 파일에 저장되고, 기본값은
+reports/tables/resource_probe.md 다. **이미 있는 파일은 덮어쓰지 않는다** —
+`--force` 를 줘야 덮어쓴다. 이 프로브는 원장에 안 남고 파일 하나가 유일한
+기록이라, 다른 대상을 재려다 앞선 측정을 지우면 되돌릴 수 없다.
+
+이건 실험이 아니라 환경 측정이므로 원장(LEDGER.tsv)에는 기록하지 않는다 —
+코퍼스도 없고 비교 대상도 없다. 실험 결과는 RunContext 를 통해서만 들어간다.
 """
 
 from __future__ import annotations
@@ -159,11 +171,37 @@ def probe_prefill(repo: str, n_tokens: int, warmup: int = 3, runs: int = 5,
     return {"alloc": alloc, "resv": resv, "ram": ram, "ms": dt * 1000, "kv_mb": kv_mb}
 
 
+def label_of(repo: str) -> str:
+    """리포트 제목에 쓸 이름. hub repo 든 로컬 경로든 마지막 마디를 쓴다."""
+    return Path(repo).name or repo
+
+
 def main() -> int:
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(description="자원 사용량 실측")
+    ap.add_argument("--model", action="append", metavar="REPO_OR_PATH",
+                    help="잴 대상. 여러 번 줄 수 있다. 안 주면 1차와 같은 대상")
+    ap.add_argument("--out", default=None,
+                    help="리포트 경로 (기본 reports/tables/resource_probe.md)")
+    ap.add_argument("--force", action="store_true",
+                    help="--out 이 이미 있어도 덮어쓴다")
+    ap.add_argument("--only-cpt-config", action="store_true",
+                    help="본 CPT 와 같은 설정 하나만 잰다 "
+                         "(seq 2048 / micro_bs 2 / ckpt / adamw_8bit)")
     ap.add_argument("--skip-train", action="store_true")
     ap.add_argument("--skip-infer", action="store_true")
     args = ap.parse_args()
+
+    # 덮어쓰기는 여기서 막는다. 측정을 다 돌린 뒤에 거부하면 GPU 시간이 날아간다.
+    out = Path(args.out) if args.out else ROOT / "reports" / "tables" / "resource_probe.md"
+    if not out.is_absolute():
+        out = ROOT / out
+    if out.exists() and not args.force:
+        print(f"이미 있다: {out}")
+        print("다른 파일에 쓰려면 --out 을, 덮어쓰려면 --force 를 줘라.")
+        return 1
+
+    train_models = args.model or [QWEN05]
+    infer_models = args.model or [QWEN05, QWEN15]
 
     props = torch.cuda.get_device_properties(0)
     total_vram = props.total_memory / MB
@@ -187,36 +225,47 @@ def main() -> int:
     emit("```")
     emit()
 
+    # 본 CPT 설정. --only-cpt-config 가 고르는 것이 이 한 줄이다.
+    CPT_CONFIG = (2048, 2, True, "adamw_8bit")
+    ALL_CONFIGS = [
+        (1024, 1, True,  "adamw"),
+        (1024, 1, True,  "adamw_8bit"),
+        (1024, 1, False, "adamw_8bit"),
+        (1024, 4, True,  "adamw_8bit"),
+        (2048, 1, True,  "adamw_8bit"),
+        CPT_CONFIG,
+        (4096, 1, True,  "adamw_8bit"),
+        (8192, 1, True,  "adamw_8bit"),
+    ]
+
     if not args.skip_train:
-        emit("## 학습 (Qwen2.5-0.5B full CPT)")
-        emit()
-        emit("| seq | micro_bs | grad_ckpt | optimizer | VRAM alloc | VRAM resv | 여유 | RAM | sec/step | tok/s |")
-        emit("|---:|---:|:--:|---|---:|---:|---:|---:|---:|---:|")
-        configs = [
-            (1024, 1, True,  "adamw"),
-            (1024, 1, True,  "adamw_8bit"),
-            (1024, 1, False, "adamw_8bit"),
-            (1024, 4, True,  "adamw_8bit"),
-            (2048, 1, True,  "adamw_8bit"),
-            (2048, 2, True,  "adamw_8bit"),
-            (4096, 1, True,  "adamw_8bit"),
-            (8192, 1, True,  "adamw_8bit"),
-        ]
-        for seq, bs, ckpt, opt in configs:
-            try:
-                r = probe_train(QWEN05, seq, bs, ckpt, opt)
-                free = total_vram - r["resv"]
-                emit(f"| {seq} | {bs} | {'O' if ckpt else 'X'} | {opt} | "
-                     f"{r['alloc']:.0f} MB | {r['resv']:.0f} MB | {free:.0f} MB | "
-                     f"{r['ram']:.0f} MB | {r['sec']:.2f} | {r['tok_s']:.0f} |")
-            except Exception as exc:
-                emit(f"| {seq} | {bs} | {'O' if ckpt else 'X'} | {opt} | "
-                     f"실패: {type(exc).__name__} | | | | | |")
-                reset()
-        emit()
+        configs = [CPT_CONFIG] if args.only_cpt_config else ALL_CONFIGS
+        for repo in train_models:
+            emit(f"## 학습 ({label_of(repo)} full CPT)")
+            emit()
+            emit("| seq | micro_bs | grad_ckpt | optimizer | VRAM alloc | VRAM resv | 여유 | RAM | sec/step | tok/s |")
+            emit("|---:|---:|:--:|---|---:|---:|---:|---:|---:|---:|")
+            for seq, bs, ckpt, opt in configs:
+                try:
+                    r = probe_train(repo, seq, bs, ckpt, opt)
+                    free = total_vram - r["resv"]
+                    emit(f"| {seq} | {bs} | {'O' if ckpt else 'X'} | {opt} | "
+                         f"{r['alloc']:.0f} MB | {r['resv']:.0f} MB | {free:.0f} MB | "
+                         f"{r['ram']:.0f} MB | {r['sec']:.2f} | {r['tok_s']:.0f} |")
+                except Exception as exc:
+                    emit(f"| {seq} | {bs} | {'O' if ckpt else 'X'} | {opt} | "
+                         f"실패: {type(exc).__name__} | | | | | |")
+                    reset()
+            emit()
+            # 경계는 reserved 다. allocated 로 재면 캐싱 할당자가 잡아 둔 몫이
+            # 빠져서, Windows WDDM 이 시스템 RAM 으로 흘리며 이미 느려진 지점을
+            # "들어간다" 고 읽게 된다 (1차 Q6-E 에서 겪었다).
+            emit("여유 = 장치 총량 − **reserved**. allocated 가 아니다.")
+            emit()
 
     if not args.skip_infer:
-        for repo, label in [(QWEN05, "Qwen2.5-0.5B"), (QWEN15, "Qwen2.5-1.5B")]:
+        for repo in infer_models:
+            label = label_of(repo)
             emit(f"## 추론 prefill ({label})")
             emit()
             emit("생성 경로 (`logits_to_keep=1`) — 다음 토큰 하나만 계산한다")
@@ -249,7 +298,6 @@ def main() -> int:
                     reset()
             emit()
 
-    out = ROOT / "reports" / "tables" / "resource_probe.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     print(f"\n저장: {out}")
