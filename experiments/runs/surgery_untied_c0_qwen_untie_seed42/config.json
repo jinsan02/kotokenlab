@@ -1,0 +1,6 @@
+{
+  "model": "Qwen/Qwen2.5-0.5B",
+  "name": "untied_c0_qwen",
+  "purpose": "q7_untie",
+  "revision": "060db6499f32faf8b98477b0a26969ef7d8b9987"
+}

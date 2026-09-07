@@ -1,0 +1,6 @@
+{
+  "model": "artifacts/models/kot2b_v2_n30000_mean",
+  "name": "untied_t2b_mean",
+  "purpose": "q7_untie",
+  "revision": null
+}
