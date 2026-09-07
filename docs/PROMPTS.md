@@ -18,6 +18,8 @@ C:\llm_tokenizer 프로젝트를 이어서 작업한다.
    — 스펙만 읽고 코드를 고치면 이미 반증된 가설을 되살리게 된다
 5. reports/FINAL_REPORT.md  1차 결과 전체 (2026-09-02 종료)
    — Q1~Q6 의 답, 반증된 가설 셋, 권고, 한계
+6. docs/SPEC_P2.md       2차 설계 (R1~R5). §9 가 다음 실험 Q7 의 실행 설계다
+   — 아직 아무것도 안 돌렸다. 사전 등록은 docs/PLAN.md "Q7"
 
 그 다음 아래를 실행해서 상태를 확인해라.
   git log --oneline -20
@@ -244,7 +246,11 @@ tok(tok) 커밋에 Tokenizer-SHA256 트레일러가 필요하다.
 
 ---
 
-## 7. Phase 4 — 등토큰 예산과 N 스윕 (다음 실험)
+## 7. Phase 4 — 등토큰 예산과 N 스윕 (**2026-09-01 완료**)
+
+> 끝난 실험이다. 결과는 [`../reports/tables/phase4.md`](../reports/tables/phase4.md).
+> 다음에 돌릴 것은 아래 **8번(Q7)** 이다. 이 프롬프트는 같은 모양의 CPT 를
+> 다시 짤 때의 본보기로만 남긴다.
 
 ```
 scripts/run_phase4.sh 를 돌린다. 약 4.3시간.
@@ -261,6 +267,81 @@ scripts/run_phase4.sh 를 돌린다. 약 4.3시간.
 
 돌리는 중에는 GPU 작업을 하나만 띄운다 (CLAUDE.md).
 끝나면 6번 프롬프트로 기록하고, 조건별 최종표를 reports/tables/ 에 남겨라.
+```
+
+---
+
+## 8. Q7 — tie 를 끊는다 (2차의 본안, 다음 실험)
+
+> 1차는 `p1-closed` 로 닫혔다. §7 의 Phase 4 는 **끝난 실험** 이다.
+> 다음에 돌릴 것은 이것이다.
+
+```
+Q7 을 돌린다. tie_word_embeddings 를 끊고 회복률이 달라지는지 본다.
+
+먼저 읽어라. 순서대로다.
+  docs/PLAN.md "Q7"       사전 등록 — 가설·예측·판정 수식·효과 크기 바닥·중단 기준
+  docs/SPEC_P2.md §9      실행 설계 — untie 방법, 단계, 예산, VRAM, 도구 결함
+  reports/tables/cpt_main.md   비교 대상인 tied 결과
+
+**예측이 이미 적혀 있다(72~78%). 결과가 예측과 다르면 그게 더 중요한 발견이다.
+예측을 사후에 고치지 마라** (docs/RULES.md 14번).
+
+## 반드시 지킬 것 — 어기면 실험이 성립하지 않는다
+
+- **untied-C0 대조군을 빼지 마라.** tie 를 끊으면 파라미터가 +27.6%
+  (494,032,768 -> 630,167,424) 늘어난다. 대조군이 없으면 "tie 를 풀어서" 인지
+  "파라미터가 늘어서" 인지 영영 못 가른다. 회복률의 기준선은 tied-C0 이 아니라
+  **untied-C0 의 BPB** 다
+- **from_pretrained(tie_word_embeddings=False) 를 쓰지 마라.** transformers 5.16 이
+  lm_head 를 무작위 초기화한다 (검증됨, SPEC_P2 §9.1). tied 로 적재한 뒤
+  embedding 사본으로 clone 해서 끊어라
+- **untie 를 run_surgery.py 안에 넣지 마라.** 기존 artifacts/models/t2b_mean 에
+  거는 후처리로 해야 embedding 이 1차와 비트 동일하다
+- **seq_len 을 줄이지 마라.** 메모리가 모자라면 micro_bs 를 낮추고 accum 을 올려
+  유효 32,768 tokens/step 을 유지한다
+- **예산과 LR 스케줄은 바이트 기준(cosine_by_raw_bytes)을 유지한다.** step 이나
+  token 으로 바꾸면 비교 대상이 토크나이저가 아니라 학습률이 된다
+- **이 목록에 없는 새 모듈·도구·원장 테이블을 추가하지 마라.** 필요하다고
+  판단되면 제안만 하고 확인받아라
+
+## 순서 — 단계마다 결과를 보여주고 확인을 받아라
+
+S0  scripts/probe_resources.py 에 --model 과 --out 을 먼저 붙여라.
+    지금은 hub 모델을 하드코딩하고 reports/tables/resource_probe.md 를
+    write_text 로 덮어쓴다 — 그대로 돌리면 1차 기록이 사라진다.
+    upgrade(infra) 로 커밋한 뒤 untied 0.5B 를 재라. **reserved 기준이다.**
+    (약 5분)
+
+S1  untied-C0 / untied-T2b 의 학습 전 BPB. **정합성 게이트다.**
+    2.380297 / 1.156880 이 나와야 한다 — untie 는 forward 를 안 바꾸므로
+    구성상 고정값이다. 다르면 발견이 아니라 버그이고 거기서 멈춘다. (약 8분)
+
+S2·3 17.5MB x seed 42/123/2026 x 조건 2개. seed 42 를 먼저 돌려 파이프라인을
+    확인한 뒤 나머지를 이어라. **이 단계가 중단 판정의 σ 를 만든다.** (약 1h12m)
+
+    -> 여기서 PLAN.md "Q7" 의 판정 규칙으로 "구별 불가" 가 나오면
+       **S4 를 돌리지 말고 정리해라.** 그게 결과다.
+
+S4  168.5MB. untied-T2b 3 seed + untied-C0 (SPEC_P2 §9.3 의 발동 조건대로
+    1 seed 또는 3 seed). 약 5h53m ~ 9h42m.
+
+## 시작 전에
+
+  - nvidia-smi 로 여유를 확인한다. **12.2GB 를 예상하는데 1차 Phase 4 때
+    여유가 550MB 였다** — 브라우저·Steam·Discord 를 닫아야 들어간다
+  - 사용자에게 몇 시간짜리이고 그동안 GPU 를 쓰면 안 된다고 알린다
+  - .conda\python.exe tools/check_clock.py --record
+  - GPU 작업은 하나만 띄운다 (CLAUDE.md)
+
+## 끝나면
+
+6번 프롬프트로 기록하고, 조건별 최종표를 reports/tables/q7_untie.md 에 남겨라.
+결과가 어느 쪽이든 docs/DESIGN_DELTA.md 에 스펙 / 실제 / 왜 / 근거 네 항목으로
+적어라 — 1차 산출물이 "tie 를 풀지 않는다" 를 규칙으로 갖고 있고, Q7 은 그것을
+의도적으로 깨는 별개 조건이기 때문이다.
+
+**반증이 나오면 그것도 성과다. 긍정 결과를 찾으러 가지 마라.**
 ```
 
 ---

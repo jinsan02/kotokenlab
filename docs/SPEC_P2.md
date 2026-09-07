@@ -59,12 +59,16 @@ R2·R3 은 R1 이 성립할 때만 의미가 있다 — 법칙의 경계를 재�
 
 **그런데 한 번도 직접 검증하지 않았다.** tie 를 끊고 같은 실험을 돌리면 갈린다.
 
+R4 는 **Q7** 로 사전 등록됐다 — 가설·예측·판정 수식·중단 기준은
+[`PLAN.md` "Q7"](PLAN.md), 실행 설계는 아래 [§9](#9-q7--r4-실행-설계-2026-09-03).
+
 ### R5 는 1차가 남긴 방증 둘을 닫는다
 
 같은 100MB 지점에서 짧은 예산 run 이 65.0%, 긴 예산 run 이 66.9% 였다(19σ).
 그리고 80MB → 100MB 에서 임베딩 기울기가 오히려 올랐다(3.05 → 3.39) — 같은
 구간에서 lr 이 6.0e-06 → 4.3e-06 으로 떨어졌다. 업데이트는 `lr × grad` 이므로
-**LR 이 회복을 끊고 있다는 방증** 이다. 상수 LR 로 돌리면 닫힌다.
+두 관측은 같은 방향을 가리킨다. **다만 LR 의 관여 여부는 미검증이다** — 위
+둘은 상수 LR 실험을 설계할 근거이지 결론이 아니다. 상수 LR 로 돌려야 갈린다.
 
 ## 2. 하드웨어가 정하는 범위
 
@@ -119,13 +123,17 @@ A.X-4.0        tie=0   임베딩  1.2%
 1일차  R1 (전제)                                        1.0h
        -> 실패하면 여기서 멈추고 결론을 좁힌다
 2일차  R2 손상 종류 · R3 손상 규모                       3.5h
-3일차  R4 tie 끊기  (본안)                               3.0h
+3일차  R4 tie 끊기  (본안 = Q7)                          7.3h   <- §9 에서 실측 기반 재산정
 4일차  R5 상수 LR                                        3.0h
        1.5B 손상 K 스윕 · 추론 지표                      1.5h
        sigma 실측 (헤드라인만)                           1.0h
 ────────────────────────────────────────────────────────
-합계 약 14시간 — 3~4일
+합계 약 18시간 — 4~5일
 ```
+
+**3일차의 3.0h 는 틀린 어림이었다.** 1차 원장의 실측(168.5MB CPT 가 C0 6,237초
+/ T2b 4,344초)에 조건 2개와 §5 가 요구하는 3 seed 를 곱하면 3시간이 나올 수
+없다. §9 에서 계산해 7.3h 로 고친다 — §5 "어림 금지" 가 바로 이 경우다.
 
 ## 4. 예산을 줄이는 두 결정 (사전에 못 박는다)
 
@@ -189,3 +197,185 @@ R1~R5 에 답이 붙으면 끝난다. **R1 이 부정이면 거기서 끝난다*
 
 1차와 같다: **부정 결과도 완성이다.** 사후에 지표를 바꿔 "개선" 을 만들지 않는다
 ([RULES.md](RULES.md) 14번).
+
+---
+
+## 9. Q7 — R4 실행 설계 (2026-09-03)
+
+사전 등록(가설 · 예측 · 판정 수식 · 효과 크기 바닥 · 중단 기준)은
+[`PLAN.md` "Q7"](PLAN.md) 에 있다. 여기는 **어떻게 돌리는가** 만 적는다.
+
+### 9.1 untied 산출물을 만드는 법 — 검증된 것
+
+후보 셋 중 둘은 틀렸다. 2026-09-03 에 CPU 에서 실제로 적재·저장·재적재까지
+돌려 확인했다.
+
+| 후보 | 판정 | 근거 |
+|---|---|---|
+| `src/surgery/resize.py` 수정 | 해당 없음 | numpy 행렬만 다룬다. `lm_head` 를 모른다 |
+| `from_pretrained(tie_word_embeddings=False)` | **틀렸다** | transformers 5.16 이 `lm_head.weight` 를 체크포인트에 없는 키로 보고 **무작위 초기화** 한다 (std 0.0200 vs embedding 0.0156). 이 경로의 untied-C0 은 C0 이 아니라 "출력층이 파괴된 C0" 이다 |
+| tied 로 적재 → clone → config 뒤집기 → 저장 | **채택** | 아래 |
+
+```python
+m.config.tie_word_embeddings = False
+m.lm_head.weight = torch.nn.Parameter(
+    m.get_input_embeddings().weight.detach().clone())
+m.tie_weights(recompute_mapping=True)   # 재계산 결과가 비므로 다시 묶이지 않는다
+m.save_pretrained(out)
+```
+
+확인한 것:
+
+| 항목 | 결과 |
+|---|---|
+| safetensors 에 `lm_head.weight` | 있음 (텐서 290 → 291) |
+| `config.json` 의 `tie_word_embeddings` | `false` |
+| 재적재 후 저장소 분리 / 값 동일 | 분리됨 / `torch.equal` True |
+| 파라미터 | 494,032,768 → **630,167,424** (+136,134,656, **+27.6%**) |
+| 같은 입력의 logits, tied 원본과 비교 | **`torch.equal` True — 비트 단위 동일** |
+
+마지막 줄이 [`PLAN.md` "Q7"](PLAN.md) 의 S1 게이트를 성립시킨다. forward 가
+안 바뀌므로 학습 전 BPB 는 구성상 고정이고, 다르게 나오면 버그다.
+
+### 9.2 배치 지점 — 수술 경로가 아니라 후처리
+
+`scripts/run_surgery.py` 안에 `--untie` 분기를 넣지 않는다. 넣으면 untied 판을
+얻기 위해 수술을 다시 돌려야 하고, 그 순간 embedding 행렬이 1차 산출물과
+비트 동일하다는 보장을 잃는다.
+
+**입력을 받아 untie 만 하는 별도 스크립트**로 둔다. 그러면
+
+- untied-T2b 의 입력은 **이미 있는 `artifacts/models/t2b_mean`** 이라 embedding 이
+  1차와 물리적으로 같은 바이트다
+- untied-C0 의 입력은 base repo 다
+- 두 조건이 **정확히 같은 연산의 두 입력** 이 되어 대조군 대칭이 공짜로 성립한다
+
+[`resize.py`](../src/surgery/resize.py) 와 [`run_surgery.py`](../scripts/run_surgery.py)
+의 "tie 를 풀지 않는다" 주석은 **그대로 둔다.** 그것은 1차 조건의 규칙이고,
+Q7 은 그 규칙을 의도적으로 깨는 별개 조건이다. 결과가 어느 쪽이든
+[`DESIGN_DELTA.md`](DESIGN_DELTA.md) 에 스펙 / 실제 / 왜 / 근거 네 항목으로 남긴다.
+
+### 9.3 단계와 예산 — 어림하지 않고 계산한다
+
+1차 원장의 실측에서 뽑았다. untied 오버헤드는 **추정 +10%** 다 — FLOPs 는 안
+늘고(`lm_head` matmul 은 tied 에도 있었다) optimizer step 과 gradient 만 136M
+만큼 늘기 때문이다. **S0 이 이 추정을 실측으로 바꾼다.**
+
+| 단계 | 하는 일 | 1차 실측 근거 | GPU 시간 |
+|---|---|---|---:|
+| — | untied 산출물 2개 생성 | CPU only | ~2분 |
+| **S0** | 메모리 프로브 | 학습 스텝 1회 | ~5분 |
+| **S1** | Pre-CPT BPB ×2 (정합성 게이트) | `eval_bpb_*` 236.9 / 240.9초 | ~8분 |
+| **S2·3** | 17.5MB × seed 3 × 조건 2 | C0 640초 / T2b 663초 | **~1h 12m** |
+| **S4** | 168.5MB, 아래 두 안 중 하나 | C0 6,237초 / T2b 4,344초 | **5h 53m ~ 9h 42m** |
+
+**S2 와 S3 은 한 단계다.** 17.5MB 스모크(S2)는 σ 측정(S3)의 seed 42 와 완전히
+같은 실행이고, 중단 판정에 σ 가 필요하므로 S3 없이는 S2 에서 결정할 수 없다.
+seed 42 를 먼저 돌려 파이프라인을 확인한 뒤 나머지 두 seed 를 잇는다.
+
+#### S4 의 두 안
+
+[§5](#5-1차에서-물려받지-않을-것) 는 헤드라인 최종값을 3 seed 로 요구한다.
+그대로 하면 조건 2개 × 3 seed 다.
+
+```
+안 A (규약 그대로)   untied-T2b 3 seed  3h 59m  +  untied-C0 3 seed  5h 43m  =  9h 42m
+안 B (사전 등록 감축) untied-T2b 3 seed  3h 59m  +  untied-C0 1 seed  1h 54m  =  5h 53m
+```
+
+**안 B 를 채택하되, 발동 조건을 지금 못 박는다.**
+
+```
+S2·3 에서 sigma_BPB(untied-C0) <= 0.0002 이면
+untied-C0 의 168.5MB 는 seed 42 한 번만 돌린다. 아니면 안 A 로 간다.
+```
+
+근거: `Bf(untied-C0)` 는 분모에만 들어가므로 `R` 에 대한 민감도가
+`N / D^2` 다. 168.5MB 에서 `0.813 / 1.243^2 = 0.526` 이므로 σ 0.0002 는
+**σ_R 0.011%p** 를 만든다 — 효과 크기 바닥 5%p 의 500분의 1 수준이다. 1차 tied C0 의
+σ 가 0.000058 이었으므로 이 조건은 만족될 가능성이 높지만, **재기 전에는
+가정하지 않는다.**
+
+#### 합계
+
+```
+S3 에서 멈추면          약 1h 27m
+안 B 로 S4 까지 가면    약 7h 20m
+안 A 로 S4 까지 가면    약 11h 09m
+```
+
+### 9.4 VRAM — 여유가 없다
+
+1차 tied CPT 의 `peak_vram_mb` 는 원장에 **11,382 MiB** 다. 추가분은
+`lm_head` 136.13M x (bf16 가중치 2B + gradient 2B + AdamW8bit 상태 2B)
+= **약 816MB** 이므로 **약 12.2GB allocated** 를 예상한다.
+
+그런데 1차 Phase 4 시점의 기록은 "peak 11.4GB + 데스크톱 앱 = 16.3GB 의 96%,
+여유 550MB" 였다. **거기에 0.8GB 를 더하면 그 조건에서는 안 들어간다.**
+
+- S4 의 전제조건: 브라우저 · Steam · Discord 를 닫은 상태
+- S0 이 확인할 것이 정확히 이 지점이다
+- 경계는 **`peak_reserved`** 다. `allocated` 로 재면 이미 무너진 지점을
+  "들어간다" 고 보고하게 된다 (1차 Q6-E 에서 겪었다)
+- 메모리가 모자라도 **`seq_len` 을 줄이지 않는다.** `micro_bs` 를 낮추고
+  `accum` 을 올려 유효 32,768 tokens/step 을 유지한다. `seq_len` 을 건드리면
+  tied 결과와의 비교가 깨진다
+
+### 9.5 S0 전에 고쳐야 하는 것 — 도구 결함 둘
+
+[`scripts/probe_resources.py`](../scripts/probe_resources.py) 를 지금 상태로는
+S0 에 쓸 수 없다.
+
+| 결함 | 위치 | 영향 |
+|---|---|---|
+| `--model` 플래그가 없다 | `QWEN05` / `QWEN15` 를 hub 에서 하드코딩 적재 | 로컬 untied 산출물을 못 잰다 |
+| 리포트를 `write_text` 로 덮어쓴다 | `reports/tables/resource_probe.md` | 그대로 돌리면 **1차 자원 프로브 기록이 사라진다.** `--out` 이 필요하다 |
+
+`reserved` 는 이미 둘 다 반환하고 있으므로 [§9.4](#94-vram--여유가-없다) 의
+요구는 충족된다. 두 플래그는 작은 `upgrade(infra)` 커밋 하나다.
+
+**원장 스키마는 건드리지 않는다.** `cpt.py` 가 원장에 남기는 `peak_vram_mb` 는
+`max_memory_allocated` 이고 `reserved` 컬럼이 없지만, 컬럼을 추가하면 훅 ·
+검증기 · 기존 행 전부가 얽힌다. S0 의 프로브 리포트에 `reserved` 를 남기고
+그 사실을 [`DESIGN_DELTA.md`](DESIGN_DELTA.md) 에 적는 쪽으로 간다.
+
+### 9.6 고정하는 학습 조건
+
+tied T2b main 과 비교 가능해야 하므로 **하나도 바꾸지 않는다.**
+
+```
+예산        raw 168.5MB (S2·3 은 17.5MB)
+LR 스케줄   cosine_by_raw_bytes    <- step 이나 token 으로 바꾸지 않는다
+lr          1e-5
+dtype       bfloat16
+optimizer   adamw8bit
+seq_len     2048
+micro_bs    2  x  accum 8   (유효 32,768 tokens/step)
+grad ckpt   true
+pool_docs   50000
+attention   sdpa_kernel([EFFICIENT_ATTENTION, CUDNN_ATTENTION])
+seed        42 / 123 / 2026
+```
+
+x축을 step 이나 token 으로 바꾸면 비교 대상이 토크나이저가 아니라 학습률이
+된다 ([DESIGN_DELTA.md](DESIGN_DELTA.md) 1-4, [RULES.md](RULES.md) 12b).
+
+### 9.7 기록
+
+- 시작 전 [`PLAN.md`](PLAN.md) 에 Q7 을 사전 등록한다 — **완료 (2026-09-03)**
+- 모든 run 을 `experiments/LEDGER.tsv` 에 남긴다. `fail` / `abort` 도 지우지 않는다
+- 손으로 TSV 를 쓰지 않는다. `RunContext` 를 통해서만 들어간다
+- `record(...)` 커밋과 코드 커밋을 섞지 않는다 (훅이 거부한다)
+- 트레일러: `Run-Id` / `Ledger` / `Config-SHA256`, `fix` 면 `Invalidates`
+- `git commit --no-verify` 금지 ([RULES.md](RULES.md) 15번)
+- 끝나면 `tools/validate_ledger.py` 와 `pytest tests/ -q`
+
+### 9.8 이 설계가 답하지 못하는 것
+
+- **`lm_head` 를 embedding 사본이 아닌 다른 값으로 초기화했을 때** 는 안 본다.
+  그건 tie 효과가 아니라 초기화 효과를 섞는다. Q7 의 범위 밖이다
+- **파라미터 +27.6% 의 효과를 완전히 제거하지는 못한다.** untied-C0 대조군은
+  같은 증가분을 겪으므로 *기준선* 은 공정해지지만, "파라미터가 늘면 손상 회복이
+  쉬워진다" 는 교호작용이 있다면 그것까지는 못 가른다
+- **왜 65% 인가** 는 여전히 답하지 않는다. Q7 이 예측대로 나와도 "tie 가
+  관여한다" 까지이고 기전의 수식은 없다
