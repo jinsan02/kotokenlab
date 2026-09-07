@@ -69,7 +69,9 @@ python 은 항상 C:\llm_tokenizer\.conda\python.exe 절대경로로 부른다.
 
 수치가 파일럿과 크게 다르면 **원인을 먼저 설명**하고, 의도한 변화인지 내게 확인받아라.
 결과 기록은 record(...) 커밋으로 하되 코드는 섞지 마라 (훅이 거부한다).
-파일럿 기준값은 experiments/tokenizer_metrics.tsv 의 run_id=tok_bench_pilot 행에 있다.
+기준값은 experiments/tokenizer_metrics.tsv 의 run_id=tok_bench_ctrl 행에 있다.
+tok_bench_pilot 이 아니다 — 파일럿에는 english 행이 아예 없고 code 도 한국어
+코퍼스의 code 라벨이라 위 0.296 과 다른 값(0.717)이다.
 ```
 
 ---
@@ -208,7 +210,7 @@ tok(tok) 커밋에 Tokenizer-SHA256 트레일러가 필요하다.
 탈락시킬 수 있다 (docs/RULES.md 10번).
 
 - 예산은 각 17.5MB **원문 바이트**. 토큰이 아니다 — 토크나이저가 다르면
-  같은 토큰수가 다른 분량이 된다 (docs/RULES.md 12번). 조건당 약 33분.
+  같은 토큰수가 다른 분량이 된다 (docs/RULES.md 12b번). 조건당 약 33분.
 - **조건마다 따로 잰다.** sigma 는 조건별로 21배까지 다르다 — 손상된 조건일수록
   seed 에 따라 회복 궤적이 갈린다 (reports/tables/noise_floor.md).
   안 잰 조건의 비교는 규칙대로 "구별 불가" 로 남긴다.

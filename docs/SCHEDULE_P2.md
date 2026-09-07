@@ -179,5 +179,4 @@ C0 기준선(1.137540)과 σ(0.000058)는 1차 것을 그대로 쓴다 — 같�
 - **원장의 `peak_vram_mb` 는 allocated 다.** 천장에 붙어 도는 run 인데 reserved
   컬럼이 없다. 스키마를 늘리는 대신 S0 의 프로브 리포트에 남긴다
   ([`SPEC_P2.md` §9.5](SPEC_P2.md))
-- [`PROMPTS.md`](PROMPTS.md) 70행이 §1 의 기준값 출처를 `tok_bench_pilot` 이라고
-  하는데 실제 값은 `tok_bench_ctrl` 것이다. 209행의 규칙 번호도 12 가 아니라 12b 다
+- ~~`PROMPTS.md` 의 기준값 출처 오지시와 규칙 번호 오기~~ — 2026-09-07 수정

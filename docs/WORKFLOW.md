@@ -63,15 +63,17 @@ Config-SHA256: <config.json 의 sha256>
 
 ## 개발 순서 (스펙 §97~§112)
 
-현재 위치는 **1차 종료** 다 (2026-09-02). 사전 등록 질문 Q1~Q6 와 유효 범위
-Phase 6(A·C·E)이 모두 닫혔다 —
-[`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md).
+현재 위치는 **2차 Day 0 완료** 다 (2026-09-07). 1차는 `p1-closed` 로 닫혔고
+(Q1~Q6 와 Phase 6 A·C·E) — [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md) —
+2차는 도구·사전 등록·보정까지 끝내고 첫 실험 직전이다.
+일정은 [`SCHEDULE_P2.md`](SCHEDULE_P2.md), 다음은 **Day 1 = R1**.
 
 Embedding Alignment 는 탐침 끝에 **폐기했다**
 ([`DESIGN_DELTA.md`](DESIGN_DELTA.md) 1-5).
 
-남은 것은 전부 새 사전 등록이 필요한 선택지다 — Level 3 능력 평가,
-N<10,000, 65% 벽의 정체. [`HANDOFF.md`](HANDOFF.md) 10번 참조.
+2차가 다루는 것은 셋 중 **65% 벽의 정체** 다 (R1~R5, 본안은 R4=Q7).
+Level 3 능력 평가와 N<10,000 은 여전히 열려 있고 새 사전 등록이 필요하다 —
+[`HANDOFF.md`](HANDOFF.md) 10번 참조.
 
 스펙과 다르게 한 결정들은 [`DESIGN_DELTA.md`](DESIGN_DELTA.md) 에 모여 있다.
 

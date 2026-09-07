@@ -4,8 +4,11 @@
 
 > **1차 종료** (2026-08-29 → 09-02, 태그 `p1-closed`). 사전 등록 질문 Q1~Q6 와
 > 유효 범위 Phase 6 이 모두 닫혔다. **결과 전체:
-> [`reports/FINAL_REPORT.md`](reports/FINAL_REPORT.md)** ·
-> 2차 설계: [`docs/SPEC_P2.md`](docs/SPEC_P2.md)
+> [`reports/FINAL_REPORT.md`](reports/FINAL_REPORT.md)**
+>
+> **2차 Day 0 완료** (2026-09-07). 도구·사전 등록·K 보정까지 끝났고 첫 실험은
+> 아직 안 돌렸다. 설계 [`docs/SPEC_P2.md`](docs/SPEC_P2.md) ·
+> 일정 [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md)
 
 ```
 Qwen2.5-0.5B
@@ -178,8 +181,14 @@ config 값이지 우리가 잰 성능이 아니다.
 | R4 | **tie 를 끊으면 달라지는가** | 계획 (본안) |
 | R5 | 상수 LR 이면 65% 를 넘는가 | 계획 |
 
-설계와 예측은 [`docs/SPEC_P2.md`](docs/SPEC_P2.md). **아직 아무것도 돌리지
-않았다** — 이 절의 어떤 것도 결과로 인용하면 안 된다.
+설계와 예측은 [`docs/SPEC_P2.md`](docs/SPEC_P2.md), 일정은
+[`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md).
+
+**Day 0 (도구·사전 등록·보정)까지 끝났고 실험은 아직 하나도 안 돌렸다** —
+위 표의 어떤 것도 결과로 인용하면 안 된다. Day 0 이 학습 없이 확인한 것 하나는
+인용할 수 있다: **임베딩 행 40개를 망가뜨리면 토큰 30,000개를 치환한 것과 같은
+손상(배율 2.04배)이 난다**
+([`reports/tables/k_calibration.md`](reports/tables/k_calibration.md)).
 
 ### 세 번 가설을 세웠고 세 번 반증했다
 
@@ -238,6 +247,7 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 | **검토** | [`docs/REVIEW.md`](docs/REVIEW.md) — 결함·헛점과 보강 우선순위 |
 | **스펙과의 차이** | [`docs/DESIGN_DELTA.md`](docs/DESIGN_DELTA.md) — 다르게 한 것과 **그 이유.** 반증된 가설이 여기 있다 |
 | **2차 설계** | [`docs/SPEC_P2.md`](docs/SPEC_P2.md) — 손상된 임베딩의 회복 한계 |
+| **2차 일정** | [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md) — 하루 1실험, Day 0 완료 |
 
 ### 결과물
 

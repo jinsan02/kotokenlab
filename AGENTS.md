@@ -18,6 +18,8 @@
    주장할 수 있는지. 도메인별 수치를 인용하기 전에 반드시 본다
 6b. [`docs/DESIGN_DELTA.md`](docs/DESIGN_DELTA.md) — **스펙과 다르게 한 것과 그 이유.**
    스펙만 읽고 코드를 고치면 이미 반증된 가설을 되살리게 된다
+6c. [`docs/SPEC_P2.md`](docs/SPEC_P2.md) · [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md)
+   — **2차 설계와 실행 일정.** 지금 여기서 일한다. 사전 등록은 `docs/PLAN.md`
 7. [`docs/SPEC_KoTokenLab.md`](docs/SPEC_KoTokenLab.md) — 연구 설계 원본. 필요한 절만
 
 그리고 현재 상태를 복원한다:
