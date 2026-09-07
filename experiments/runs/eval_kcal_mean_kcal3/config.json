@@ -1,0 +1,16 @@
+{
+  "base": "Qwen/Qwen2.5-0.5B",
+  "base_revision": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+  "how": "mean",
+  "ks": [
+    0,
+    35,
+    40,
+    45
+  ],
+  "max_bytes": 2000000,
+  "purpose": "p2_r1_k_calibration",
+  "seed": 42,
+  "select_rule": "count_ko_desc_unprotected_has_parents",
+  "target_ratio": 2.058
+}
