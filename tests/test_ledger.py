@@ -399,3 +399,37 @@ def test_lifecycle_catches_an_old_start_with_no_metrics(tmp_path):
                                  "ts_utc": _ts(600), "git_commit": "NA"},
                       root=tmp_path)
     assert any("cpt_ghost2_seed42" in e for e in validate(tmp_path))
+
+
+def test_make_run_id_sanitizes_model_names():
+    """모델 이름을 그대로 넘겨도 커밋 훅이 받는 run_id 가 나와야 한다.
+
+    2026-09-14 R1 대조군이 `cpt_Qwen2.5-0.5B_r1ctrl_seed42` 로 기록됐고,
+    40분짜리 run 을 다 돌린 뒤 커밋 단계에서 거부당했다. 원장은 append-only 라
+    되돌릴 수도 없었다. 생성 시점에 막는다.
+    """
+    from src.utils.tracking import RUN_ID_RE, make_run_id
+
+    assert make_run_id("cpt", "Qwen/Qwen2.5-0.5B", "r1ctrl", seed=42) == \
+        "cpt_qwen2.5-0.5b_r1ctrl_seed42"
+    assert make_run_id("cpt", "artifacts/models/dmg_mean_k40", "r1", seed=42) == \
+        "cpt_dmg_mean_k40_r1_seed42"
+    # 기존 호출부의 결과는 바뀌지 않는다
+    assert make_run_id("cpt", "kosub", "mean", "50m", seed=42) == "cpt_kosub_mean_50m_seed42"
+    assert make_run_id("tok", "qwen", "original", "v1") == "tok_qwen_original_v1"
+    for parts in [("Qwen/Qwen2.5-0.5B", "r1ctrl"), ("A B  C!", "x"), ("../weird", "y")]:
+        assert RUN_ID_RE.match(make_run_id("cpt", *parts, seed=1))
+
+
+def test_make_run_id_matches_commit_hook_pattern():
+    """훅과 생성기가 같은 규칙을 쓰는지. 갈리면 기록 뒤에 거부당한다."""
+    import re as _re
+
+    from src.utils.tracking import RUN_ID_RE
+
+    root = Path(__file__).resolve().parents[1]
+    src = (root / "tools" / "check_commit_msg.py").read_text(encoding="utf-8")
+    m = _re.search(r'RUN_ID_RE\s*=\s*re\.compile\(r"([^"]+)"\)', src)
+    assert m, "훅에서 RUN_ID_RE 를 못 찾았다"
+    assert m.group(1) == RUN_ID_RE.pattern, (
+        f"훅 {m.group(1)!r} != 생성기 {RUN_ID_RE.pattern!r}")

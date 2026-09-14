@@ -15,6 +15,7 @@ status 행을 고치지 않고 새로 붙이는 이유는, 죽은 run 의 흔적
 from __future__ import annotations
 
 import json
+import re
 import sys
 import time
 import traceback
@@ -28,6 +29,9 @@ from .hashing import sha256_obj
 from .seed import set_seed
 
 PHASES: tuple[str, ...] = ("data", "tok", "surgery", "align", "cpt", "eval", "sys")
+# 커밋 훅(tools/check_commit_msg.py)의 RUN_ID_RE 와 **같은 규칙** 이어야 한다.
+# 두 곳이 갈리면 기록이 끝난 뒤에 거부당한다.
+RUN_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]*$")
 
 
 class _Tee:
@@ -63,13 +67,37 @@ def make_run_id(phase: str, *parts: Any, seed: int | None = None) -> str:
     'cpt_kosub_mean_50m_seed42'
     >>> make_run_id("tok", "qwen", "original", "v1")
     'tok_qwen_original_v1'
+
+    조각을 **살균한다.** 모델 이름을 그대로 넘기면 대문자와 점이 섞여 들어오는데
+    (`Qwen/Qwen2.5-0.5B` -> `Qwen2.5-0.5B`), 커밋 훅의 `Run-Id` 패턴은
+    `^[a-z0-9][a-z0-9_.-]*$` 라 그런 run_id 는 **기록이 끝난 뒤에야** 거부된다.
+    2026-09-14 R1 대조군이 실제로 그렇게 됐다 — 40분짜리 run 을 다 돌리고
+    커밋 단계에서 막혔고, 원장은 append-only 라 되돌릴 수도 없었다.
+
+    >>> make_run_id("cpt", "Qwen2.5-0.5B", "r1ctrl", seed=42)
+    'cpt_qwen2.5-0.5b_r1ctrl_seed42'
     """
     if phase not in PHASES:
         raise ValueError(f"알 수 없는 phase: {phase!r} (가능: {PHASES})")
-    chunks = [phase] + [str(p) for p in parts if p not in (None, "")]
+    chunks = [phase] + [_slug(p) for p in parts if p not in (None, "")]
     if seed is not None:
         chunks.append(f"seed{seed}")
-    return "_".join(chunks)
+    run_id = "_".join(c for c in chunks if c)
+    if not RUN_ID_RE.match(run_id):
+        raise ValueError(
+            f"run_id 를 만들 수 없다: {run_id!r}. "
+            f"허용 문자는 소문자·숫자·`_`·`.`·`-` 뿐이다 (커밋 훅과 같은 규칙)")
+    return run_id
+
+
+
+def _slug(part: Any) -> str:
+    """run_id 조각 하나를 소문자 안전 문자열로. 경로는 마지막 성분만 쓴다."""
+    s = str(part).replace("\\", "/")
+    s = s.rsplit("/", 1)[-1]          # Qwen/Qwen2.5-0.5B -> Qwen2.5-0.5B
+    s = s.lower()
+    s = re.sub(r"[^a-z0-9_.-]+", "-", s)
+    return re.sub(r"-{2,}", "-", s).strip("-")
 
 
 def _peak_vram_mb() -> Any:
