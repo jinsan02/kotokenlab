@@ -276,22 +276,80 @@ T2b 곡선의 **체크포인트** 이고 R1 은 총예산 40MB 의 **종점** �
 > *크기* 만 맞췄다. 판정이 무엇이든 **"임베딩 손상 일반의 성질" 이라고 부르지
 > 않는다.** R2·R3 도 같은 교락을 물려받는다.
 
-### Day 2 — Q7 게이트 S0 -> S1 -> S2·3 (1h 27m)
+### Day 2 — Q7 게이트 S0 -> S1 -> S2·3 (약 2h 10m)
+
+**R1 이 부정으로 나온 뒤 Q7 의 값이 올라갔다.** R1 은 "치환에 특유한 현상" 이라고
+답했고, 그 특유함이 `tie` 때문인지가 이제 더 직접적인 질문이다.
+
+판정은 [`PLAN.md` "Q7"](PLAN.md) — `ΔR >= 5%p AND Δ > 2 sigma`.
+
+#### 전제 조건 — 2026-09-14 에 미리 확인했다
 
 ```
-S0    .conda/python.exe scripts/probe_resources.py --skip-infer --only-cpt-config \
-          --model artifacts/models/untied_t2b_mean \
-          --out reports/tables/resource_probe_untied.md
-S1    untied 둘의 Pre-CPT BPB.  2.380297 / 1.156880 이 나와야 한다
-S2.3  17.5MB x seed 42/123/2026 x 조건 2
+산출물     untied_c0_qwen / untied_t2b_mean
+           텐서 291개 · lm_head.weight 있음 · tie_word_embeddings=False   확인
+run_id     cpt_untied_{t2b_mean,c0_qwen}_q7g_seed{42,123,2026}            살균 통과
+프로브     probe_resources.py 에 --model / --out / --force 있다            확인
+VRAM       tied 11,382(오늘 R1 실측) + untied 823(Day 0 스모크) = 12,205
+           장치 16,303 이므로 여유 4,098 MiB. **allocated 기준이다**
 ```
 
-판정은 [`PLAN.md` "Q7"](PLAN.md) — `ΔR >= 5%p AND Δ > 2 sigma`, tied 기준값 42.26%.
+> 경계는 `reserved` 다. `allocated` 로 재면 이미 무너진 지점을 "들어간다" 고
+> 보고하게 된다 (1차 Q6-E 에서 겪었다). **S0 이 그것을 실측한다.**
 
-> **S0 전에 브라우저·Steam·Discord 를 닫는다.** untied 는 tied 보다 +823MB 이고,
-> 1차 Phase 4 때 여유가 550MB 였다. 그 조건이면 안 들어간다.
+#### 실행 — 순서대로
 
-**구별 불가면 S4 를 취소한다.** Day 4 가 비고 W3 이 당겨진다.
+```
+# S0  자원 프로브 (약 5분). 브라우저·Steam·Discord 를 먼저 닫는다
+.conda/python.exe tools/check_clock.py --record
+.conda/python.exe -m src.utils.env --check
+.conda/python.exe scripts/probe_resources.py --skip-infer --only-cpt-config     --model artifacts/models/untied_t2b_mean     --model artifacts/models/untied_c0_qwen     --out reports/tables/resource_probe_untied.md
+
+# S1  정합성 게이트 (약 8분). 아래 값이 안 나오면 untie 가 깨진 것이다
+.conda/python.exe -m src.evaluation.bpb --model artifacts/models/untied_t2b_mean     --name untied_t2b_mean --tag q7s1      # ko 2.380297 이 나와야 한다
+.conda/python.exe -m src.evaluation.bpb --model artifacts/models/untied_c0_qwen     --name untied_c0_qwen --tag q7s1       # ko 1.156880 이 나와야 한다
+
+# S2·3  17.5MB x seed 3 x 조건 2 (약 1h 54m). seed 42 를 먼저 보고 나머지를 잇는다
+for S in 42 123 2026; do
+  .conda/python.exe -m src.training.cpt --model artifacts/models/untied_t2b_mean       --budget-bytes 17500000 --eval-bytes 1000000 --seed $S --tag q7g
+  .conda/python.exe -m src.training.cpt --model artifacts/models/untied_c0_qwen       --budget-bytes 17500000 --eval-bytes 1000000 --seed $S --tag q7g
+done
+```
+
+**`--eval-bytes` 를 빼지 마라.** 기본값 1MB 는 여기서는 맞는 값이지만, 명시하지
+않으면 다음 사람이 그 사실을 모른다 ([위 비용 모형](#run-하나가-얼마나-걸리는가--2026-09-14-실측)).
+
+#### S1 이 게이트인 이유
+
+untie 는 `lm_head` 를 embedding 사본으로 만들 뿐이라 **forward 를 바꾸지 않는다.**
+2026-09-03 에 CPU 에서 logits 가 tied 원본과 `torch.equal` 로 동일한 것을
+확인했다. 따라서 학습 전 BPB 는 **구성상 고정** 이다.
+
+```
+B0(untied-T2b) == 2.380297        B0(untied-C0) == 1.156880
+```
+
+다르게 나오면 발견이 아니라 **버그다. 거기서 멈춘다.**
+
+#### 판정 — 비교 대상이 앵커 규칙을 만족하는가
+
+```
+R_tied@17.5MB  = (2.380297 - 1.860251) / (2.380297 - 1.149698) = 42.26%
+                 Bf 둘 다 1차 노이즈 run 의 3 seed 평균 (17.5MB 전체 예산)
+R_untied@17.5MB = S2·3 의 untied-T2b 와 untied-C0 에서 직접 나온다
+```
+
+**둘 다 17.5MB 전체 예산의 종점이고 스케줄이 같다.** 어제 등록한 앵커 규칙을
+만족한다 ([`PLAN.md` "R1 판정 기준 정정"](PLAN.md) 의 점검표).
+sigma 는 S2·3 자체의 3 seed 에서 나온다 — 1차 것을 빌리지 않는다.
+
+#### 분기
+
+| S2·3 결과 | 다음 |
+|---|---|
+| `ΔR >= 5%p AND Δ > 2σ` | **Day 4 S4 로 간다** (168.5MB, 약 6h) |
+| 구별 불가 | **S4 를 취소한다.** 1h 27m 로 끝나고 그것도 답이다 |
+| `ΔR <= -5%p AND Δ > 2σ` | tie 를 끊으면 더 나빠진다 — 그 자체로 보고 가치가 있다 |
 
 ---
 
@@ -370,7 +428,17 @@ BPB 가 멀쩡했던 것이 "한자가 괜찮다" 를 뜻하지 않는다 — **
 
 **틀리면 그것이 값진 결과다** — `prune.py` 의 기준 자체가 반증된다.
 
-### Day 6 — R2 · R3 (선택)
+### Day 6 — R2 · R3 (**전제를 잃었다 — 재설계 필요**)
+
+> **2026-09-14 R1 이 부정으로 나왔다.** R2·R3 은 "임베딩 손상이 법칙" 이라는 틀
+> 안에서 손상의 종류와 규모를 재는 실험이었다. 그 틀이 반증됐으므로 **지금
+> 설계 그대로 돌리면 답할 질문이 없다.**
+>
+> 살릴 수 있는 형태가 있다. R1 이 남긴 진짜 질문은 *"손상 배율이 같은데 왜
+> 21.71%p 나 벌어지나"* 이고, 후보는 셋이다 — 행당 노출 · 손상 행 수 · 토큰화
+> 변경 여부. `permute` 는 분포도 노름도 보존하므로 그중 하나를 고립시킬 수 있다.
+>
+> **재설계 전에는 돌리지 않는다.** 사전 등록을 새로 써야 한다.
 
 같은 K 로 `random` / `mean` / `permute` (R2), K = 10/40/160/640 (R3).
 대조군은 Day 1 것을 재사용한다.
