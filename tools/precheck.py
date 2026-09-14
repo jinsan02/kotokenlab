@@ -64,6 +64,74 @@ def staged_blob(path: str, root: Path) -> str:
     return _git("show", f":{path}", root=root)
 
 
+CODE_SUFFIXES = (".py", ".ps1", ".sh")
+CODE_PREFIXES = ("src/", "scripts/", "tools/", "configs/", "tests/")
+TAB = chr(9)
+
+
+def is_code(path: str) -> bool:
+    return (path.lower().endswith(CODE_SUFFIXES)
+            or any(path.startswith(pre) for pre in CODE_PREFIXES))
+
+
+def result_rows_added(staged_text: str, head_text: str) -> list:
+    """스테이지된 LEDGER 에 새로 붙은 **실험 결과** 행의 run_id 목록.
+
+    결과 행 = `status` 가 ok 또는 fail. `start` 행만 있는 것은 학습이 도는
+    중이라는 뜻이므로 결과가 아니다.
+
+    스키마 이행(컬럼 추가로 기존 행이 전부 다시 쓰이는 경우)에서는 status 가
+    ok 인 옛 행들도 "새 줄" 로 보인다. 그래서 호출부가 헤더 변경 여부를 먼저
+    본다 — 헤더가 바뀌었으면 이행으로 보고 검사하지 않는다.
+    """
+    before = set(head_text.splitlines())
+    out = []
+    for line in staged_text.splitlines():
+        if not line or line in before:
+            continue
+        cells = line.split(TAB)
+        if len(cells) > 3 and cells[3] in ("ok", "fail"):
+            out.append(cells[1])
+    return out
+
+
+def mixed_results_and_code(run_ids: list, code_files: list, rel: str) -> list:
+    """실험 결과와 코드가 한 커밋에 있으면 거부 사유를 돌려준다.
+
+    훅은 원래 한 방향만 막았다 — `record:` 커밋에 코드가 섞이는 것. 그런데
+    2026-09-14 에 반대 방향이 터졌다. `fix(infra)` 커밋이 스테이지에 남아 있던
+    R1 의 원장 행·메트릭·run 디렉터리를 통째로 삼켰고 훅은 통과시켰다.
+    어느 커밋이 그 결과를 기록했는지 이력만 보고는 알 수 없게 된다.
+    """
+    if not run_ids or not code_files:
+        return []
+    uniq = sorted(set(run_ids))
+    shown = ", ".join(uniq[:3]) + (" 외" if len(uniq) > 3 else "")
+    return [
+        f"{rel}: 실험 결과 행 {len(run_ids)}개(run {shown})와 "
+        f"코드 {len(code_files)}개가 같은 커밋에 있다. 나눠라 — 코드를 먼저 "
+        f"fix/upgrade/feat 로, 결과는 record(...) 로 "
+        f"(CLAUDE.md \"record 커밋과 코드 커밋을 섞지 않는다\")"
+    ]
+
+
+def _check_results_not_mixed_with_code(files: list, root: Path) -> list:
+    code = [f for f in files if is_code(f)]
+    rel = ledger.TABLES["ledger"][0]
+    if not code or rel not in files:
+        return []
+    try:
+        staged = staged_blob(rel, root) or ""
+        head = _git("show", f"HEAD:{rel}", root=root)
+    except Exception:
+        return []          # 첫 커밋 등 — 비교 대상이 없으면 검사하지 않는다
+    if not staged or not head:
+        return []
+    if staged.splitlines()[0] != head.splitlines()[0]:
+        return []          # 헤더가 바뀌었다 = 스키마 이행. 코드와 같이 가는 게 정상
+    return mixed_results_and_code(result_rows_added(staged, head), code, rel)
+
+
 def check(root: Path | None = None) -> list:
     root = Path(root or ledger.repo_root())
     errors: list = []
@@ -106,6 +174,8 @@ def check(root: Path | None = None) -> list:
                 if cell.get("outputs") or cell.get("execution_count"):
                     errors.append(f"{path}: 출력 셀을 비우고 커밋하라")
                     break
+
+    errors += _check_results_not_mixed_with_code(files, root)
 
     # 미종료 run 검사는 원장을 건드리는 커밋에서만 한다. 학습이 도는 동안에는
     # 그 run 이 정상적으로 start 만 있는 상태라, 문서만 고치는 커밋까지 막는 것은

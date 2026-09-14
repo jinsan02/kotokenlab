@@ -31,6 +31,17 @@ HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
+# src/utils/tracking.py 의 RUN_ID_RE · tools/check_commit_msg.py 의 RUN_ID_RE 와
+# **같은 규칙** 이어야 한다. 세 곳이 갈리면 run 을 다 돌린 뒤 커밋에서 거부당한다.
+RUN_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]*$")
+
+# 2026-09-14 이전에 살균 없이 만들어진 run_id. 원장은 append-only 라 고칠 수
+# 없으므로 이름으로 면제한다. **여기에 새 항목을 더하지 마라** — 생성기가
+# 막으므로 새로 생길 수 없고, 생긴다면 그것이 버그다.
+LEGACY_RUN_IDS = frozenset({
+    "cpt_Qwen2.5-0.5B_r1ctrl_seed42",
+})
+
 SHA_COLUMNS = (
     "config_sha256", "tokenizer_sha256", "manifest_sha256", "env_sha256", "sha256",
     "clock_check_sha256", "artifact_id", "artifact_sha256",
@@ -207,6 +218,12 @@ def validate(root: Path | str | None = None, *,
                 errors.append(f"LEDGER.tsv:{n}: 알 수 없는 phase {row.get('phase')!r}")
             if row.get("status") not in ledger.RUN_STATUSES:
                 errors.append(f"LEDGER.tsv:{n}: 알 수 없는 status {row.get('status')!r}")
+            rid = row.get("run_id") or ""
+            if rid not in LEGACY_RUN_IDS and not RUN_ID_RE.match(rid):
+                errors.append(
+                    f"LEDGER.tsv:{n}: run_id 형식이 틀렸다: {rid!r} "
+                    f"(소문자·숫자·_.- 만). 커밋 훅이 Run-Id 트레일러에서 거부한다 — "
+                    f"여기서 먼저 잡는다")
         if check_lifecycle:
             metric_rows: list = []
             for t in ("train_curve", "lm_metrics"):
