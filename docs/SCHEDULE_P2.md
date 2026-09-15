@@ -276,80 +276,106 @@ T2b 곡선의 **체크포인트** 이고 R1 은 총예산 40MB 의 **종점** �
 > *크기* 만 맞췄다. 판정이 무엇이든 **"임베딩 손상 일반의 성질" 이라고 부르지
 > 않는다.** R2·R3 도 같은 교락을 물려받는다.
 
-### Day 2 — Q7 게이트 S0 -> S1 -> S2·3 (약 2h 10m)
+### Day 2 — Q7 게이트 (2026-09-15 실행, **구별 불가 — S4 취소**)
 
-**R1 이 부정으로 나온 뒤 Q7 의 값이 올라갔다.** R1 은 "치환에 특유한 현상" 이라고
-답했고, 그 특유함이 `tie` 때문인지가 이제 더 직접적인 질문이다.
-
-판정은 [`PLAN.md` "Q7"](PLAN.md) — `ΔR >= 5%p AND Δ > 2 sigma`.
-
-#### 전제 조건 — 2026-09-14 에 미리 확인했다
+record `36c8b5f`. GPU 약 3h 15m.
 
 ```
-산출물     untied_c0_qwen / untied_t2b_mean
-           텐서 291개 · lm_head.weight 있음 · tie_word_embeddings=False   확인
-run_id     cpt_untied_{t2b_mean,c0_qwen}_q7g_seed{42,123,2026}            살균 통과
-프로브     probe_resources.py 에 --model / --out / --force 있다            확인
-VRAM       tied 11,382(오늘 R1 실측) + untied 823(Day 0 스모크) = 12,205
-           장치 16,303 이므로 여유 4,098 MiB. **allocated 기준이다**
+S0  reserved 13,572 MB · 여유 2,703 MB     allocated(10,960)로 봤으면 오판할 뻔
+S1  6/6 비트 일치, 차이 0.00e+00           파라미터 +27.6% 인데 forward 불변
+S2·3
+        untied T2b   untied C0   R_untied
+  42      1.856245    1.149568    42.58%
+ 123      1.853578    1.149729    42.80%
+2026      1.854490    1.149715    42.73%
+ 평균     1.854771    1.149671    42.70%
+ sigma    0.001356    0.000089    0.113%p
+
+R_untied 42.70%   R_tied 42.26%   ΔR +0.44%p   2 sigma 0.226%p
 ```
 
-> 경계는 `reserved` 다. `allocated` 로 재면 이미 무너진 지점을 "들어간다" 고
-> 보고하게 된다 (1차 Q6-E 에서 겪었다). **S0 이 그것을 실측한다.**
+등록 규칙 `ΔR >= 5%p AND Δ > 2 sigma` — **ΔR 이 바닥의 1/11.**
+**구별 불가. H 는 지지되지 않는다. S4(약 6시간) 취소.**
 
-#### 실행 — 순서대로
+#### 효과 크기 바닥이 정확히 이 경우를 위해 있었다
+
+0.44%p 가 **2 sigma 를 통과했다.** 바닥이 없었으면 "통계적으로 유의한 차이" 로
+보고할 뻔했다. 2026-09-03 등록이 그 상황을 미리 적어 뒀다 —
+*"ΔR 이 0.3%p 만 나와도 형식상 2 sigma 를 통과한다."*
+
+#### 등록한 예측 둘이 모두 틀렸다
 
 ```
-# S0  자원 프로브 (약 5분). 브라우저·Steam·Discord 를 먼저 닫는다
-.conda/python.exe tools/check_clock.py --record
-.conda/python.exe -m src.utils.env --check
-.conda/python.exe scripts/probe_resources.py --skip-infer --only-cpt-config     --model artifacts/models/untied_t2b_mean     --model artifacts/models/untied_c0_qwen     --out reports/tables/resource_probe_untied.md
+예측 1  회복률 72~78%            ->  42.70%
+예측 2  영어는 나빠지지 않는다     ->  거의 그대로
+          T2b - 자기 C0   영어         코드
+          tied          +0.005656   +0.006852
+          untied        +0.005730   +0.006810
+```
 
-# S1  정합성 게이트 (약 8분). 아래 값이 안 나오면 untie 가 깨진 것이다
-.conda/python.exe -m src.evaluation.bpb --model artifacts/models/untied_t2b_mean     --name untied_t2b_mean --tag q7s1      # ko 2.380297 이 나와야 한다
-.conda/python.exe -m src.evaluation.bpb --model artifacts/models/untied_c0_qwen     --name untied_c0_qwen --tag q7s1       # ko 1.156880 이 나와야 한다
+예측 2 가 더 중요하다. 등록이 *"영어가 여전히 나빠지면 그 해석이 틀린 것이고,
+그게 더 중요한 발견이다"* 라고 적어 뒀다. **부수 피해의 경로는 tie 가 아니다.**
 
-# S2·3  17.5MB x seed 3 x 조건 2 (약 1h 54m). seed 42 를 먼저 보고 나머지를 잇는다
+#### 거짓 실패를 한 번 겪었다
+
+S1 이 처음에 실패로 나왔다 — `bpb.py` 의 `--max-bytes` 기본값이 5MB 인데 1차
+기준값은 2MB 로 쟀기 때문이다. **코드 BPB 가 7.6% 움직인 것이 이상해서**
+모델이 아니라 평가 설정을 의심했고 config 대조로 찾았다. 그대로 믿었으면
+"untie 가 깨졌다" 로 하루를 날렸다.
+
+이 사건이 [`tools/compare_runs.py`](../tools/compare_runs.py) 를 낳았다.
+
+---
+
+## 남은 실험 검수 — 2026-09-15
+
+같은 결함이 남은 실험에도 있는지 원장으로 확인했다.
+**비교 대상의 `argv` 를 그대로 맞추는 것이 유일한 안전장치다.**
+
+| 실험 | 비교 대상 | 앵커 | 전제물 | 판정 |
+|---|---|---|---|---|
+| **R5** | `cpt_t2b_mean_main_seed42` | 코사인 C0 (가정 등록됨) | 있음 | **플래그 셋 주의** |
+| **D1·D2** | 1차 main 체크포인트 4종 | 같은 예산·스케줄 | **있음 (0.93~0.99GB x4)** | 문제 없음 |
+| **D3** | 위와 같음 | 같음 | **KMMLU 데이터 없음** | **받아야 한다** |
+| R2·R3 | — | — | — | **전제 상실, 재설계 대기** |
+
+### R5 — 기본값 셋이 전부 다르다
+
+비교 대상의 원장 argv:
+
+```
+cpt_t2b_mean_main_seed42
+  --budget-bytes 168500000 --pool-docs 50000 --eval-bytes 20000000 --eval-budget 2000000
+```
+
+기본값은 `pool_docs 30000` · `eval_bytes 1000000` · `eval_budget 1000000` 이다.
+**셋 다 다르다.** 그냥 돌리면 다른 문서 풀을 다른 평가 예산으로 재게 되고
+비교가 무효가 된다.
+
+```
 for S in 42 123 2026; do
-  .conda/python.exe -m src.training.cpt --model artifacts/models/untied_t2b_mean       --budget-bytes 17500000 --eval-bytes 1000000 --seed $S --tag q7g
-  .conda/python.exe -m src.training.cpt --model artifacts/models/untied_c0_qwen       --budget-bytes 17500000 --eval-bytes 1000000 --seed $S --tag q7g
+  .conda/python.exe -m src.training.cpt     --model artifacts/models/kot2b_v2_n30000_mean     --budget-bytes 168500000 --pool-docs 50000     --eval-bytes 20000000 --eval-budget 2000000     --lr-schedule constant --seed $S --tag r5
 done
 ```
 
-**`--eval-bytes` 를 빼지 마라.** 기본값 1MB 는 여기서는 맞는 값이지만, 명시하지
-않으면 다음 사람이 그 사실을 모른다 ([위 비용 모형](#run-하나가-얼마나-걸리는가--2026-09-14-실측)).
-
-#### S1 이 게이트인 이유
-
-untie 는 `lm_head` 를 embedding 사본으로 만들 뿐이라 **forward 를 바꾸지 않는다.**
-2026-09-03 에 CPU 에서 logits 가 tied 원본과 `torch.equal` 로 동일한 것을
-확인했다. 따라서 학습 전 BPB 는 **구성상 고정** 이다.
+**돌리기 전에 반드시:**
 
 ```
-B0(untied-T2b) == 2.380297        B0(untied-C0) == 1.156880
+.conda/python.exe tools/compare_runs.py cpt_t2b_mean_r5_seed42 cpt_t2b_mean_main_seed42 --allow lr_schedule
 ```
 
-다르게 나오면 발견이 아니라 **버그다. 거기서 멈춘다.**
+`lr_schedule` 만 달라야 한다. 그 외에 뭔가 걸리면 멈춘다.
 
-#### 판정 — 비교 대상이 앵커 규칙을 만족하는가
+> 앵커 가정과 발동 조건은 [`PLAN.md` "R1 판정 기준 정정과 R5 앵커 가정"](PLAN.md).
+> R 이 66.0~73.5% 안에 떨어지면 상수 LR C0 을 1 seed 더 돌린 뒤 판정한다.
 
-```
-R_tied@17.5MB  = (2.380297 - 1.860251) / (2.380297 - 1.149698) = 42.26%
-                 Bf 둘 다 1차 노이즈 run 의 3 seed 평균 (17.5MB 전체 예산)
-R_untied@17.5MB = S2·3 의 untied-T2b 와 untied-C0 에서 직접 나온다
-```
+### D3 — 데이터가 없다
 
-**둘 다 17.5MB 전체 예산의 종점이고 스케줄이 같다.** 어제 등록한 앵커 규칙을
-만족한다 ([`PLAN.md` "R1 판정 기준 정정"](PLAN.md) 의 점검표).
-sigma 는 S2·3 자체의 3 seed 에서 나온다 — 1차 것을 빌리지 않는다.
+KMMLU 가 저장소에 없다. 받는 것 자체가 선행 작업이고, **어느 판본·어느 도메인·
+몇 문항인지를 받기 전에 사전 등록해야 한다** ([`PLAN.md` "downstream 과 한자
+프로브"](PLAN.md)). 데이터를 본 뒤에 고르면 사후 선택이다.
 
-#### 분기
-
-| S2·3 결과 | 다음 |
-|---|---|
-| `ΔR >= 5%p AND Δ > 2σ` | **Day 4 S4 로 간다** (168.5MB, 약 6h) |
-| 구별 불가 | **S4 를 취소한다.** 1h 27m 로 끝나고 그것도 답이다 |
-| `ΔR <= -5%p AND Δ > 2σ` | tie 를 끊으면 더 나빠진다 — 그 자체로 보고 가치가 있다 |
+D1·D2 는 기존 체크포인트만 쓰므로 바로 돌릴 수 있다.
 
 ---
 

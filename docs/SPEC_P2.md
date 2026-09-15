@@ -364,10 +364,20 @@ optimizer   adamw8bit
 seq_len     2048
 micro_bs    2  x  accum 8   (유효 32,768 tokens/step)
 grad ckpt   true
-pool_docs   50000
+pool_docs   S4 는 50000 · **S2·3 은 5000**   <- 2026-09-15 정정
 attention   sdpa_kernel([EFFICIENT_ATTENTION, CUDNN_ATTENTION])
 seed        42 / 123 / 2026
 ```
+
+> **2026-09-15 정정 — `pool_docs` 는 단계마다 다르다.**
+> 위 표가 처음에 `50000` 하나만 적어 뒀는데, 그것은 **S4 가 비교할 1차 본 run**
+> 의 값이다. S2·3 은 **1차 노이즈 run(42.26%)과 비교** 하므로 그쪽 값인
+> `5000` 이어야 한다. 노이즈 run 은 풀(5,000문서 20.0MB)을 예산(17.5MB)에 맞춰
+> 모든 seed 가 같은 문서를 거의 다 보게 한 설계다.
+>
+> S2·3 실행 직전에 잡았다. 그대로 돌렸으면 다른 문서 풀을 보고 42.26% 와
+> 비교할 뻔했다. **비교 대상의 원장 `argv` 를 그대로 맞추는 것이 유일한
+> 안전장치다** — [`tools/compare_runs.py`](../tools/compare_runs.py).
 
 x축을 step 이나 token 으로 바꾸면 비교 대상이 토크나이저가 아니라 학습률이
 된다 ([DESIGN_DELTA.md](DESIGN_DELTA.md) 1-4, [RULES.md](RULES.md) 12b).
