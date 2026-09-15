@@ -108,11 +108,14 @@ R5 는 경쟁하는 두 등록이 걸려 있다 (A: 71~75% / B: <=68.5%).
 **돌리기 전에 반드시 플래그를 맞춰라.** 기본값 셋이 비교 대상과 다르다.
 
 ```
---pool-docs 50000 --eval-bytes 20000000 --eval-budget 2000000
-(기본값은 30000 / 1000000 / 1000000)
+--name t2b_mean --pool-docs 50000 --eval-bytes 20000000 --eval-budget 2000000
+(기본값은 30000 / 1000000 / 1000000. --name 을 빼면 run_id 규칙이 1차와 갈린다)
 
-.conda/python.exe tools/compare_runs.py <새 run> cpt_t2b_mean_main_seed42 --allow lr_schedule
+.conda/python.exe tools/compare_runs.py cpt_t2b_mean_r5_seed42 cpt_t2b_mean_main_seed42 --allow lr_schedule
 ```
+
+**본 run 전에 발산 확인부터** (약 15분). 기존 상수 LR 스모크는 C0 로 1.2MB 만
+봤다 — 조건도 규모도 다르다. 상수 lr 1e-5 가 168.5MB 끝까지 버티는지는 모른다.
 
 이틀 동안 이 종류로 네 번 걸렸고 한 번 당했다 (S1 거짓 실패).
 `tools/compare_runs.py` 가 그래서 생겼다 — **원장 argv 가 진실이고 config 는

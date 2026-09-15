@@ -238,8 +238,8 @@ emb 136,134,656 원소   attn 44,067,840   ffn 313,786,368
 
 ```
 .conda/python.exe scripts/damage_rows.py --k 40 --how mean --name dmg_mean_k40
-.conda/python.exe -m src.training.cpt --model artifacts/models/dmg_mean_k40     --budget-bytes 40000000 --eval-bytes 1000000 --tag r1
-.conda/python.exe -m src.training.cpt --model Qwen/Qwen2.5-0.5B     --revision 060db6499f32faf8b98477b0a26969ef7d8b9987     --budget-bytes 40000000 --eval-bytes 1000000 --tag r1ctrl
+.conda/python.exe -m src.training.cpt --model artifacts/models/dmg_mean_k40 --budget-bytes 40000000 --eval-bytes 1000000 --tag r1
+.conda/python.exe -m src.training.cpt --model Qwen/Qwen2.5-0.5B --revision 060db6499f32faf8b98477b0a26969ef7d8b9987 --budget-bytes 40000000 --eval-bytes 1000000 --tag r1ctrl
 ```
 
 **C0 대조군은 여기서 한 번만 돌린다.** Day 2·3 과 아래 T2b 40MB 가 재사용한다.
@@ -266,7 +266,7 @@ T2b 곡선의 **체크포인트** 이고 R1 은 총예산 40MB 의 **종점** �
 **필요한 run 하나:**
 
 ```
-.conda/python.exe -m src.training.cpt --model artifacts/models/kot2b_v2_n30000_mean     --budget-bytes 40000000 --eval-bytes 1000000 --tag r1base      # 약 36분
+.conda/python.exe -m src.training.cpt --model artifacts/models/kot2b_v2_n30000_mean --budget-bytes 40000000 --eval-bytes 1000000 --tag r1base # 약 36분
 ```
 
 이게 나오기 전에는 R1 을 긍정으로도 부정으로도 부르지 않는다.
@@ -345,7 +345,7 @@ S1 이 처음에 실패로 나왔다 — `bpb.py` 의 `--max-bytes` 기본값이
 
 ```
 cpt_t2b_mean_main_seed42
-  --budget-bytes 168500000 --pool-docs 50000 --eval-bytes 20000000 --eval-budget 2000000
+ --budget-bytes 168500000 --pool-docs 50000 --eval-bytes 20000000 --eval-budget 2000000
 ```
 
 기본값은 `pool_docs 30000` · `eval_bytes 1000000` · `eval_budget 1000000` 이다.
@@ -354,7 +354,7 @@ cpt_t2b_mean_main_seed42
 
 ```
 for S in 42 123 2026; do
-  .conda/python.exe -m src.training.cpt     --model artifacts/models/kot2b_v2_n30000_mean     --budget-bytes 168500000 --pool-docs 50000     --eval-bytes 20000000 --eval-budget 2000000     --lr-schedule constant --seed $S --tag r5
+ .conda/python.exe -m src.training.cpt --model artifacts/models/kot2b_v2_n30000_mean --budget-bytes 168500000 --pool-docs 50000 --eval-bytes 20000000 --eval-budget 2000000 --lr-schedule constant --seed $S --tag r5
 done
 ```
 
@@ -381,26 +381,101 @@ D1·D2 는 기존 체크포인트만 쓰므로 바로 돌릴 수 있다.
 
 ## W2 — 헤드라인 직접 검정 (9h 43m)
 
-### Day 3 — R5 상수 LR (3h 50m)
+### Day 3 — R5 상수 LR (약 3h 52m)
 
-tied T2b, `--lr-schedule constant`, 168.5MB x 3 seed.
+**Q7 이 닫히면서 R5 가 남은 후보 중 유일하게 등록된 실험이 됐다.**
 
-**경쟁하는 두 등록이 걸려 있다** ([`PLAN.md` "R5 의 경쟁 등록 B"](PLAN.md)).
+```
+R1   정체는 임베딩 복구 일반의 성질이 아니다 — 치환에 특유하다   (2026-09-14)
+Q7   그 특유함은 tie 때문이 아니다                            (2026-09-15)
+R5   LR 때문인가                                            <- 다음
+```
+
+#### 경쟁하는 두 등록이 걸려 있다
+
+[`PLAN.md` "R5 의 경쟁 등록 B"](PLAN.md). 기준은 1차 T2b main 의 **65.44%**.
 
 ```
 등록 A (2026-09-03)   R = 71~75%      LR 이 회복을 끊고 있었다
-등록 B (2026-09-13)   R <= 68.5%      감속은 LR 이 아니다  (N2 근거)
+등록 B (2026-09-13)   R <= 68.5%      감속은 LR 이 아니다  (N2: LR 정규화 후에도 31배 감속)
 68.5 < R < 71         둘 다 기각
 ```
 
-판정 sigma 는 **이 run 의 3 seed 에서 직접** 나온다. 1차 sigma 를 빌리지 않는다.
-C0 기준선(1.137540)은 같은 예산·같은 조건이라 1차 것을 쓴다.
+#### 먼저 — 발산 확인 (약 15분)
 
-> **본 run 전에 17.5MB 로 한 번 확인한다** (약 11분). 상수 LR 이 168.5MB 끝까지
-> 발산 없이 도는지는 아직 모른다. 1.2MB 스모크로는 알 수 없다.
+상수 lr 1e-5 를 168.5MB 끝까지 유지했을 때 발산하지 않는지는 **아직 모른다.**
+기존 스모크(`cpt_c0_constlr_lrsmoke_seed42`)는 **C0 로 1.2MB** 만 봤다 —
+조건도 규모도 다르다.
 
-**등록 B 가 이기면 헤드라인이 강해진다** — 정체가 스케줄의 산물이 아니라는
-직접 증거가 되고, W0-2 의 사후 분석이 확증으로 승격된다.
+```
+.conda/python.exe -m src.training.cpt --model artifacts/models/kot2b_v2_n30000_mean --name t2b_mean --budget-bytes 17500000 --pool-docs 50000 --eval-bytes 2000000 --eval-budget 2000000 --lr-schedule constant --seed 42 --tag r5chk
+```
+
+`train_loss` 가 단조 발산하지 않으면 본 run 으로 간다. 발산하면 **멈추고
+등록을 다시 본다** — lr 을 낮추면 그것은 R5 가 묻는 실험이 아니게 된다.
+
+#### 본 run (약 3h 37m)
+
+```
+for S in 42 123 2026; do
+ .conda/python.exe -m src.training.cpt --model artifacts/models/kot2b_v2_n30000_mean --name t2b_mean --budget-bytes 168500000 --pool-docs 50000 --eval-bytes 20000000 --eval-budget 2000000 --lr-schedule constant --seed $S --tag r5
+done
+```
+
+**`--name t2b_mean` 을 빼지 마라.** 빼면 run_id 가
+`cpt_kot2b_v2_n30000_mean_r5_seed42` 가 되어 1차와 이름 규칙이 갈린다.
+`--save` 는 주지 않는다 — 체크포인트 3GB 가 필요 없다.
+
+#### 플래그 검사 — 기본값 셋이 전부 다르다
+
+```
+             기본값        필요한 값
+pool_docs    30,000       50,000
+eval_bytes   1,000,000    20,000,000
+eval_budget  1,000,000    2,000,000
+```
+
+`eval_budget` 이 특히 중요하다. 판정식의 `B0`(2.380297)와 앵커(1.137540)가
+둘 다 **2MB 평가**에서 나온 값이다. 1MB 로 재면 다른 숫자가 나온다
+(2026-09-15 에 S1 이 이것 때문에 거짓 실패했다).
+
+**발산 확인 직후, 본 run 전에 반드시:**
+
+```
+.conda/python.exe tools/compare_runs.py cpt_t2b_mean_r5chk_seed42 cpt_t2b_mean_main_seed42 --allow lr_schedule budget_bytes eval_bytes
+```
+
+본 run 이 하나 끝난 뒤에도 한 번 더:
+
+```
+.conda/python.exe tools/compare_runs.py cpt_t2b_mean_r5_seed42 cpt_t2b_mean_main_seed42 --allow lr_schedule
+```
+
+`lr_schedule` 만 달라야 한다. 다른 게 걸리면 멈춘다.
+
+#### 판정
+
+```
+R_r5 = (2.380297 - Bf_r5) / (2.380297 - 1.137540)
+sigma_R <- R5 자체의 3 seed 에서 직접
+```
+
+앵커 1.137540 은 **코사인** C0 의 바닥이고 R5 는 상수 LR 이다. 이 불일치는
+[`PLAN.md`](PLAN.md) 에 가정으로 등록돼 있고 발동 조건이 붙어 있다 —
+**R 이 66.0~73.5% 안에 떨어지면 상수 LR C0 을 1 seed 더 돌린 뒤 판정한다**
+(약 1h 45m). 밖이면 1차 앵커를 그대로 쓴다.
+
+#### 시간
+
+```
+발산 확인   17.5MB x 1        약 15분
+본 run      168.5MB x 3 seed  3h 37m   (1차 T2b main 실측 4,343초/seed)
+합계                          약 3h 52m
+조건부 추가 상수 LR C0 1 seed  +1h 45m
+```
+
+VRAM 은 tied 라 1차와 같다 (allocated 11,382~11,935). untied 보다 낮으므로
+오늘 통과한 조건이면 들어간다.
 
 ### Day 4 — Q7 본편 S4 (5h 53m)
 
