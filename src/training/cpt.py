@@ -152,6 +152,11 @@ def main(argv: list | None = None) -> int:
         "budget_tokens": args.budget_tokens, "seq_len": args.seq_len,
         "micro_bs": args.micro_bs, "accum": args.accum, "lr": args.lr,
         "pool_docs": args.pool_docs, "skip_docs": args.skip_docs,
+        # 평가 설정도 config 에 남긴다. eval_budget 은 보고되는 BPB 자체를
+        # 정하므로, 기록이 없으면 두 run 의 최종값을 비교해도 되는지 알 수 없다.
+        # 2026-09-15 에 1차 노이즈 run 의 config 에서 이 값을 찾다가 없어서
+        # 겪었다 — 같은 날 --max-bytes 기본값 불일치로 게이트가 거짓 실패했다.
+        "eval_budget": args.eval_budget, "eval_bytes": args.eval_bytes,
         "optimizer": "adamw8bit",
         "dtype": "bfloat16", "grad_checkpointing": True,
         "lr_schedule": (f"{args.lr_schedule}_by_tokens" if args.budget_tokens
