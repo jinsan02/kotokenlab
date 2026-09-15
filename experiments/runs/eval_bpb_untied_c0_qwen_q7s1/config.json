@@ -1,0 +1,8 @@
+{
+  "max_bytes": 5000000,
+  "model": "artifacts/models/untied_c0_qwen",
+  "purpose": "pre_cpt_bpb",
+  "revision": null,
+  "seq_len": 2048,
+  "split": "dev"
+}
