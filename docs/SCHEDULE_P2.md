@@ -381,101 +381,43 @@ D1·D2 는 기존 체크포인트만 쓰므로 바로 돌릴 수 있다.
 
 ## W2 — 헤드라인 직접 검정 (9h 43m)
 
-### Day 3 — R5 상수 LR (약 3h 52m)
+### Day 3 — R5 상수 LR (2026-09-16 실행, **등록 A 지지**)
 
-**Q7 이 닫히면서 R5 가 남은 후보 중 유일하게 등록된 실험이 됐다.**
-
-```
-R1   정체는 임베딩 복구 일반의 성질이 아니다 — 치환에 특유하다   (2026-09-14)
-Q7   그 특유함은 tie 때문이 아니다                            (2026-09-15)
-R5   LR 때문인가                                            <- 다음
-```
-
-#### 경쟁하는 두 등록이 걸려 있다
-
-[`PLAN.md` "R5 의 경쟁 등록 B"](PLAN.md). 기준은 1차 T2b main 의 **65.44%**.
+record `23237cc` · `64556e2`. GPU 약 5h 25m.
 
 ```
-등록 A (2026-09-03)   R = 71~75%      LR 이 회복을 끊고 있었다
-등록 B (2026-09-13)   R <= 68.5%      감속은 LR 이 아니다  (N2: LR 정규화 후에도 31배 감속)
-68.5 < R < 71         둘 다 기각
+발산 확인  17.5MB      ko 2.3803 -> 1.7458 단조 감소, lr 1e-5 유지
+T2b 상수   168.5MB x3  1.473036 / 1.472577 / 1.473207
+C0  상수   168.5MB x1  1.127397   (코사인 1.137540 보다 0.010 낫다)
+
+R (상수 앵커)  72.42%   sigma_R 0.026%p   1차 코사인 65.44% 대비 +6.98%p
 ```
 
-#### 먼저 — 발산 확인 (약 15분)
+**LR 스케줄이 회복을 끊고 있었다.** 등록 A(71~75%) 지지, 등록 B(<=68.5%) 기각.
 
-상수 lr 1e-5 를 168.5MB 끝까지 유지했을 때 발산하지 않는지는 **아직 모른다.**
-기존 스모크(`cpt_c0_constlr_lrsmoke_seed42`)는 **C0 로 1.2MB** 만 봤다 —
-조건도 규모도 다르다.
+앵커 발동 조건이 실제로 켜졌고(코사인 앵커로 73.01%, 상한 73.5% 의 0.49%p 안쪽)
+등록대로 상수 LR C0 을 돌렸다. C0 도 상수 LR 에서 더 나아서 R 이 0.59%p 내려갔지만
+판정은 유지됐다.
 
-```
-.conda/python.exe -m src.training.cpt --model artifacts/models/kot2b_v2_n30000_mean --name t2b_mean --budget-bytes 17500000 --pool-docs 50000 --eval-bytes 2000000 --eval-budget 2000000 --lr-schedule constant --seed 42 --tag r5chk
-```
+**그 대조군이 수치 하나를 바로잡았다.** 처음엔 영어·코드 피해가 "1.3~1.5배" 라고
+적었는데 코사인 C0 대비였다. 자기 조건 C0 대비로는 영어 +1.03% (코사인 +0.98%),
+코드 +2.16% (+1.84%) 다.
 
-`train_loss` 가 단조 발산하지 않으면 본 run 으로 간다. 발산하면 **멈추고
-등록을 다시 본다** — lr 을 낮추면 그것은 R5 가 묻는 실험이 아니게 된다.
-
-#### 본 run (약 3h 37m)
+#### 세 실험이 모였다
 
 ```
-for S in 42 123 2026; do
- .conda/python.exe -m src.training.cpt --model artifacts/models/kot2b_v2_n30000_mean --name t2b_mean --budget-bytes 168500000 --pool-docs 50000 --eval-bytes 20000000 --eval-budget 2000000 --lr-schedule constant --seed $S --tag r5
-done
+R1  정체는 임베딩 복구 일반의 성질이 아니다 — 치환에 특유하다   부정
+Q7  tie 때문이 아니다                                           부정
+R5  LR 스케줄 때문이다                                          긍정
 ```
 
-**`--name t2b_mean` 을 빼지 마라.** 빼면 run_id 가
-`cpt_kot2b_v2_n30000_mean_r5_seed42` 가 되어 1차와 이름 규칙이 갈린다.
-`--save` 는 주지 않는다 — 체크포인트 3GB 가 필요 없다.
+**논문 헤드라인이 바뀐다.** "65% 벽" 은 코사인 스케줄 아래의 현상이고,
+상수 LR 에서 72% 까지 간다. 그리고 C0 도 상수 LR 에서 나았으므로
+**1차 설정 자체가 이 예산에서 덜 학습된 쪽이었을 수 있다.** 1차의 모든 절대값은
+그 스케줄 조건부로 읽는다.
 
-#### 플래그 검사 — 기본값 셋이 전부 다르다
-
-```
-             기본값        필요한 값
-pool_docs    30,000       50,000
-eval_bytes   1,000,000    20,000,000
-eval_budget  1,000,000    2,000,000
-```
-
-`eval_budget` 이 특히 중요하다. 판정식의 `B0`(2.380297)와 앵커(1.137540)가
-둘 다 **2MB 평가**에서 나온 값이다. 1MB 로 재면 다른 숫자가 나온다
-(2026-09-15 에 S1 이 이것 때문에 거짓 실패했다).
-
-**발산 확인 직후, 본 run 전에 반드시:**
-
-```
-.conda/python.exe tools/compare_runs.py cpt_t2b_mean_r5chk_seed42 cpt_t2b_mean_main_seed42 --allow lr_schedule budget_bytes eval_bytes
-```
-
-본 run 이 하나 끝난 뒤에도 한 번 더:
-
-```
-.conda/python.exe tools/compare_runs.py cpt_t2b_mean_r5_seed42 cpt_t2b_mean_main_seed42 --allow lr_schedule
-```
-
-`lr_schedule` 만 달라야 한다. 다른 게 걸리면 멈춘다.
-
-#### 판정
-
-```
-R_r5 = (2.380297 - Bf_r5) / (2.380297 - 1.137540)
-sigma_R <- R5 자체의 3 seed 에서 직접
-```
-
-앵커 1.137540 은 **코사인** C0 의 바닥이고 R5 는 상수 LR 이다. 이 불일치는
-[`PLAN.md`](PLAN.md) 에 가정으로 등록돼 있고 발동 조건이 붙어 있다 —
-**R 이 66.0~73.5% 안에 떨어지면 상수 LR C0 을 1 seed 더 돌린 뒤 판정한다**
-(약 1h 45m). 밖이면 1차 앵커를 그대로 쓴다.
-
-#### 시간
-
-```
-발산 확인   17.5MB x 1        약 15분
-본 run      168.5MB x 3 seed  3h 37m   (1차 T2b main 실측 4,343초/seed)
-합계                          약 3h 52m
-조건부 추가 상수 LR C0 1 seed  +1h 45m
-```
-
-VRAM 은 tied 라 1차와 같다 (allocated 11,382~11,935). untied 보다 낮으므로
-오늘 통과한 조건이면 들어간다.
+**열린 것:** 상수 LR 에서도 결국 멈추는가. 168.5MB 에서는 곡선이 아직 내려가고
+있었다 (140->160MB 에 0.011). 이것을 물으려면 새 사전 등록이 필요하다.
 
 ### Day 4 — Q7 본편 S4 (5h 53m)
 
@@ -493,41 +435,54 @@ VRAM 은 tied 라 1차와 같다 (allocated 11,382~11,935). untied 보다 낮으
 
 ## W3 — 방어 (약 4h)
 
-### Day 5 — downstream + 한자 프로브
+### Day 4 (2026-09-17) — 한자 프로브 D1·D2 (**GPU 약 20분**)
 
-사전 등록은 [`PLAN.md` "downstream 과 한자 프로브"](PLAN.md) (2026-09-13).
-이미 있는 체크포인트를 쓴다. **학습 없음.**
+사전 등록은 [`PLAN.md` "downstream 과 한자 프로브"](PLAN.md) (2026-09-13) 와
+**실행 설정 보충** (2026-09-16, 측정 전).
 
-두 가지를 한 번에 친다.
+**등록 비교는 T2a vs C0 이다.** T2b 는 descriptive.
+
+#### 준비 완료 (2026-09-16)
 
 ```
-D3  KMMLU 한자어 밀집 도메인   T2a vs C0        <- 본안
-D2  한자 밀집 한국어 BPB       787문서 6.71MB   약 10분
-D1  같은 부분집합 tok/byte     GPU 0시간
+입력     data/interim/docs/dev_hanja.jsonl   787문서 6.71MB   등록값과 일치
+         tools/build_hanja_subset.py 로 재생성 가능 (등록 수와 다르면 거부한다)
+D1 설정  configs/evaluation/tokenizer_hanja.yaml   C0 / T2a / T2b
+D2 입력  artifacts/models/cpt_{c0_qwen,t2a_none,t2b_mean,t2b10k_mean}_main_seed42
+         전부 디스크에 있다
 ```
 
-**왜 한자 프로브가 필요한가.** T2a 가 제거한 30,000개 중 **13,310개(44.4%)가
-한자 포함 토큰** 이다. 의도가 아니라 빈도 필터의 부수 효과다 — `prune.py` 의
-`eligible()` 에 유니코드 영역 조건이 없다.
+`dev_hanja.jsonl` 이 `dev` 평가를 오염시키지 않는 것도 확인했다 — 두 도구 모두
+파일명이 정확히 `dev.jsonl` 이거나 `dev_control_` 로 시작해야 dev 로 읽는다.
 
-한국어 dev 에서 한자는 **글자의 0.128%** 라 집계 BPB 에 묻혔다. T2a 의 한국어
-BPB 가 멀쩡했던 것이 "한자가 괜찮다" 를 뜻하지 않는다 — **측정된 적이 없다.**
+#### 실행
 
-절단면은 다행히 간체 전용자 쪽으로 치우쳐 있다 (제거된 단일 한자는 count
-중앙값 0 · 최대 7, 생존은 的 人 大 … 國 無 韓). 그래서 **예측은 "차이 없음"**
-이다. 그러나 빈도 필터는 *"웹 텍스트에 안 나온다"* 만 보고 **"추론 중간에
-쓰인다" 는 구조적으로 못 본다.** 그것이 프로브가 필요한 유일하고 충분한 이유다.
+```
+# D1 (CPU, GPU 0)
+.conda/python.exe -m src.evaluation.tokenizer_eval --config configs/evaluation/tokenizer_hanja.yaml --split dev_hanja --tag d1
 
-> **KMMLU 로 한다.** KoBEST·HAE-RAE 는 이해·문화 과제라 추론 저하 축을 못 잡고,
-> arXiv 2604.16235 가 쓴 것도 KMMLU 다.
->
-> **대조는 T2a vs C0 둘만이다.** T2b 를 섞으면 제거 효과와 치환 효과가
-> 분리되지 않는다.
+# D2 (4 x 약 4분)
+for M in cpt_c0_qwen_main_seed42 cpt_t2a_none_main_seed42 cpt_t2b_mean_main_seed42 cpt_t2b10k_mean_main_seed42; do
+ .conda/python.exe -m src.evaluation.bpb --model artifacts/models/$M --split dev_hanja --max-bytes 7000000 --tag d2
+done
+```
 
-> **실행 전에 별도 커밋** 으로 도메인 · 문항 수 · shot · 채점 방식 · 판정
-> 경계를 고정한다. 그 커밋이 실행 커밋보다 앞서야 한다.
+**`--split dev_hanja` 와 `--max-bytes 7000000` 을 빼지 마라.** 빼면 각각 dev 전체와
+5MB 로 돈다.
 
-**틀리면 그것이 값진 결과다** — `prune.py` 의 기준 자체가 반증된다.
+#### 판정 (등록 그대로)
+
+```
+D1   T2a tok_per_byte 가 C0 의 2% 안인가          (부분집합 전체 합계)
+D2   T2a BPB 가 C0 대비 5% 안인가                 (이 부분집합의 sigma 는 없다 —
+                                                   5% 미만 차이는 주장하지 않는다)
+```
+
+#### D3 (KMMLU) — 내일 할 것은 등록뿐이다
+
+데이터가 저장소에 없다. **받기 전에** 판본 · 도메인 · 문항 수 · shot · 채점 방식 ·
+판정 경계를 `PLAN.md` 에 커밋한다. 데이터를 본 뒤에 고르면 사후 선택이다.
+받는 것 자체도 외부 다운로드라 실행 전에 확인을 받는다.
 
 ### Day 6 — R2 · R3 (**전제를 잃었다 — 재설계 필요**)
 
