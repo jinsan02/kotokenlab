@@ -30,7 +30,7 @@
 | A7 fertility 분석기 | ✅ kiwipiepy 0.23.2, `env_sha256` 에 고정 |
 | B1 KV/VRAM 을 1.5B 에서 | ✅ 0.5B + 1.5B 둘 다 측정 (`docs/PLAN.md`) |
 | B2 벤치마크 길이 확장 | ✅ 5k~40k자. 실측으로 32,768 토큰까지 가능 확인 |
-| C1 tied embedding 방침 | ✅ tied 유지 + 한계로 기술 |
+| C1 tied embedding 방침 | ✅ tied 유지 + 한계로 기술. **2차 Q7 에서 직접 검증 — untie 해도 회복률 +0.44%p, 구별 불가** |
 | E T2a/T2b 대조 | ✅ 코어에 포함, 사전 등록 질문 Q5 |
 | F1 코어/옵션 분리 | ✅ `docs/PLAN.md` |
 | **신규: SDPA 가 MATH 로 폴백** | ✅ `RULES.md` 9번 + `env.attn_backend` — 아래 B4 |
@@ -40,6 +40,12 @@
 | **신규: CI 의존성 누락** | ✅ 5커밋 동안 빨간불이었다 (5a7f006) |
 | **신규: 훅과 CI 가 다른 트리를 봄** | ✅ 훅이 인덱스를 읽는다 (c39627c). 로컬 통과 → CI 실패가 한 번 났다 (1e8b379) |
 | **신규: Embedding Alignment 폐기** | ✅ 3라운드 탐침. `reports/tables/alignment_probe.md` |
+| **신규 (2차): sigma 가 반올림값에서 계산됨** | ✅ `tools/noise_floor.py` — 전체 정밀도. T2a 영어 판정 하나가 뒤집혔다 |
+| **신규 (2차): 기본값 함정 넷** (`--eval-bytes` · `--max-bytes` · `--pool-docs` · 예산 지점/총량) | ✅ `tools/compare_runs.py` + 원장 argv 대조. S1 이 한 번 거짓 실패했다 |
+| **신규 (2차): run 도중 커밋 · git_dirty 무정보** | ✅ `a478426` (DESIGN_DELTA 3-11) |
+| **신규 (2차): 코퍼스 오염 제거 미구현** | 🔸 `DATA_SOURCES.md` 7단계가 설계만 있었다. P3 W0-12 에서 KMMLU 겹침을 센다 |
+| **신규 (2차): 워밍업 · 풀 순서가 예산에 딸림** | 🔸 P3 W0-1 · W0-2 (DESIGN_DELTA 3-12) |
+| **신규 (2차): 헤드라인 "65% 벽"** | ⛔ R5 로 코사인 스케줄의 산물임이 드러났다. 헤드라인 재작성 |
 
 ---
 

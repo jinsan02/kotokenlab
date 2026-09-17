@@ -13,13 +13,13 @@ C:\llm_tokenizer 프로젝트를 이어서 작업한다.
 먼저 이 순서로 읽고 현재 상태를 복원해라.
 1. docs/RULES.md         하드룰 17개 — 매 세션 읽는다
 2. docs/HANDOFF.md       지금까지 된 것과 다음 할 일
-3. docs/PLAN.md          범위·일정·사전 등록 질문 6개
+3. docs/PLAN.md          범위와 사전 등록 전부 (1차 Q1~Q6 · 2차 Q7/R5/D · 3차 "P3 확장")
 4. docs/DESIGN_DELTA.md  스펙과 다르게 한 것과 그 이유
    — 스펙만 읽고 코드를 고치면 이미 반증된 가설을 되살리게 된다
 5. reports/FINAL_REPORT.md  1차 결과 전체 (2026-09-02 종료)
    — Q1~Q6 의 답, 반증된 가설 셋, 권고, 한계
-6. docs/SPEC_P2.md       2차 설계 (R1~R5). §9 가 다음 실험 Q7 의 실행 설계다
-   — 아직 아무것도 안 돌렸다. 사전 등록은 docs/PLAN.md "Q7"
+6. docs/SPEC_P3.md · docs/SCHEDULE_P3.md   3차 설계와 일정 — 지금 여기서 일한다
+   — 2차(SPEC_P2 · SCHEDULE_P2)는 2026-09-17 에 닫혔다. 결과는 SCHEDULE_P2
 
 그 다음 아래를 실행해서 상태를 확인해라.
   git log --oneline -20
@@ -251,7 +251,7 @@ tok(tok) 커밋에 Tokenizer-SHA256 트레일러가 필요하다.
 ## 7. Phase 4 — 등토큰 예산과 N 스윕 (**2026-09-01 완료**)
 
 > 끝난 실험이다. 결과는 [`../reports/tables/phase4.md`](../reports/tables/phase4.md).
-> 다음에 돌릴 것은 아래 **8번(Q7)** 이다. 이 프롬프트는 같은 모양의 CPT 를
+> 이 프롬프트는 같은 모양의 CPT 를
 > 다시 짤 때의 본보기로만 남긴다.
 
 ```
@@ -273,10 +273,10 @@ scripts/run_phase4.sh 를 돌린다. 약 4.3시간.
 
 ---
 
-## 8. Q7 — tie 를 끊는다 (2차의 본안, 다음 실험)
+## 8. Q7 — tie 를 끊는다 (**2026-09-15 완료 — 구별 불가, S4 취소**)
 
-> 1차는 `p1-closed` 로 닫혔다. §7 의 Phase 4 는 **끝난 실험** 이다.
-> 다음에 돌릴 것은 이것이다.
+> 끝난 실험이다. 결과는 [`SCHEDULE_P2.md` "Day 2"](SCHEDULE_P2.md), record `36c8b5f`.
+> 게이트 단계에서 멈추는 설계의 본보기로 남긴다. 다음 작업은 **9번**.
 
 ```
 Q7 을 돌린다. tie_word_embeddings 를 끊고 회복률이 달라지는지 본다.
@@ -344,6 +344,53 @@ S4  168.5MB. untied-T2b 3 seed + untied-C0 (SPEC_P2 §9.3 의 발동 조건대�
 의도적으로 깨는 별개 조건이기 때문이다.
 
 **반증이 나오면 그것도 성과다. 긍정 결과를 찾으러 가지 마라.**
+```
+
+---
+
+## 9. P3 W0 — 코드와 게이트 (다음 작업)
+
+> 2차는 닫혔다. 결과는 [`SCHEDULE_P2.md`](SCHEDULE_P2.md). 3차의 어느 run 도
+> 이 W0 전에는 돌릴 수 없다.
+
+```
+P3 의 W0 를 한다. GPU 는 D0 보정과 1.5B 탐침에만 수 분 쓴다.
+
+먼저 읽어라. 순서대로다.
+  docs/SPEC_P3.md §3       W0-1 ~ W0-12 — 무엇을 왜 고치는가
+  docs/PLAN.md "P3 확장"    사전 등록 — 예측과 판정 경계. 여기서 고치지 않는다
+  docs/SCHEDULE_P3.md "W0"  순서
+  src/training/cpt.py · src/training/callbacks.py · tools/compare_runs.py
+
+## 반드시 지킬 것
+
+- **인자를 안 주면 P2 와 똑같이 돌아야 한다.** --warmup-bytes 와
+  --pool-extend-docs 의 기본값은 "기존 동작" 이다. 이것을 테스트로 먼저 못 박고
+  나서 구현하라. 과거 run 과의 비교가 여기에 달려 있다
+- **--pool-extend-docs 는 기존 풀(첫 --pool-docs 개)을 기존과 같은 seed 로 섞은
+  순서를 그대로 두고, 추가분을 그 뒤에 붙인다.** 추가분만 따로 섞는다.
+  "기존 풀 순서가 비트 단위로 같다" 를 테스트한다
+- **train_curve 에 컬럼을 붙일 때는 뒤에만 붙인다.** 과거 행은 NA 다
+  (src/utils/ledger.py 의 기존 방식을 따른다)
+- **compare_runs.py 에 새 필드를 분류하지 않으면 전부 "미분류 = 치명" 으로 막힌다.**
+  warmup_bytes · pool_extend_docs 는 치명, eval_at · save_at 은 시간
+- **W0-9 (R5 배증당 증분 비) 가 (0.5, 0.85] 밖이면 멈추고 알려라.** P3-A 는
+  재등록 전에 돌리지 않는다
+- **D0 보정과 1.5B 탐침의 결과는 게이트다.** 결과를 보여주고, D2 와 1.5B 본 실험을
+  할지 확인받아라. 1.5B 본 실험은 별도 사전 등록 커밋이 먼저다
+- **KMMLU 나머지 39과목은 받지 마라.** W3 에서 사용자 확인을 받은 뒤다
+- **run 이 도는 동안 그 run 이 쓰는 모듈을 커밋하지 마라**
+- **이 목록에 없는 새 모듈·도구·원장 테이블을 추가하지 마라.** SPEC_P3 §3 에 있는
+  것만 만든다. 필요하다고 판단되면 제안만 하고 확인받아라
+
+## 완료 기준
+
+- SPEC_P3 §3 의 W0-1 ~ W0-12 가 각각 feat/fix 커밋으로 존재하고 푸시됐다
+- pytest 전체 통과, tools/validate_ledger.py 통과
+- tools/p3_verdicts.py 가 아직 run 이 없는 상태에서 "미실행" 표를 쓴다
+- D0 · G 탐침 결과가 record 커밋으로 남았고, 게이트 판정을 사용자에게 보고했다
+
+각 단계가 끝나면 결과를 보여주고 물어봐라.
 ```
 
 ---

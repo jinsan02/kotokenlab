@@ -166,6 +166,9 @@ F 는 KMMLU 39과목을 새로 받는다. **받기 전에 사용자 확인.**
 | FINAL_REPORT §10 의 T3 제외 근거가 R1 · R5 로 무너졌다 | 정정 문구로 교체 |
 | README · WORKFLOW 가 "2차 Day 0" 에 멈춰 있었다 | 현재 상태로 갱신 |
 | R5 체크포인트를 저장하지 않았다 — 상수 LR 모델로 과제 평가를 못 한다 | P3-A 가 168.5MB 에서 저장한다 (W0-3) |
+| 코퍼스 파이프라인의 KMMLU 오염 제거 단계가 **설계만 있고 구현되지 않았다** | P3 W0-12 오염 검사 (D3 소급 보고, P3-F 판정 전). FINAL_REPORT §9 · DATA_SOURCES 에 기록 |
+| DESIGN_DELTA 의 3-5 · 3-6 · 3-7 번호가 두 번씩 쓰였다 (09-14 추가분이 충돌) | 09-14 추가분을 3-8 ~ 3-10 으로, 오늘 것을 3-11 · 3-12 로 |
+| PROMPTS · VENUES · RELATED_WORK · REVIEW · results_provenance · SPEC_P2 머리말이 2차 이전 상태 | 현재 상태로 갱신. PROMPTS 에 P3 W0 프롬프트(범위 울타리 포함) |
 
 ### 기본값 함정 — 계속 유효하다
 

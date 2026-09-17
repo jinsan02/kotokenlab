@@ -64,6 +64,13 @@
 
 전부 게이팅 없음. base 모델이므로 log-likelihood / multiple-choice 형식으로 쓴다.
 
+> **2026-09-17 실제 사용.** `HAERAE-HUB/KMMLU` revision `d61b3f19…` 의 6과목
+> (Law · Criminal-Law · Patent · Taxation · Health · Political-Science-and-Sociology)
+> dev/test 12파일을 `scripts/download_kmmlu.py` 로 받았다 (`data/raw/kmmlu/`, 해시는
+> `experiments/artifacts.tsv`). 라이선스 CC-BY-ND-4.0 이라 문항 본문은 저장소에
+> 남기지 않는다. 나머지 39과목은 P3-F 에서 사용자 확인 후 받는다.
+> **위 7단계의 오염 제거는 구현되지 않았으므로** 오염 검사를 따로 한다 (SPEC_P3 W0-12).
+
 ---
 
 ## 2. FineWeb-2 를 주력으로 쓰는 이유
@@ -175,6 +182,7 @@ Qwen2.5 기준 1 문자 ≈ 0.66 토큰   →  1 토큰 ≈ 4.5 바이트
 5. Exact dedup  정규화 후 SHA256
 6. Near dedup   MinHash + LSH (fineweb-2 minhash_cluster_size 는 참고용)
 7. 오염 제거    KMMLU / KorQuAD / HAE-RAE 문항과 n-gram 중복 문서 제거
+                 ** 2026-09-17 확인: 구현되지 않았다. v1 코퍼스에 적용된 적 없다 **
 8. Manifest    data/manifests/{train,dev,final_test}.tsv
                  doc_id source domain date language sha256 split
                  char_count byte_count latin_share hangul_ratio
