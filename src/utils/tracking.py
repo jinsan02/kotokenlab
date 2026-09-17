@@ -25,6 +25,7 @@ from typing import Any, Mapping
 from . import clock as clock_mod
 from . import env as env_mod
 from . import ledger
+from .gitinfo import git_commit, git_dirty
 from .hashing import sha256_obj
 from .seed import set_seed
 
@@ -149,6 +150,10 @@ class RunContext:
         self.env_sha256 = ledger.NA
         self.clock_check_sha256 = ledger.NA
         self.extra = dict(ledger_fields)
+        # 진입 시점에 고정한다. run 도중 커밋하면 종료 행과 메트릭 행이 **실행되지
+        # 않은 코드** 의 해시를 받는다 (2026-09-17 D2 에서 start/ok 해시가 갈렸다).
+        self.git_commit = ledger.NA
+        self.git_dirty = ledger.NA
 
         # 본문에서 갱신하면 종료 행에 반영된다.
         self.tokens_seen: Any = None
@@ -171,6 +176,8 @@ class RunContext:
 
     # ── 수명 ──────────────────────────────────────────────────────────
     def __enter__(self) -> "RunContext":
+        self.git_commit = git_commit(self.root)
+        self.git_dirty = git_dirty(self.root)
         self.clock_check_sha256 = clock_mod.require_recent_check(self.root)
         if self.skip_env_check:
             self.env_sha256 = env_mod.env_sha256()
@@ -232,6 +239,9 @@ class RunContext:
             "clock_check_sha256": self.clock_check_sha256,
             "argv": " ".join(sys.argv[1:]),
         }
+        for key in ("git_commit", "git_dirty"):
+            if getattr(self, key) != ledger.NA:   # NA 면 원장이 스스로 채운다
+                row[key] = getattr(self, key)
         row.update(self.extra)
         if status != "start":
             row["wall_sec"] = round(time.time() - self._t0, 2)
@@ -250,6 +260,10 @@ class RunContext:
             )
         payload = dict(row)
         payload.setdefault("run_id", self.run_id)
+        cols = ledger.columns(table)
+        for key in ("git_commit", "git_dirty"):
+            if key in cols and getattr(self, key) != ledger.NA:
+                payload.setdefault(key, getattr(self, key))
         if "config_sha256" in ledger.columns(table):
             payload.setdefault("config_sha256", self.config_sha256)
         return ledger.append_row(table, payload, self.root)

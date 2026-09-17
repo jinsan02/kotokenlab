@@ -84,7 +84,7 @@ def d2(ok: set) -> dict:
 
 
 def d3(ok: set) -> dict:
-    """{조건: [(subject,row,correct,has_hanja), ...]} — 문항 순서 그대로."""
+    """{조건: [(subject,row,correct,has_hanja,n_shot), ...]} — 문항 순서 그대로."""
     out = {}
     for cond in ("C0", "T2a", "T2b"):
         rid = f"eval_kmmlu_{MODELS[cond]}_d3"
@@ -92,7 +92,8 @@ def d3(ok: set) -> dict:
         if rid not in ok or not p.exists():
             continue
         with p.open(encoding="utf-8", newline="") as fh:
-            out[cond] = [(r["subject"], int(r["row"]), int(r["correct"]), int(r["has_hanja"]))
+            out[cond] = [(r["subject"], int(r["row"]), int(r["correct"]), int(r["has_hanja"]),
+                          int(r["n_shot"]))
                          for r in csv.DictReader(fh, delimiter="\t")]
     return out
 
@@ -148,10 +149,10 @@ def main() -> int:
     if "C0" not in p or "T2a" not in p:
         L += ["미실행" + (f" ({', '.join(p)} 완료)" if p else ""), ""]
     else:
-        keys = [x[:2] for x in p["C0"]]
+        keys = [(x[0], x[1], x[4]) for x in p["C0"]]
         for c in p:
-            if [x[:2] for x in p[c]] != keys:
-                raise SystemExit(f"D3 {c}: 문항 순서가 C0 와 다르다")
+            if [(x[0], x[1], x[4]) for x in p[c]] != keys:
+                raise SystemExit(f"D3 {c}: 문항 순서나 shot 수가 C0 와 다르다")
         L += ["| 조건 | 문항 | 정확도 | 95% CI |", "|---|---:|---:|---|"]
         acc = {}
         for c, rs in p.items():
@@ -185,6 +186,12 @@ def main() -> int:
             hd, hlo, hhi = paired_diff_ci([a[i] for i in hidx], [c0[i] for i in hidx])
             L.append(f"그 문항만의 T2a − C0 = {hd:+.2%}p [{hlo:+.2%}p, {hhi:+.2%}p] "
                      "— **사후 분할이다. 판정에 쓰지 않는다.**")
+        # capability.tsv 의 n_shot 은 등록 명목값(5)이다. 실제 분포는 여기서만 보인다.
+        shots = {}
+        for r in p["C0"]:
+            shots[r[4]] = shots.get(r[4], 0) + 1
+        L += ["", "실제 shot 수 (C0 토크나이저 2048 토큰 기준, 모든 모델에 같은 프롬프트): "
+              + " · ".join(f"{k}-shot {v:,}" for k, v in sorted(shots.items(), reverse=True))]
         L += ["", "CI 는 문항 표본 오차만 반영한다. 학습 seed 분산은 없다 (seed 42 단독).", ""]
 
     OUT.write_text("\n".join(L), encoding="utf-8", newline="\n")

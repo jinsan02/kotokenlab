@@ -433,3 +433,48 @@ def test_make_run_id_matches_commit_hook_pattern():
     assert m, "훅에서 RUN_ID_RE 를 못 찾았다"
     assert m.group(1) == RUN_ID_RE.pattern, (
         f"훅 {m.group(1)!r} != 생성기 {RUN_ID_RE.pattern!r}")
+
+
+def test_dirty_ignores_record_paths():
+    """결과 기록만 커밋 전이면 dirty 가 아니다 (2026-09-17 전에는 늘 1 이었다)."""
+    from src.utils.gitinfo import dirty_paths
+
+    z = chr(0).join([
+        " M experiments/LEDGER.tsv",
+        "?? experiments/runs/eval_x/",
+        " M reports/tables/x.md",
+        " M env/ENV_SNAPSHOT.tsv",
+    ]) + chr(0)
+    assert dirty_paths(z) == []
+    z2 = z + chr(0).join([" M src/evaluation/bpb.py", "?? tools/new.py"]) + chr(0)
+    assert dirty_paths(z2) == ["src/evaluation/bpb.py", "tools/new.py"]
+
+
+def test_dirty_handles_renames():
+    from src.utils.gitinfo import dirty_paths
+
+    z = chr(0).join(["R  src/new.py", "src/old.py", " M experiments/LEDGER.tsv"]) + chr(0)
+    assert dirty_paths(z) == ["src/new.py"]
+
+
+def test_run_pins_git_commit_at_entry(tmp_path, monkeypatch):
+    """run 도중 커밋해도 종료 행과 메트릭 행은 진입 시점 해시를 쓴다."""
+    import src.utils.tracking as tr
+    from src.utils import ledger
+
+    head = iter(["a" * 40, "b" * 40, "b" * 40, "b" * 40])
+    monkeypatch.setattr(tr, "git_commit", lambda root=None: next(head))
+    monkeypatch.setattr(tr, "git_dirty", lambda root=None: "0")
+    monkeypatch.setattr(tr.clock_mod, "require_recent_check", lambda root=None: "c" * 64)
+    monkeypatch.setattr(tr.env_mod, "env_sha256", lambda: "d" * 64)
+    monkeypatch.setattr(tr.env_mod, "collect", lambda: {})
+    monkeypatch.setattr(ledger, "git_commit", lambda: "b" * 40)
+
+    with tr.RunContext("eval_pin_x", phase="eval", config={"k": 1}, root=tmp_path,
+                       skip_env_check=True, set_seeds=False) as run:
+        run.log("capability", benchmark="b", metric="accuracy", value=0.5)
+
+    rows = ledger.read_rows("ledger", tmp_path)
+    assert [r["git_commit"] for r in rows] == ["a" * 40, "a" * 40]
+    cap = ledger.read_rows("capability", tmp_path)
+    assert cap[0]["git_commit"] == "a" * 40
