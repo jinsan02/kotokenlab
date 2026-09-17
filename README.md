@@ -6,9 +6,13 @@
 > 유효 범위 Phase 6 이 모두 닫혔다. **결과 전체:
 > [`reports/FINAL_REPORT.md`](reports/FINAL_REPORT.md)**
 >
-> **2차 Day 0 완료** (2026-09-07). 도구·사전 등록·K 보정까지 끝났고 첫 실험은
-> 아직 안 돌렸다. 설계 [`docs/SPEC_P2.md`](docs/SPEC_P2.md) ·
-> 일정 [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md)
+> **2차 종료** (2026-09-17). R1·Q7 부정, R5 긍정 — **"65% 회복 정체" 는 코사인
+> LR 스케줄의 산물이었다** (상수 LR 에서 72.42%). 한자 프로브 D1~D3 은 T2a 가
+> C0 와 구별되지 않았다. 설계 [`docs/SPEC_P2.md`](docs/SPEC_P2.md) ·
+> 일정과 결과 [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md)
+>
+> **3차 설계 완료, 실행 전** (2026-09-17). [`docs/SPEC_P3.md`](docs/SPEC_P3.md) ·
+> [`docs/SCHEDULE_P3.md`](docs/SCHEDULE_P3.md) · 사전 등록 [`docs/PLAN.md`](docs/PLAN.md) "P3 확장"
 
 ```
 Qwen2.5-0.5B
@@ -175,20 +179,19 @@ config 값이지 우리가 잰 성능이 아니다.
 
 | | 질문 | 상태 |
 |---|---|---|
-| R1 | 토크나이저를 안 바꾸고 임베딩 행만 망가뜨려도 65% 가 나오는가 | 계획 |
-| R2 | 손상 종류에 따라 다른가 | 계획 |
-| R3 | 손상 규모 K 에 따라 다른가 | 계획 |
-| R4 | **tie 를 끊으면 달라지는가** | 계획 (본안) |
-| R5 | 상수 LR 이면 65% 를 넘는가 | 계획 |
+| R1 | 토크나이저를 안 바꾸고 임베딩 행만 망가뜨려도 65% 가 나오는가 | **부정** — 72.50% vs 치환 50.79% (record `2e97bd4`) |
+| R2 | 손상 종류에 따라 다른가 | R1 부정으로 전제 상실 -> P3-D 로 재설계 |
+| R3 | 손상 규모 K 에 따라 다른가 | 위와 같다 |
+| R4 | **tie 를 끊으면 달라지는가** | **구별 불가** — ΔR +0.44%p, 효과 크기 바닥 5%p 미달 (record `36c8b5f`) |
+| R5 | 상수 LR 이면 65% 를 넘는가 | **긍정** — 72.42%, sigma_R 0.026%p (record `64556e2`) |
+| D1~D3 | T2a 의 한자 토큰 제거가 흔적을 남기는가 | **아니다** — 세 측정 모두 예측 적중 (record `855c07b`) |
 
-설계와 예측은 [`docs/SPEC_P2.md`](docs/SPEC_P2.md), 일정은
-[`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md).
+설계와 예측은 [`docs/SPEC_P2.md`](docs/SPEC_P2.md), 일정과 결과는
+[`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md), 판정표는 `reports/tables/`.
 
-**Day 0 (도구·사전 등록·보정)까지 끝났고 실험은 아직 하나도 안 돌렸다** —
-위 표의 어떤 것도 결과로 인용하면 안 된다. Day 0 이 학습 없이 확인한 것 하나는
-인용할 수 있다: **임베딩 행 40개를 망가뜨리면 토큰 30,000개를 치환한 것과 같은
-손상(배율 2.04배)이 난다**
-([`reports/tables/k_calibration.md`](reports/tables/k_calibration.md)).
+**1차의 절대값은 전부 코사인 스케줄 조건부로 읽는다** — C0 도 상수 LR 에서 더 나았다.
+3차는 이어지는 질문(상수 LR 포화 · 불변성 · R1 격차 · 과제 비용 · WSD 처방)을 묻는다 —
+[`docs/SPEC_P3.md`](docs/SPEC_P3.md).
 
 ### 세 번 가설을 세웠고 세 번 반증했다
 
@@ -247,7 +250,9 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 | **검토** | [`docs/REVIEW.md`](docs/REVIEW.md) — 결함·헛점과 보강 우선순위 |
 | **스펙과의 차이** | [`docs/DESIGN_DELTA.md`](docs/DESIGN_DELTA.md) — 다르게 한 것과 **그 이유.** 반증된 가설이 여기 있다 |
 | **2차 설계** | [`docs/SPEC_P2.md`](docs/SPEC_P2.md) — 손상된 임베딩의 회복 한계 |
-| **2차 일정** | [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md) — 하루 1실험, Day 0 완료 |
+| **2차 일정** | [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md) — 일정과 결과, 종료 |
+| **3차 설계** | [`docs/SPEC_P3.md`](docs/SPEC_P3.md) — 스케줄 이후의 질문 |
+| **3차 일정** | [`docs/SCHEDULE_P3.md`](docs/SCHEDULE_P3.md) — W0 부터 |
 
 ### 결과물
 

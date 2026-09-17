@@ -77,7 +77,7 @@ run 하나가 `start` 행 하나와 `ok`/`fail` 행 하나를 남긴다. `start`
 | `wall_sec` | 벽시계 초 |
 | `peak_vram_mb` | `torch.cuda.max_memory_allocated()` |
 | `git_commit` | HEAD 전체 해시 (자동) |
-| `git_dirty` | `1` 이면 커밋되지 않은 변경이 있는 상태에서 돌았다는 뜻 (자동) |
+| `git_dirty` | `1` 이면 **실행 결과를 바꿀 수 있는** 커밋 안 된 변경이 있는 상태에서 돌았다는 뜻 (자동). **2026-09-17 (`a478426`) 부터** 기록 경로(`experiments/` · `reports/` · `data/manifests/` · `env/ENV_SNAPSHOT.tsv`)는 세지 않는다. 그 전 행의 `1` 은 대부분 커밋 전 원장 행 때문이라 해석하지 않는다. `git_commit` · `git_dirty` 는 run **진입 시점** 값이 그 run 의 모든 행에 쓰인다 |
 | `config_sha256` | config dict 의 정규화 JSON 해시 |
 | `manifest_sha256` | 사용한 dataset manifest 해시 |
 | `env_sha256` | 환경 스냅샷 해시 → `ENV_SNAPSHOT.tsv` 로 연결 |

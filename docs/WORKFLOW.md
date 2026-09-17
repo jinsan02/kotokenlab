@@ -63,10 +63,10 @@ Config-SHA256: <config.json 의 sha256>
 
 ## 개발 순서 (스펙 §97~§112)
 
-현재 위치는 **2차 Day 0 완료** 다 (2026-09-07). 1차는 `p1-closed` 로 닫혔고
+현재 위치는 **3차 W0 직전** 이다 (2026-09-17). 1차는 `p1-closed` 로 닫혔고
 (Q1~Q6 와 Phase 6 A·C·E) — [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md) —
-2차는 도구·사전 등록·보정까지 끝내고 첫 실험 직전이다.
-일정은 [`SCHEDULE_P2.md`](SCHEDULE_P2.md), 다음은 **Day 1 = R1**.
+2차는 R1·Q7·R5 와 한자 프로브로 닫혔다 ([`SCHEDULE_P2.md`](SCHEDULE_P2.md)).
+3차 일정은 [`SCHEDULE_P3.md`](SCHEDULE_P3.md), 다음은 **W0 = 코드와 게이트**.
 
 Embedding Alignment 는 탐침 끝에 **폐기했다**
 ([`DESIGN_DELTA.md`](DESIGN_DELTA.md) 1-5).
