@@ -172,7 +172,7 @@ def main(argv: list | None = None) -> int:
         print()
         print("  두 run 의 숫자를 나란히 놓지 마라. 조건을 맞춰 다시 돌리거나,")
         print("  왜 비교 가능한지를 기록에 명시하라.")
-        print("  (docs/DESIGN_DELTA.md 3-5 · PLAN.md \"R1 판정 기준 정정\")")
+        print("  (docs/DESIGN_DELTA.md 3-8 · PLAN.md \"R1 판정 기준 정정\")")
         return 1
 
     print("  비교 가능 — 측정값을 바꾸는 필드가 전부 같다")
