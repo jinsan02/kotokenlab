@@ -1,0 +1,8 @@
+{
+  "max_bytes": 7000000,
+  "model": "artifacts/models/cpt_c0_qwen_main_seed42",
+  "purpose": "pre_cpt_bpb",
+  "revision": null,
+  "seq_len": 2048,
+  "split": "dev_hanja"
+}

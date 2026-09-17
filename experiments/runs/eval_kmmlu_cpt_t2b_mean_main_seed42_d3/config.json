@@ -1,0 +1,21 @@
+{
+  "benchmark": "kmmlu_d3",
+  "boot_seed": 0,
+  "ctx_limit": 2048,
+  "max_shots": 5,
+  "model": "artifacts/models/cpt_t2b_mean_main_seed42",
+  "n_boot": 10000,
+  "prompt_tokenizer": "artifacts/models/cpt_c0_qwen_main_seed42",
+  "purpose": "d3_hanja_probe",
+  "repo": "HAERAE-HUB/KMMLU",
+  "revision": "d61b3f19e552c576bf5960dd24289763edc36a88",
+  "scoring": "loglik_letter",
+  "subjects": [
+    "Law",
+    "Criminal-Law",
+    "Patent",
+    "Taxation",
+    "Health",
+    "Political-Science-and-Sociology"
+  ]
+}
