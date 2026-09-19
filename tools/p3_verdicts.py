@@ -35,6 +35,12 @@ OUT = ROOT / "reports" / "tables" / "p3_gates.md"
 SAT_LOW, SAT_HIGH = 0.5, 0.9
 MIN_INCREMENT = 0.02                   # 증분이 2%p 미만이면 비가 불안정 — 판정 안 함
 
+# D0 (P3-D 게이트). 노출 구간에서 1차 T2b 의 손상 배율에 닿는가.
+D0_RUN = "eval_kcal_mean_d0band"
+TARGET_RATIO = 2.058                   # 1차 T2b 의 ko 손상 배율 (PLAN 등록)
+RATIO_TOL = 0.05                       # 등록된 허용 폭
+D0_MAX_K = 30_000                      # 이 안에서 닿아야 D2 를 돌린다
+
 # R5 (상수 LR, 168.5MB). 앵커는 같은 스케줄의 C0 다.
 R5_T2B = "cpt_t2b_mean_r5_seed42"
 R5_C0 = "cpt_c0_qwen_r5_seed42"
@@ -101,6 +107,23 @@ def recovery_trajectory() -> list:
     return out
 
 
+def d0_ratios() -> list:
+    """[(K, ko 배율, 영어 변화율)] — D0 보정 run 에서."""
+    rows = [r for r in _rows("lm_metrics.tsv") if r["run_id"] == D0_RUN]
+    by_k: dict = {}
+    for r in rows:
+        k = int(r["checkpoint"][1:])          # "k30000" -> 30000
+        by_k.setdefault(k, {})[r["domain"]] = float(r["bpb"])
+    if 0 not in by_k:
+        return []
+    base = by_k[0]
+    out = []
+    for k in sorted(by_k):
+        v = by_k[k]
+        out.append((k, v["ko"] / base["ko"], v["en"] / base["en"] - 1))
+    return out
+
+
 def main() -> int:
     runs = ok_runs()
     L = ["# P3 게이트와 판정", "",
@@ -149,6 +172,34 @@ def main() -> int:
                       "재등록했다는 사실을 PLAN 에 남긴다.", ""]
         L += ["이 값들은 R5 의 **사후** 관측이다. P3-A 의 판정은 A 자신의 run 에서 "
               "같은 방식으로 계산한 증분 비로 내린다.", ""]
+
+    # ── D0 (P3-D 게이트) ───────────────────────────────────────────────
+    L += ["## 게이트 — D0 노출 구간 보정 (P3-D)", ""]
+    if D0_RUN not in runs:
+        L += ["미실행", ""]
+    else:
+        d0 = d0_ratios()
+        L += [f"행당 노출 `count_ko` 구간 안에서만 고른다 (T2b 새 토큰 노출 중앙값의 "
+              "10배 안). 학습 없음, 언어별 2MB.", "",
+              "| K | ko 손상 배율 | 영어 변화 |", "|---:|---:|---:|"]
+        for k, ratio, en in d0:
+            L.append(f"| {k:,} | {ratio:.3f} | {en:+.1%} |")
+        best = max(d0, key=lambda x: x[1]) if d0 else None
+        hit = best is not None and abs(best[1] - TARGET_RATIO) <= RATIO_TOL
+        L += ["", f"목표는 1차 T2b 의 배율 {TARGET_RATIO} ± {RATIO_TOL} 이고, "
+              f"K 상한은 {D0_MAX_K:,} 다 (등록).", ""]
+        if hit:
+            L += [f"**통과.** K={best[0]:,} 에서 배율 {best[1]:.3f}. D2 를 돌린다.", ""]
+        else:
+            L += [f"**불통과.** K={D0_MAX_K:,} 에서도 배율이 {best[1]:.3f} 에 그친다 "
+                  f"(목표 {TARGET_RATIO}).", "",
+                  "**D2 를 돌리지 않는다.** 등록에 적어 둔 그대로, 이것 자체가 결과다 —",
+                  "기존 어휘를 망가뜨리는 방법으로는 **행당 노출과 손상 크기를 동시에**",
+                  "T2b 에 맞출 수 없다. 드물게 쓰이는 행은 많이 망가뜨려도 한국어 BPB 를",
+                  "거의 못 움직인다.", "",
+                  f"부수 피해도 다르다 — 같은 K 에서 영어가 {best[2]:+.1%} 다. "
+                  "1차 T2b 는 영어가 거의 그대로였다 (+0.1%). 한국어 배율만 맞춰도",
+                  "\"같은 손상\" 이라고 부를 수 없다는 뜻이다.", ""]
 
     L += ["## A~F 판정", "", "미실행 — P3 run 이 아직 없다.", ""]
 
