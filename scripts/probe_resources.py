@@ -187,6 +187,10 @@ def main() -> int:
     ap.add_argument("--only-cpt-config", action="store_true",
                     help="본 CPT 와 같은 설정 하나만 잰다 "
                          "(seq 2048 / micro_bs 2 / ckpt / adamw_8bit)")
+    ap.add_argument("--cpt-micro-bs", type=int, default=0,
+                    help="--only-cpt-config 의 micro_bs 를 바꾼다. 1.5B 는 본 설정"
+                         "(micro_bs 2)이 안 들어갈 수 있어 1 로 내려 재 본다. "
+                         "유효 배치는 accum 으로 맞춘다")
     ap.add_argument("--skip-train", action="store_true")
     ap.add_argument("--skip-infer", action="store_true")
     args = ap.parse_args()
@@ -226,7 +230,7 @@ def main() -> int:
     emit()
 
     # 본 CPT 설정. --only-cpt-config 가 고르는 것이 이 한 줄이다.
-    CPT_CONFIG = (2048, 2, True, "adamw_8bit")
+    CPT_CONFIG = (2048, args.cpt_micro_bs or 2, True, "adamw_8bit")
     ALL_CONFIGS = [
         (1024, 1, True,  "adamw"),
         (1024, 1, True,  "adamw_8bit"),
