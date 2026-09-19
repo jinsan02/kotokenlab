@@ -50,7 +50,9 @@ class CurveLogger:
             grad_norm_emb: float | None = None,
             grad_norm_attn: float | None = None,
             grad_norm_ffn: float | None = None,
-            grad_norm_head: float | None = None) -> None:
+            grad_norm_head: float | None = None,
+            grad_norm_dmg: float | None = None,
+            upd_w_ratio_dmg: float | None = None) -> None:
         elapsed = time.time() - self._t0
         self.run.log(
             "train_curve", step=step, tokens_seen=tokens_seen,
@@ -63,6 +65,9 @@ class CurveLogger:
             grad_norm_attn=self._r(grad_norm_attn),
             grad_norm_ffn=self._r(grad_norm_ffn),
             grad_norm_head=self._r(grad_norm_head),
+            grad_norm_dmg=self._r(grad_norm_dmg),
+            upd_w_ratio_dmg=(round(upd_w_ratio_dmg, 9)
+                             if upd_w_ratio_dmg is not None else None),
             peak_vram_mb=peak_vram_mb,
             tok_per_s=round(tokens_seen / elapsed, 2) if elapsed > 0 else None,
             raw_bytes_per_s=round(raw_bytes_seen / elapsed, 2) if elapsed > 0 else None,

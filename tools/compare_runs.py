@@ -63,7 +63,7 @@ CRITICAL = {
 
 # 벽시계만 바꾼다. 평가는 비파괴적이고 BPB 를 안 건드린다.
 # eval_at / save_at 은 지점을 더 잴 뿐이고 학습 경로를 건드리지 않는다.
-TIMING = {"eval_bytes", "eval_at", "save_at"}
+TIMING = {"eval_bytes", "eval_at", "save_at", "damaged_rows"}
 
 # 당연히 다르다.
 IDENTITY = {"model", "revision", "name", "purpose"}

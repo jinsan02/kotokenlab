@@ -232,3 +232,27 @@ def test_추가_지점이_없으면_간격만_본다():
     c = CurveLogger(run=None, eval_every_bytes=1_000_000)
     assert not c.due(999_999)
     assert c.due(1_000_000)
+
+
+def test_손상_행_목록은_세_출처를_다_읽는다():
+    """어느 파일을 줘야 하는지 기억할 필요가 없어야 한다 (P3 W0-5)."""
+    import json as _json
+    import tempfile
+
+    from src.training.cpt import load_damaged_rows
+
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "x.json"
+        p.write_text(_json.dumps({"rows": [5, 3, 3, 1]}), encoding="utf-8")
+        assert load_damaged_rows(p) == [1, 3, 5]
+        p.write_text(_json.dumps({"map": {"7": {}, "2": {}}}), encoding="utf-8")
+        assert load_damaged_rows(p) == [2, 7]      # 토크나이저 id_map 의 새 행
+        p.write_text(_json.dumps([9, 8]), encoding="utf-8")
+        assert load_damaged_rows(p) == [8, 9]
+
+
+def test_train_curve_에_손상_행_컬럼이_뒤에_붙었다():
+    """컬럼은 뒤에만 붙인다 — 과거 행은 NA 로 남는다 (docs/LEDGER_SCHEMA.md)."""
+    from src.utils.ledger import TRAIN_CURVE_COLUMNS
+
+    assert TRAIN_CURVE_COLUMNS[-2:] == ("grad_norm_dmg", "upd_w_ratio_dmg")

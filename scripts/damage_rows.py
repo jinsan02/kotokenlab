@@ -240,6 +240,12 @@ def main(argv: list | None = None) -> int:
         out_dir.mkdir(parents=True, exist_ok=True)
         model.save_pretrained(str(out_dir))
         tok.save_pretrained(str(out_dir))
+        # 어느 행을 망가뜨렸는지 남긴다. CPT 가 그 행만의 기울기와 이동량을
+        # 재려면 필요한데, 지금까지는 어디에도 기록되지 않아 되살릴 수 없었다.
+        (out_dir / "damaged_rows.json").write_text(
+            json.dumps({"how": args.how, "k": args.k, "seed": args.seed,
+                        "rows": [int(r["token_id"]) for r in rows]},
+                       ensure_ascii=False), encoding="utf-8", newline=chr(10))
         sha = sha256_file(out_dir / "model.safetensors")
         print(f"      {out_dir}")
         print(f"      model_sha256 = {sha}")

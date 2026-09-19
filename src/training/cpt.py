@@ -70,6 +70,26 @@ def load_pool(path: Path, n_docs: int, skip: int = 0) -> list:
     return docs
 
 
+def load_damaged_rows(path: Path | str) -> list:
+    """손상된(또는 새로 만들어진) 임베딩 행 id 목록.
+
+    세 가지 출처를 다 받는다 — 어느 쪽을 줘야 하는지 기억할 필요가 없어야 한다.
+
+        damage_rows.py 의 damaged_rows.json   {"rows": [...]}
+        토크나이저의 id_map.json              {"map": {새 id: ...}}   T2b 의 새 행
+        그냥 id 목록                          [1, 2, 3]
+    """
+    d = json.loads(Path(path).read_text(encoding="utf-8"))
+    if isinstance(d, dict):
+        d = d.get("rows", d.get("map", d))
+        if isinstance(d, dict):
+            d = list(d.keys())
+    rows = sorted({int(x) for x in d})
+    if not rows:
+        raise ValueError(f"{path}: 행 목록이 비었다")
+    return rows
+
+
 def save_checkpoint(model, tokenizer, run_id: str, suffix: str,
                     raw_bytes: int) -> str:
     """artifacts/models/<run_id><suffix>/ 에 저장하고 sha256 을 돌려준다.
@@ -192,6 +212,9 @@ def main(argv: list | None = None) -> int:
     ap.add_argument("--eval-at", type=int, action="append", default=None,
                     metavar="BYTES",
                     help="평가 간격에 안 걸리는 지점을 추가로 잰다 (여러 번 줄 수 있다)")
+    ap.add_argument("--damaged-rows", default=None, metavar="JSON",
+                    help="손상·신규 임베딩 행 목록. 그 행만의 기울기와 "
+                         "update/weight 비를 train_curve 에 남긴다 (측정만 한다)")
     ap.add_argument("--save-at", type=int, default=0, metavar="BYTES",
                     help="그 지점을 지날 때 체크포인트를 저장한다 "
                          "(artifacts/models/<run_id>_at<N>mb)")
@@ -230,6 +253,7 @@ def main(argv: list | None = None) -> int:
         "warmup_bytes": args.warmup_bytes,
         "pool_extend_docs": args.pool_extend_docs,
         "eval_at": sorted(args.eval_at or []), "save_at": args.save_at,
+        "damaged_rows": args.damaged_rows,
         "optimizer": "adamw8bit",
         "dtype": "bfloat16", "grad_checkpointing": True,
         "lr_schedule": (f"{args.lr_schedule}_by_tokens" if args.budget_tokens
@@ -303,6 +327,18 @@ def main(argv: list | None = None) -> int:
         print(f"      기울기 그룹  emb {len(GROUPS['emb'])}  head {len(GROUPS['head'])}"
               f"  attn {len(GROUPS['attn'])}  ffn {len(GROUPS['ffn'])}"
               f"  (norm/bias 등 {len(ungrouped)}개는 grad_norm 전체에만 든다)")
+
+        # 손상 행 계측 (P3 W0-5). 목록을 안 주면 아무것도 하지 않는다.
+        dmg_ids = None
+        emb_w = model.get_input_embeddings().weight
+        if args.damaged_rows:
+            rows = load_damaged_rows(args.damaged_rows)
+            bad = [i for i in rows if i >= emb_w.shape[0]]
+            if bad:
+                raise SystemExit(f"손상 행 id 가 임베딩 밖이다: {bad[:5]} "
+                                 f"(vocab {emb_w.shape[0]})")
+            dmg_ids = torch.tensor(rows, device=device)
+            print(f"      손상 행 계측  {len(rows):,}행  {args.damaged_rows}")
 
         def group_norms() -> dict:
             """클리핑 **전에** 부른다. clip_grad_norm_ 은 grad 를 제자리에서 줄인다."""
@@ -398,9 +434,21 @@ def main(argv: list | None = None) -> int:
                     for g in opt.param_groups:
                         g["lr"] = lr
                     gn = group_norms()          # 클리핑 전에 잰다
+                    dmg_g = dmg_before = None
+                    if dmg_ids is not None and emb_w.grad is not None:
+                        dmg_g = float(torch.linalg.vector_norm(emb_w.grad[dmg_ids]))
+                        # AdamW 의 실제 이동량은 기울기 크기와 비례하지 않는다.
+                        # 스텝 전후를 직접 빼서 잰다 (손상 행만이라 싸다).
+                        dmg_before = emb_w.data[dmg_ids].clone()
                     gnorm = float(torch.nn.utils.clip_grad_norm_(
                         model.parameters(), 1.0))
                     opt.step()
+                    dmg_ratio = None
+                    if dmg_before is not None:
+                        moved = float(torch.linalg.vector_norm(
+                            emb_w.data[dmg_ids] - dmg_before))
+                        scale = float(torch.linalg.vector_norm(dmg_before))
+                        dmg_ratio = moved / scale if scale > 0 else None
                     opt.zero_grad(set_to_none=True)
                     step += 1
                     train_loss = loss_acc / args.accum
@@ -421,7 +469,9 @@ def main(argv: list | None = None) -> int:
                                   grad_norm_emb=gn["emb"],
                                   grad_norm_attn=gn["attn"],
                                   grad_norm_ffn=gn["ffn"],
-                                  grad_norm_head=gn["head"])
+                                  grad_norm_head=gn["head"],
+                                  grad_norm_dmg=dmg_g,
+                                  upd_w_ratio_dmg=dmg_ratio)
                         for lang, v in cur.items():
                             run.log("lm_metrics", checkpoint=f"step{step}",
                                     tokens_seen=tokens_seen,
