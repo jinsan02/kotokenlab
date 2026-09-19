@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import argparse
 import csv
 import math
 import sys
@@ -23,6 +24,24 @@ sys.path.insert(0, str(ROOT))
 
 EXP = ROOT / "experiments"
 OUT = ROOT / "reports" / "OVERVIEW.md"
+BUNDLE = ROOT / "reports" / "REVIEW_REQUEST.md"
+PROMPTS = ROOT / "docs" / "PROMPTS.md"
+PLACEHOLDER = "[여기에 reports/OVERVIEW.md 전문을 붙여 넣는다]"
+
+
+def bundle(overview: str) -> str:
+    """PROMPTS.md 10번의 프롬프트 안에 개요를 끼워 한 파일로 만든다.
+
+    프롬프트를 두 군데 두지 않는다 — 본문은 PROMPTS.md 에만 있고 여기서는
+    읽어 쓴다. 갈라지면 어느 쪽이 진짜인지 알 수 없게 된다.
+    """
+    src = PROMPTS.read_text(encoding="utf-8")
+    head = src.index("## 10. 외부 AI 에게 전체 검토를 받을 때")
+    body = src[head:src.index("### 답을 받은 뒤", head)]
+    block = body[body.index("```") + 3:body.rindex("```")]
+    if PLACEHOLDER not in block:
+        raise SystemExit("PROMPTS.md 10번에서 붙여 넣을 자리를 못 찾았다")
+    return block.replace(PLACEHOLDER, overview).strip() + chr(10)
 
 KO_DOMAINS = {"blog", "community", "encyclopedia", "ko_en_mixed", "news",
               "technical", "web_general"}
@@ -56,7 +75,12 @@ def recovery(b0: float, bf: float, cf: float) -> float:
     return (b0 - bf) / (b0 - cf)
 
 
-def main() -> int:
+def main(argv: list | None = None) -> int:
+    ap = argparse.ArgumentParser(description="외부 검토용 개요")
+    ap.add_argument("--bundle", action="store_true",
+                    help="프롬프트에 개요를 끼운 한 파일도 만든다 "
+                         "(reports/REVIEW_REQUEST.md)")
+    args = ap.parse_args(argv)
     L: list = []
     w = L.append
 
@@ -324,9 +348,12 @@ def main() -> int:
     w("src/ tools/ scripts/   구현. 훅은 tools/check_commit_msg.py · precheck.py")
     w("```")
     w("")
-    OUT.write_text("\n".join(L) + "\n", encoding="utf-8", newline="\n")
-    print("\n".join(L))
-    print(f"\n썼다 {OUT.relative_to(ROOT)}")
+    text = "\n".join(L) + "\n"
+    OUT.write_text(text, encoding="utf-8", newline="\n")
+    print(f"썼다 {OUT.relative_to(ROOT)}  ({len(L):,}줄)")
+    if args.bundle:
+        BUNDLE.write_text(bundle(text), encoding="utf-8", newline="\n")
+        print(f"썼다 {BUNDLE.relative_to(ROOT)}  (프롬프트 + 개요, 그대로 붙여 넣는다)")
     return 0
 
 
