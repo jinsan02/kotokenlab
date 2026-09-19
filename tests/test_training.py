@@ -158,3 +158,77 @@ def test_schedules_registry_matches_cli_choices():
     from src.training.callbacks import SCHEDULES
 
     assert set(SCHEDULES) == {"cosine", "constant"}
+
+
+# ── P3 W0-1 ~ W0-3 — 인자를 안 주면 P2 와 **똑같이** 돌아야 한다 ────────────
+# 긴 run 의 앞부분이 짧은 run 과 같다고 말하려면 워밍업과 문서 순서가 예산에
+# 딸려 있으면 안 된다 (docs/DESIGN_DELTA.md 3-12).
+
+def test_워밍업_바이트를_안_주면_예산의_2퍼센트다():
+    from src.training.cpt import warmup_fraction
+
+    assert warmup_fraction(0, 168_500_000) == 0.02
+    assert warmup_fraction(0, 500_000_000) == 0.02
+
+
+def test_워밍업_바이트를_주면_예산이_달라도_같은_지점에서_끝난다():
+    """R5(168.5MB)의 워밍업은 3.37MB 다. 500MB run 이 그 앞부분을 재현하려면
+    같은 바이트에서 워밍업이 끝나야 한다 — 비율로 두면 10MB 가 된다."""
+    from src.training.callbacks import constant_lr_by_bytes
+    from src.training.cpt import warmup_fraction
+
+    short = warmup_fraction(3_370_000, 168_500_000)
+    long = warmup_fraction(3_370_000, 500_000_000)
+    assert abs(short - 0.02) < 1e-12      # 168.5MB 에서는 기존 2% 와 같은 값이다
+    for b in (0, 1_000_000, 3_369_999, 3_370_000, 20_000_000):
+        a = constant_lr_by_bytes(b, 168_500_000, 1e-5, short)
+        c = constant_lr_by_bytes(b, 500_000_000, 1e-5, long)
+        # 같은 바이트면 같은 LR. 나누는 순서가 달라 부동소수 1 ulp 는 벌어진다
+        assert abs(a - c) <= 1e-12 * max(a, c, 1e-12)
+
+
+def test_풀을_늘려도_기존_문서_순서가_그대로다():
+    """문서 풀 전체를 한 번에 섞으면 풀 크기를 늘리는 순간 첫 문서부터 달라진다."""
+    from src.training.cpt import order_pool
+
+    docs = [f"d{i}" for i in range(50)]
+    base = order_pool(docs[:10], 42, [])
+    grown = order_pool(docs[:10], 42, docs[10:])
+    assert grown[:10] == base           # 앞부분이 비트 단위로 같다
+    assert sorted(grown) == sorted(docs)
+    assert grown[10:] != docs[10:]      # 추가분도 섞긴 한다
+    assert sorted(grown[10:]) == sorted(docs[10:])
+
+
+def test_확장분이_없으면_기존_동작과_같다():
+    import random as _random
+
+    from src.training.cpt import order_pool
+
+    docs = [f"d{i}" for i in range(30)]
+    old = list(docs)
+    _random.Random(42).shuffle(old)     # P2 까지의 코드
+    assert order_pool(docs, 42, []) == old
+
+
+def test_추가_평가_지점은_한_번만_걸린다():
+    from src.training.callbacks import CurveLogger
+
+    c = CurveLogger(run=None, eval_every_bytes=20_000_000,
+                    extra_points=[168_500_000])
+    assert not c.due(10_000_000)
+    assert c.due(20_000_001)
+    c.mark(20_000_001)
+    assert not c.due(21_000_000)
+    assert c.due(168_500_001)           # 간격과 무관한 지점
+    c.mark(168_500_001)
+    assert not c.due(169_000_000)
+    assert c.due(180_000_001)           # 간격은 계속 돈다
+
+
+def test_추가_지점이_없으면_간격만_본다():
+    from src.training.callbacks import CurveLogger
+
+    c = CurveLogger(run=None, eval_every_bytes=1_000_000)
+    assert not c.due(999_999)
+    assert c.due(1_000_000)

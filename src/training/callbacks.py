@@ -19,14 +19,20 @@ from typing import Any
 class CurveLogger:
     """평가 지점마다 train_curve 에 한 행. 원장 쓰기는 RunContext 가 한다."""
 
-    def __init__(self, run: Any, eval_every_bytes: int) -> None:
+    def __init__(self, run: Any, eval_every_bytes: int,
+                 extra_points: Any = None) -> None:
         self.run = run
         self.eval_every_bytes = eval_every_bytes
         self._next_eval = eval_every_bytes
+        # 간격에 안 걸리는 지점을 따로 받는다. P3-A 는 500MB 를 20MB 간격으로
+        # 도는데 **168.5MB 에서 R5 와 대조** 해야 한다 — 간격 위에 없는 값이다.
+        self._extra = sorted(int(x) for x in (extra_points or []))
         self._t0 = time.time()
 
     def due(self, raw_bytes_seen: int) -> bool:
-        return raw_bytes_seen >= self._next_eval
+        if raw_bytes_seen >= self._next_eval:
+            return True
+        return any(raw_bytes_seen >= x for x in self._extra)
 
     @staticmethod
     def _r(v):
@@ -35,6 +41,7 @@ class CurveLogger:
     def mark(self, raw_bytes_seen: int) -> None:
         while self._next_eval <= raw_bytes_seen:
             self._next_eval += self.eval_every_bytes
+        self._extra = [x for x in self._extra if x > raw_bytes_seen]
 
     def log(self, *, step: int, tokens_seen: int, raw_bytes_seen: int,
             train_loss: float, dev_bpb: float | None = None,

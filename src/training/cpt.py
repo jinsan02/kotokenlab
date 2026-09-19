@@ -70,6 +70,62 @@ def load_pool(path: Path, n_docs: int, skip: int = 0) -> list:
     return docs
 
 
+def save_checkpoint(model, tokenizer, run_id: str, suffix: str,
+                    raw_bytes: int) -> str:
+    """artifacts/models/<run_id><suffix>/ 에 저장하고 sha256 을 돌려준다.
+
+    중간 저장은 **학습을 멈추지 않는다** — `use_cache` 만 잠깐 되돌렸다가 끈다.
+    켠 채로 두면 다음 forward 가 KV 를 들고 있어 VRAM 이 는다.
+    """
+    out_dir = ROOT / "artifacts" / "models" / f"{run_id}{suffix}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    was = model.config.use_cache
+    model.config.use_cache = True
+    model.save_pretrained(str(out_dir))
+    tokenizer.save_pretrained(str(out_dir))
+    model.config.use_cache = was
+    from src.utils.hashing import sha256_file
+    sha = sha256_file(out_dir / "model.safetensors")
+    print(f"  저장 {out_dir}  ({raw_bytes / 1e6:.2f}MB 지점)")
+    print(f"  model_sha256 = {sha}")
+    return sha
+
+
+def warmup_fraction(warmup_bytes: int, budget: int,
+                    default_frac: float = 0.02) -> float:
+    """워밍업 끝 지점을 **예산 비율** 이 아니라 **바이트** 로 고정할 수 있게 한다.
+
+    비율로 두면 예산을 늘리는 순간 워밍업도 같이 늘어난다 — 168.5MB 의 2% 는
+    3.37MB 인데 500MB 의 2% 는 10MB 다. 그러면 긴 run 의 앞부분이 짧은 run 과
+    **첫 스텝부터** 다른 LR 을 밟아, "R5 의 연장" 이라고 부를 수 없게 된다.
+
+    0 을 주면(기본) 지금까지와 똑같이 예산의 2% 다.
+    """
+    if warmup_bytes <= 0 or budget <= 0:
+        return default_frac
+    return warmup_bytes / budget
+
+
+def order_pool(docs: list, seed: int, extra: list) -> list:
+    """문서 순서를 정한다. **기존 풀의 순서는 확장해도 보존된다.**
+
+    P2 까지는 풀 전체를 한 번에 섞었다. 그 상태로 풀을 50,000 -> 150,000 으로
+    늘리면 첫 문서부터 순서가 바뀌어, 긴 run 의 앞 168.5MB 가 R5 와 다른 데이터가
+    된다. 기존 풀을 같은 seed 로 섞은 결과를 그대로 두고 추가분을 뒤에 붙인다.
+    추가분은 seed+1 로 섞는다 — 파일 순서(코퍼스 정렬)가 그대로 학습 순서가
+    되지 않게 한다.
+
+    `extra` 가 비면 P2 와 **완전히 같은 순서** 다.
+    """
+    base = list(docs)
+    random.Random(seed).shuffle(base)
+    if not extra:
+        return base
+    tail = list(extra)
+    random.Random(seed + 1).shuffle(tail)
+    return base + tail
+
+
 def pack(tokenizer, docs: list, seq_len: int, eos_id: int, byte_len_fn):
     """문서를 이어 붙여 seq_len 조각으로 자른다. 조각의 **정확한** 원문 바이트를 함께 준다.
 
@@ -120,13 +176,25 @@ def main(argv: list | None = None) -> int:
     # R5 는 "65% 가 벽인가 lr 이 꺼진 것인가" 를 묻는다. 감쇠만 빼고 나머지는
     # 전부 같아야 그 물음에 답이 된다.
     ap.add_argument("--lr-schedule", choices=tuple(SCHEDULES), default="cosine")
+    ap.add_argument("--warmup-bytes", type=int, default=0,
+                    help="워밍업이 끝나는 원문 바이트. 0 이면 예산의 2%% (기존 동작). "
+                         "예산이 다른 run 의 앞부분을 재현하려면 바이트로 고정한다")
     ap.add_argument("--pool-docs", type=int, default=30_000)
+    ap.add_argument("--pool-extend-docs", type=int, default=0,
+                    help="기존 풀 뒤에 붙일 문서 수. 기존 풀의 순서는 보존된다 "
+                         "(P3-A 가 R5 의 앞부분을 재현하려면 필요하다)")
     ap.add_argument("--skip-docs", type=int, default=0,
                     help="정렬 단계가 이미 본 문서 수. 겹쳐 학습하지 않기 위해")
     ap.add_argument("--eval-bytes", type=int, default=1_000_000,
                     help="dev BPB 를 몇 바이트마다 잴지")
     ap.add_argument("--eval-budget", type=int, default=1_000_000,
                     help="평가에 쓸 dev 원문 바이트 (언어별)")
+    ap.add_argument("--eval-at", type=int, action="append", default=None,
+                    metavar="BYTES",
+                    help="평가 간격에 안 걸리는 지점을 추가로 잰다 (여러 번 줄 수 있다)")
+    ap.add_argument("--save-at", type=int, default=0, metavar="BYTES",
+                    help="그 지점을 지날 때 체크포인트를 저장한다 "
+                         "(artifacts/models/<run_id>_at<N>mb)")
     ap.add_argument("--tag", default="noise")
     ap.add_argument("--save", action="store_true",
                     help="학습된 모델을 artifacts/models/<run_id>/ 에 저장한다")
@@ -157,6 +225,11 @@ def main(argv: list | None = None) -> int:
         # 2026-09-15 에 1차 노이즈 run 의 config 에서 이 값을 찾다가 없어서
         # 겪었다 — 같은 날 --max-bytes 기본값 불일치로 게이트가 거짓 실패했다.
         "eval_budget": args.eval_budget, "eval_bytes": args.eval_bytes,
+        # P3 에서 추가. 앞의 둘은 측정값을 바꾸고(워밍업 길이 · 데이터 순서),
+        # 뒤의 둘은 벽시계만 바꾼다 (tools/compare_runs.py 가 그렇게 분류한다).
+        "warmup_bytes": args.warmup_bytes,
+        "pool_extend_docs": args.pool_extend_docs,
+        "eval_at": sorted(args.eval_at or []), "save_at": args.save_at,
         "optimizer": "adamw8bit",
         "dtype": "bfloat16", "grad_checkpointing": True,
         "lr_schedule": (f"{args.lr_schedule}_by_tokens" if args.budget_tokens
@@ -188,9 +261,14 @@ def main(argv: list | None = None) -> int:
             return total
 
         pool_path = ROOT / "data" / "interim" / "docs" / "train.jsonl"
-        docs = load_pool(pool_path, args.pool_docs, args.skip_docs)
-        rng = random.Random(args.seed)
-        rng.shuffle(docs)                     # seed 는 **순서만** 바꾼다
+        total_docs = args.pool_docs + max(args.pool_extend_docs, 0)
+        pool = load_pool(pool_path, total_docs, args.skip_docs)
+        # seed 는 **순서만** 바꾼다. 확장분은 기존 풀 뒤에 붙는다 — 그래야
+        # 예산이 긴 run 의 앞부분이 짧은 run 과 같은 데이터를 같은 순서로 본다.
+        docs = order_pool(pool[:args.pool_docs], args.seed, pool[args.pool_docs:])
+        if args.pool_extend_docs:
+            print(f"      문서 풀 확장  {args.pool_docs:,} + {len(pool) - args.pool_docs:,}"
+                  f"  (앞 {args.pool_docs:,}개의 순서는 보존)")
         budget_txt = (f"{args.budget_tokens / 1e6:.1f}M 토큰" if args.budget_tokens
                       else f"{args.budget_bytes / 1e6:.1f}MB 원문")
         print(f"{name}  seed {args.seed}  문서 풀 {len(docs):,}  예산 {budget_txt}")
@@ -235,7 +313,7 @@ def main(argv: list | None = None) -> int:
                     torch.stack([torch.linalg.vector_norm(x) for x in g]))) if g else None
             return out
         backends = [SDPBackend.EFFICIENT_ATTENTION, SDPBackend.CUDNN_ATTENTION]
-        curve = CurveLogger(run, args.eval_bytes)
+        curve = CurveLogger(run, args.eval_bytes, extra_points=args.eval_at)
 
         dev_dir = ROOT / "data" / "interim" / "docs"
 
@@ -281,10 +359,16 @@ def main(argv: list | None = None) -> int:
         # 같은 모양이다 — 즉 이미 돌린 바이트 기준 run 과 비교가 성립한다.
         by_tokens = args.budget_tokens > 0
         budget = args.budget_tokens if by_tokens else args.budget_bytes
+        if args.warmup_bytes and by_tokens:
+            raise SystemExit("--warmup-bytes 는 바이트 예산에서만 쓴다 "
+                             "(--budget-tokens 와 같이 주지 마라)")
         lr_fn = SCHEDULES[args.lr_schedule]
+        warm = warmup_fraction(args.warmup_bytes, budget)
+        print(f"      워밍업  {warm * budget / 1e6:.2f}MB  ({warm:.2%} 지점)")
 
         model.train()
         torch.cuda.reset_peak_memory_stats()
+        saved_at = None
         step = micro = 0
         tokens_seen = 0
         raw_bytes = 0.0
@@ -310,7 +394,7 @@ def main(argv: list | None = None) -> int:
 
                 if micro % args.accum == 0:
                     progress = tokens_seen if by_tokens else int(raw_bytes)
-                    lr = lr_fn(progress, budget, args.lr)
+                    lr = lr_fn(progress, budget, args.lr, warm)
                     for g in opt.param_groups:
                         g["lr"] = lr
                     gn = group_norms()          # 클리핑 전에 잰다
@@ -345,6 +429,13 @@ def main(argv: list | None = None) -> int:
                                     domain=lang, n_bytes=None, total_nll=None,
                                     bpb=round(v, 6), bpc=None, token_ppl=None)
 
+                    # 중간 저장. 긴 run 의 중간 지점이 다른 실험의 입력이 된다
+                    # (P3-F 가 A 의 168.5MB 체크포인트를 쓴다).
+                    if args.save_at and raw_bytes >= args.save_at and not saved_at:
+                        saved_at = save_checkpoint(
+                            model, tokenizer, run_id,
+                            f"_at{int(args.save_at / 1e6)}mb", int(raw_bytes))
+
                 if (tokens_seen if by_tokens else raw_bytes) >= budget:
                     break
 
@@ -373,15 +464,7 @@ def main(argv: list | None = None) -> int:
         # 저장하지 않으면 103분 학습한 가중치를 버리게 되고, Step 7 시스템
         # 벤치마크와 Level 3 capability 가 쓸 체크포인트가 없어 다시 학습해야 한다.
         if args.save:
-            out_dir = ROOT / "artifacts" / "models" / run_id
-            out_dir.mkdir(parents=True, exist_ok=True)
-            model.config.use_cache = True      # 학습 중 껐던 것을 되돌린다
-            model.save_pretrained(str(out_dir))
-            tokenizer.save_pretrained(str(out_dir))
-            from src.utils.hashing import sha256_file
-            sha = sha256_file(out_dir / "model.safetensors")
-            print(f"  저장 {out_dir}")
-            print(f"  model_sha256 = {sha}")
+            sha = save_checkpoint(model, tokenizer, run_id, "", int(raw_bytes))
             run.extra["tokenizer_sha256"] = sha
 
         run.tokens_seen = tokens_seen
