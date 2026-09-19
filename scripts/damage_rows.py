@@ -97,11 +97,18 @@ def load_stats(tag: str) -> list:
     return out
 
 
-def pick_rows(stats: list, parents: dict, id2tok: dict, k: int) -> list:
+def pick_rows(stats: list, parents: dict, id2tok: dict, k: int,
+              count_min: int = 0, count_max: int = 0) -> list:
     """사전 등록된 규칙대로 K개 행을 고른다.
 
     토큰 문자열은 TSV 가 아니라 **토크나이저** 를 진실로 삼아 token_id 로
     되짚는다. 두 곳이 어긋나면 어긋난 채로 조용히 진행되기 때문이다.
+
+    `count_min` / `count_max` 는 **노출 구간** 을 제한한다 (P3-D, 2026-09-19).
+    R1 은 `count_ko` 상위 K개라 행당 노출이 10^6 회대인데, 1차 T2b 의 새 토큰은
+    중앙값 143회다. 노출이 10^4~10^5 배 다른 것이 R1 의 남은 교락이라,
+    노출을 T2b 쪽으로 옮긴 조건을 만들려면 구간을 지정할 수 있어야 한다.
+    구간 안에서는 **여전히 count_ko 내림차순** 이다 — 규칙을 둘로 만들지 않는다.
     """
     cand = []
     for r in stats:
@@ -113,12 +120,18 @@ def pick_rows(stats: list, parents: dict, id2tok: dict, k: int) -> list:
             continue
         if token not in parents:
             continue
+        c = int(r["count_ko"])
+        if count_min and c < count_min:
+            continue
+        if count_max and c > count_max:
+            continue
         cand.append(r)
     cand.sort(key=lambda r: (-int(r["count_ko"]), int(r["token_id"])))
     if len(cand) < k:
         raise SystemExit(
             f"후보가 {len(cand):,}개뿐이라 K={k:,} 를 채울 수 없다. "
-            "K 를 줄이거나 선택 규칙을 다시 등록해라")
+            "K 를 줄이거나 선택 규칙을 다시 등록해라 "
+            f"(노출 구간 count_ko {count_min or 0}~{count_max or '무한'})")
     return cand[:k]
 
 
@@ -180,6 +193,10 @@ def main(argv: list | None = None) -> int:
     ap.add_argument("--base-revision",
                     default="060db6499f32faf8b98477b0a26969ef7d8b9987")
     ap.add_argument("--k", type=int, required=True)
+    ap.add_argument("--count-min", type=int, default=0,
+                    help="행당 노출 하한 (count_ko). 0 이면 제한 없음")
+    ap.add_argument("--count-max", type=int, default=0,
+                    help="행당 노출 상한 (count_ko). 0 이면 제한 없음")
     ap.add_argument("--how", choices=HOWS, required=True)
     ap.add_argument("--name", required=True, help="artifacts/models/<name>/")
     ap.add_argument("--stats-tag", default="v1")
@@ -195,6 +212,7 @@ def main(argv: list | None = None) -> int:
     config = {"base": args.base, "base_revision": args.base_revision,
               "k": args.k, "how": args.how, "stats_tag": args.stats_tag,
               "seed": args.seed, "select_rule": "count_ko_desc_unprotected_has_parents",
+              "count_min": args.count_min, "count_max": args.count_max,
               "purpose": "p2_r1r2r3_row_damage"}
     run_id = make_run_id("surgery", args.name, args.tag, seed=args.seed)
 
@@ -212,7 +230,8 @@ def main(argv: list | None = None) -> int:
         parents = merge_parents(tok)
         stats = load_stats(args.stats_tag)
         id2tok = {i: t for t, i in vocab.items()}
-        rows = pick_rows(stats, parents, id2tok, args.k)
+        rows = pick_rows(stats, parents, id2tok, args.k,
+                         args.count_min, args.count_max)
         pool = sum(1 for r in stats
                    if r["is_protected"] == "0"
                    and id2tok.get(int(r["token_id"])) == r["token"]
@@ -244,6 +263,7 @@ def main(argv: list | None = None) -> int:
         # 재려면 필요한데, 지금까지는 어디에도 기록되지 않아 되살릴 수 없었다.
         (out_dir / "damaged_rows.json").write_text(
             json.dumps({"how": args.how, "k": args.k, "seed": args.seed,
+                        "count_min": args.count_min, "count_max": args.count_max,
                         "rows": [int(r["token_id"]) for r in rows]},
                        ensure_ascii=False), encoding="utf-8", newline=chr(10))
         sha = sha256_file(out_dir / "model.safetensors")

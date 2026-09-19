@@ -61,6 +61,11 @@ def main(argv: list | None = None) -> int:
                     default="060db6499f32faf8b98477b0a26969ef7d8b9987")
     ap.add_argument("--ks", type=int, nargs="+", required=True)
     ap.add_argument("--how", default="mean", choices=dr.HOWS)
+    ap.add_argument("--count-min", type=int, default=0,
+                    help="행당 노출 하한 (count_ko). P3-D 는 T2b 새 토큰의 "
+                         "노출 중앙값 143 의 10배 안 구간을 쓴다")
+    ap.add_argument("--count-max", type=int, default=0,
+                    help="행당 노출 상한 (count_ko)")
     ap.add_argument("--stats-tag", default="v1")
     ap.add_argument("--max-bytes", type=int, default=2_000_000,
                     help="언어별 원문 바이트. 1차 Pre-CPT 와 같은 2MB 가 기본")
@@ -103,6 +108,7 @@ def main(argv: list | None = None) -> int:
               "ks": list(args.ks), "how": args.how, "max_bytes": args.max_bytes,
               "seed": args.seed, "target_ratio": TARGET_RATIO,
               "select_rule": "count_ko_desc_unprotected_has_parents",
+              "count_min": args.count_min, "count_max": args.count_max,
               "purpose": "p2_r1_k_calibration"}
     run_id = make_run_id("eval", "kcal", args.how, args.tag)
     base_dir = ROOT / "data" / "interim" / "docs"
@@ -122,7 +128,8 @@ def main(argv: list | None = None) -> int:
             emb = origin.copy()
             info = {"mean_move": 0.0}
             if k > 0:
-                rows = dr.pick_rows(stats, parents, id2tok, k)
+                rows = dr.pick_rows(stats, parents, id2tok, k,
+                                    args.count_min, args.count_max)
                 info = dr.damage(emb, rows, args.how, parents, vocab, args.seed)
             with torch.no_grad():
                 model.get_input_embeddings().weight.copy_(

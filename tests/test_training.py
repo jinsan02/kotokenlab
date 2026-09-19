@@ -289,3 +289,27 @@ def test_wsd_도_레지스트리에_있다():
     from src.training.callbacks import SCHEDULES
 
     assert set(SCHEDULES) == {"cosine", "constant", "wsd"}
+
+
+def test_노출_구간이_행_선택을_제한한다():
+    """P3-D 는 R1 과 같은 규칙을 노출 구간 안에서만 쓴다 (규칙을 둘로 만들지 않는다)."""
+    import sys as _sys
+
+    _sys.path.insert(0, str(ROOT / "scripts"))
+    from damage_rows import pick_rows
+
+    stats = [{"token_id": str(i), "token": f"t{i}", "count_ko": str(c),
+              "is_protected": "0"}
+             for i, c in enumerate([5000, 1400, 800, 143, 20, 5])]
+    parents = {f"t{i}": ("a", "b") for i in range(6)}
+    id2tok = {i: f"t{i}" for i in range(6)}
+
+    all_rows = pick_rows(stats, parents, id2tok, 3)
+    assert [r["count_ko"] for r in all_rows] == ["5000", "1400", "800"]
+
+    band = pick_rows(stats, parents, id2tok, 3, count_min=14, count_max=1430)
+    assert [r["count_ko"] for r in band] == ["1400", "800", "143"]   # 구간 안 내림차순
+
+    import pytest as _p
+    with _p.raises(SystemExit):        # 구간에 K 만큼 없으면 조용히 줄이지 않는다
+        pick_rows(stats, parents, id2tok, 5, count_min=14, count_max=1430)
