@@ -92,3 +92,30 @@ def test_legacy_run_id_exemption_is_frozen():
     from tools.validate_ledger import LEGACY_RUN_IDS
 
     assert LEGACY_RUN_IDS == frozenset({"cpt_Qwen2.5-0.5B_r1ctrl_seed42"})
+
+
+def test_compare_runs_classifies_p3_fields():
+    """새 필드를 분류하지 않으면 "미분류 = 치명" 으로 모든 비교가 막힌다.
+
+    warmup_bytes · pool_extend_docs 는 학습 경로를 바꾸므로 치명,
+    eval_at · save_at 은 벽시계만 바꾼다 (docs/SPEC_P3.md §3 W0-10).
+    """
+    from tools.compare_runs import CRITICAL, IDENTITY, TIMING
+
+    assert {"warmup_bytes", "pool_extend_docs"} <= CRITICAL
+    assert {"eval_at", "save_at"} <= TIMING
+    assert not (CRITICAL & TIMING) and not (CRITICAL & IDENTITY)
+
+
+def test_cpt_config_fields_are_all_classified():
+    """cpt.py 가 config 에 남기는 필드는 전부 분류돼 있어야 한다."""
+    import re
+
+    from tools.compare_runs import CRITICAL, IDENTITY, TIMING
+
+    src = (Path(__file__).resolve().parents[1] / "src" / "training" / "cpt.py").read_text(
+        encoding="utf-8")
+    body = src[src.index("    config = {"):src.index("    run_id = make_run_id(\"cpt\"")]
+    keys = set(re.findall(r'"([a-z_0-9]+)":', body))
+    known = CRITICAL | TIMING | IDENTITY
+    assert keys <= known, f"분류되지 않은 config 필드: {sorted(keys - known)}"

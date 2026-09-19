@@ -55,12 +55,15 @@ CRITICAL = {
     "budget_bytes", "budget_tokens", "seq_len", "micro_bs", "accum", "lr",
     "lr_schedule", "pool_docs", "skip_docs", "optimizer", "dtype",
     "grad_checkpointing", "eval_budget", "seed",
+    # P3 에서 추가. 워밍업 길이와 데이터 순서를 바꾸므로 치명이다
+    "warmup_bytes", "pool_extend_docs",
     # eval (bpb.py)
     "max_bytes", "split",
 }
 
 # 벽시계만 바꾼다. 평가는 비파괴적이고 BPB 를 안 건드린다.
-TIMING = {"eval_bytes"}
+# eval_at / save_at 은 지점을 더 잴 뿐이고 학습 경로를 건드리지 않는다.
+TIMING = {"eval_bytes", "eval_at", "save_at"}
 
 # 당연히 다르다.
 IDENTITY = {"model", "revision", "name", "purpose"}
