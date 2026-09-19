@@ -117,4 +117,31 @@ def constant_lr_by_bytes(raw_bytes_seen: int, total_bytes: int, peak_lr: float,
     return peak_lr
 
 
-SCHEDULES = {"cosine": cosine_lr_by_bytes, "constant": constant_lr_by_bytes}
+def wsd_lr_by_bytes(raw_bytes_seen: int, total_bytes: int, peak_lr: float,
+                    warmup_frac: float = 0.02, min_frac: float = 0.1,
+                    decay_frac: float = 0.2) -> float:
+    """워밍업 -> 상수 -> 마지막 decay_frac 구간에서 감쇠 (P3-B).
+
+    R5 가 답한 것은 "코사인이 회복을 끊었다" 이지 "상수가 최선이다" 가 아니다.
+    상수 LR 은 끝까지 LR 이 높아 마지막에 가라앉히는 이득을 못 받는다. WSD 는
+    그 둘을 합치려는 스케줄이고, **실무자가 어휘를 바꾼 뒤 무엇을 쓸 것인가** 에
+    직접 답한다.
+
+    상수와 다른 것은 **마지막 구간뿐이어야 한다.** 워밍업 길이도 감쇠 바닥도
+    기존 두 스케줄과 같은 값을 쓴다 — 그래야 셋을 나란히 놓을 수 있다.
+    감쇠 모양은 코사인과 같게 해서, 끝점이 코사인의 끝점과 정확히 같다.
+    """
+    if total_bytes <= 0:
+        return peak_lr
+    frac = min(max(raw_bytes_seen / total_bytes, 0.0), 1.0)
+    if frac < warmup_frac:
+        return peak_lr * (frac / warmup_frac)
+    start = 1.0 - decay_frac
+    if frac <= start:
+        return peak_lr
+    p = (frac - start) / max(decay_frac, 1e-9)
+    return peak_lr * (min_frac + (1 - min_frac) * 0.5 * (1 + math.cos(math.pi * p)))
+
+
+SCHEDULES = {"cosine": cosine_lr_by_bytes, "constant": constant_lr_by_bytes,
+             "wsd": wsd_lr_by_bytes}

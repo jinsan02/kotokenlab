@@ -155,9 +155,10 @@ def test_constant_schedule_warms_up_then_holds():
 
 
 def test_schedules_registry_matches_cli_choices():
+    """CLI 의 --lr-schedule 선택지는 레지스트리에서 나온다. 여기서 한 번 본다."""
     from src.training.callbacks import SCHEDULES
 
-    assert set(SCHEDULES) == {"cosine", "constant"}
+    assert set(SCHEDULES) == {"cosine", "constant", "wsd"}
 
 
 # ── P3 W0-1 ~ W0-3 — 인자를 안 주면 P2 와 **똑같이** 돌아야 한다 ────────────
@@ -256,3 +257,35 @@ def test_train_curve_에_손상_행_컬럼이_뒤에_붙었다():
     from src.utils.ledger import TRAIN_CURVE_COLUMNS
 
     assert TRAIN_CURVE_COLUMNS[-2:] == ("grad_norm_dmg", "upd_w_ratio_dmg")
+
+
+# ── P3 W0-4 — WSD (워밍업 · 상수 · 끝에서 감쇠) ───────────────────────────
+
+def test_wsd_는_감쇠_시작_전까지_상수와_같다():
+    """WSD 가 상수와 다른 것은 **마지막 감쇠 구간뿐** 이어야 한다.
+    그래야 P3-B 의 결과를 "감쇠를 붙인 효과" 로 읽을 수 있다."""
+    from src.training.callbacks import constant_lr_by_bytes, wsd_lr_by_bytes
+
+    total, peak = 1_000_000, 1e-5
+    for frac in (0.0, 0.01, 0.02, 0.3, 0.79, 0.799):
+        seen = int(total * frac)
+        assert wsd_lr_by_bytes(seen, total, peak) == \
+            constant_lr_by_bytes(seen, total, peak)
+
+
+def test_wsd_는_마지막_20퍼센트에서_바닥까지_내려간다():
+    from src.training.callbacks import cosine_lr_by_bytes, wsd_lr_by_bytes
+
+    total, peak = 1_000_000, 1e-5
+    mid = wsd_lr_by_bytes(int(total * 0.9), total, peak)
+    assert peak * 0.1 < mid < peak                      # 감쇠 중
+    end = wsd_lr_by_bytes(total, total, peak)
+    # 바닥은 코사인과 같은 10% 다 — 두 스케줄의 끝점을 비교할 수 있어야 한다
+    assert abs(end - cosine_lr_by_bytes(total, total, peak)) < 1e-15
+    assert wsd_lr_by_bytes(int(total * 1.5), total, peak) == end   # 예산을 넘겨도
+
+
+def test_wsd_도_레지스트리에_있다():
+    from src.training.callbacks import SCHEDULES
+
+    assert set(SCHEDULES) == {"cosine", "constant", "wsd"}
