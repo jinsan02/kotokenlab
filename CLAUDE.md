@@ -12,6 +12,8 @@
 3. [`docs/COMMIT_CONVENTION.md`](docs/COMMIT_CONVENTION.md) — 커밋할 일이 있으면
 4. [`docs/LEDGER_SCHEMA.md`](docs/LEDGER_SCHEMA.md) — 결과를 기록할 일이 있으면
 5. [`docs/HANDOFF.md`](docs/HANDOFF.md) — 지금까지 된 것과 다음 할 일
+5a. [`docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)
+   — **현재 주장·최소 추가 실험·수정된 7주 일정.** 과거 P3 실행안보다 우선한다
 5b. [`reports/FINAL_REPORT.md`](reports/FINAL_REPORT.md) — **1차 결과 전체.**
    무엇이 답이 났고 무엇이 반증됐는지. 새 실험을 설계하기 전에 읽는다
 6. [`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md) — 도메인 라벨로 무엇을
@@ -19,7 +21,7 @@
 6b. [`docs/DESIGN_DELTA.md`](docs/DESIGN_DELTA.md) — **스펙과 다르게 한 것과 그 이유.**
    스펙만 읽고 코드를 고치면 이미 반증된 가설을 되살리게 된다
 6c. [`docs/SPEC_P3.md`](docs/SPEC_P3.md) · [`docs/SCHEDULE_P3.md`](docs/SCHEDULE_P3.md)
-   — **3차 설계와 실행 일정.** 지금 여기서 일한다. 사전 등록은 `docs/PLAN.md`.
+   — **3차 원 설계 기록.** 현재 실행은 5a amendment를 따른다. 사전 등록은 `docs/PLAN.md`.
    2차([`docs/SPEC_P2.md`](docs/SPEC_P2.md) · [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md))는
    닫혔고 결과가 그 일정 문서에 있다
 7. [`docs/SPEC_KoTokenLab.md`](docs/SPEC_KoTokenLab.md) — 연구 설계 원본. 필요한 절만

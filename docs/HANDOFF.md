@@ -1,5 +1,9 @@
 # 인수인계 — 현재 상태와 다음 순서
 
+> **2026-09-19 최신 진입점:** 외부 비판 감사 뒤의 현재 주장·최소 실험·7주 계획은
+> [`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)에
+> 한 문서로 정리했다. 아래의 과거 P3 실행 순서보다 amendment를 우선한다.
+
 최종 갱신 2026-09-17 (**2차 종료 · 3차 설계와 사전 등록 완료, 실행 전**). 1차 결과 전체는
 [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md).
 규칙은 [`RULES.md`](RULES.md), 범위와 종료 조건은

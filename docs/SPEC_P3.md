@@ -1,5 +1,11 @@
 # SPEC P3 — 스케줄 이후의 질문
 
+> **2026-09-19 외부 비판 검토 amendment:** 아래는 당시의 원 설계 기록으로
+> 보존한다. 아직 실행하지 않은 P3의 우선순위·해석은
+> [`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)가
+> 대체한다. 특히 A는 유한 곡선 연장으로 후순위, C는 취소, E의 "오라클 상한"은
+> 철회, B는 cooldown 비용을 포함해 수정 유지한다.
+
 > **설계 문서. 2026-09-17 작성, 아직 아무것도 돌리지 않았다.**
 > 사전 등록(예측 · 판정 경계)은 [`PLAN.md` "P3 확장"](PLAN.md), 순서와 시간은
 > [`SCHEDULE_P3.md`](SCHEDULE_P3.md). 규칙은 [`RULES.md`](RULES.md).

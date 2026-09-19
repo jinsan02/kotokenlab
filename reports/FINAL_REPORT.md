@@ -1,5 +1,11 @@
 # KoTokenLab — 최종 보고서
 
+> **2026-09-19 해석 amendment:** 이 문서는 1차 결과의 역사적 정본이며 수치와
+> 당시 판정을 소급 수정하지 않는다. Equal-Raw-Data/compute 구분, R의 보조지표화,
+> BPB 경계, R1·Q7·R5의 축소된 결론과 수정 P3는
+> [`docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](../docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)를
+> 함께 읽어야 한다.
+
 > **1차 완료 (2026-09-02).** 사전 등록 질문 Q1~Q6 와 유효 범위 Phase 6(A/C/E)이
 > 모두 닫혔다. 모든 수치는 `experiments/` 원장에서 읽었다 — 손으로 옮겨 적은
 > 것은 없다.

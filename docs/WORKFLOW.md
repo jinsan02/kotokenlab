@@ -63,10 +63,12 @@ Config-SHA256: <config.json 의 sha256>
 
 ## 개발 순서 (스펙 §97~§112)
 
-현재 위치는 **3차 W0 직전** 이다 (2026-09-17). 1차는 `p1-closed` 로 닫혔고
+현재 위치는 **외부 비판 감사 뒤 P3 검증 준비**다 (2026-09-19). 1차는 `p1-closed` 로 닫혔고
 (Q1~Q6 와 Phase 6 A·C·E) — [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md) —
 2차는 R1·Q7·R5 와 한자 프로브로 닫혔다 ([`SCHEDULE_P2.md`](SCHEDULE_P2.md)).
-3차 일정은 [`SCHEDULE_P3.md`](SCHEDULE_P3.md), 다음은 **W0 = 코드와 게이트**.
+3차 W0는 완료됐지만 외부 검토로 실행 순서를 다시 잡았다. 현재 정본은
+[`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md),
+다음은 **학습 budget tail 회계 수정과 평가·데이터 audit**다.
 
 Embedding Alignment 는 탐침 끝에 **폐기했다**
 ([`DESIGN_DELTA.md`](DESIGN_DELTA.md) 1-5).
@@ -90,7 +92,7 @@ Level 3 능력 평가와 N<10,000 은 여전히 열려 있고 새 사전 등록�
 | 6 | Embedding init ablation: Random / Mean / Weighted | **완료** — 부품 평균(E1) 채택, 노름 보정은 반증 |
 | 7 | Embedding alignment (Transformer freeze) | **폐기** — 쓸 만한 lr 작동점이 없다 ([DESIGN_DELTA](DESIGN_DELTA.md) 1-5) |
 | 8 | 0.5B Full CPT | **완료** — 3조건 168.5MB Equal-Raw-Data |
-| 8b | Phase 4: 등토큰 예산 + N 스윕 | **다음** — `scripts/run_phase4.sh` |
+| 8b | Phase 4: 등토큰 예산 + N 스윕 | **완료** — 기존 equal-token run은 cosine/seed42라 P3 compute 대조로 그대로 재사용하지 않음 |
 | 9 | 평가 파이프라인 고정 → `eval-freeze-v1` 태그 | |
 | 10 | 최종 후보 multi-seed (42 / 123 / 2026) | 노이즈 플로어로 3시드는 측정 완료 |
 | 11 | 1.5B scale validation | **부분** — Pre-CPT 손상만 측정 (Phase 6-A). CPT 는 미실행 |

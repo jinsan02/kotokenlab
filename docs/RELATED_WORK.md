@@ -1,5 +1,11 @@
 # 선행 연구
 
+> **2026-09-19 위치 정정:** 개별 leaf pruning, continued BPE, subtoken 평균 초기화,
+> 저예산 tokenizer swapping, constant-LR/cooldown은 선행 연구의 기여다. 본 프로젝트의
+> 방어 가능한 범위와 원문별 비교는
+> [`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md` §5](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)를
+> 우선한다.
+
 조사 시점 2026-08-29. 이 프로젝트가 **이미 답이 나온 문제에 GPU 를 쓰지 않도록**,
 그리고 **무엇이 실제로 새로운지** 분명히 하려고 정리했다.
 
