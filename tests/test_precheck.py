@@ -119,3 +119,22 @@ def test_cpt_config_fields_are_all_classified():
     keys = set(re.findall(r'"([a-z_0-9]+)":', body))
     known = CRITICAL | TIMING | IDENTITY
     assert keys <= known, f"분류되지 않은 config 필드: {sorted(keys - known)}"
+
+
+def test_p3_gate_thresholds_match_registration():
+    """등록 경계를 코드가 들고 있다. 결과를 보고 고치면 여기서 티가 난다."""
+    from tools.p3_verdicts import MIN_INCREMENT, SAT_HIGH, SAT_LOW
+
+    assert (SAT_LOW, SAT_HIGH) == (0.5, 0.9)      # 2026-09-19 재등록
+    assert MIN_INCREMENT == 0.02
+
+
+def test_p3_gate_ratio_rule():
+    """증분 비가 구간 안인지 보는 규칙 자체를 고정한다."""
+    from tools.p3_verdicts import SAT_HIGH, SAT_LOW, in_band
+
+    assert in_band(0.677)
+    assert in_band(0.869)
+    assert not in_band(0.95)        # 감속이 없다 = 멱법칙 쪽
+    assert not in_band(0.4)         # 포화 쪽
+    assert in_band(SAT_HIGH) and not in_band(SAT_LOW)
