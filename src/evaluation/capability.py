@@ -38,10 +38,29 @@ os.environ.setdefault("HF_HOME", str(ROOT / ".hf_cache"))
 # ── 2026-09-17 PLAN.md 등록값 ──────────────────────────────────────────────
 KMMLU_REPO = "HAERAE-HUB/KMMLU"
 KMMLU_REVISION = "d61b3f19e552c576bf5960dd24289763edc36a88"
-SUBJECTS: tuple[str, ...] = (
+SUBJECTS: tuple[str, ...] = (      # D3 등록 (2026-09-17). 기본값을 바꾸지 않는다
     "Law", "Criminal-Law", "Patent", "Taxation",
     "Health", "Political-Science-and-Sociology",
 )
+# KMMLU 45과목 전체. P3-F 는 **D3 에서 이미 본 6과목을 빼고** 나머지만 쓴다
+# (본 데이터로 등록하지 않는다 — docs/SPEC_P3.md §2 F).
+ALL_SUBJECTS: tuple[str, ...] = (
+    "Accounting", "Agricultural-Sciences", "Aviation-Engineering-and-Maintenance",
+    "Biology", "Chemical-Engineering", "Chemistry", "Civil-Engineering",
+    "Computer-Science", "Construction", "Criminal-Law", "Ecology", "Economics",
+    "Education", "Electrical-Engineering", "Electronics-Engineering",
+    "Energy-Management", "Environmental-Science", "Fashion", "Food-Processing",
+    "Gas-Technology-and-Engineering", "Geomatics", "Health", "Industrial-Engineer",
+    "Information-Technology", "Interior-Architecture-and-Design", "Korean-History",
+    "Law", "Machine-Design-and-Manufacturing", "Management", "Maritime-Engineering",
+    "Marketing", "Materials-Engineering", "Math", "Mechanical-Engineering",
+    "Nondestructive-Testing", "Patent", "Political-Science-and-Sociology",
+    "Psychology", "Public-Safety", "Railway-and-Automotive-Engineering",
+    "Real-Estate", "Refrigerating-Machinery", "Social-Welfare", "Taxation",
+    "Telecommunications-and-Wireless-Technology",
+)
+REST_SUBJECTS: tuple[str, ...] = tuple(s for s in ALL_SUBJECTS if s not in SUBJECTS)
+SUBJECT_SETS = {"d3": SUBJECTS, "rest": REST_SUBJECTS, "all": ALL_SUBJECTS}
 MAX_SHOTS = 5
 CTX_LIMIT = 2048            # CPT seq_len
 LETTERS = "ABCD"
@@ -175,6 +194,8 @@ def main(argv: list | None = None) -> int:
     ap.add_argument("--prompt-tokenizer", required=True,
                     help="shot 수를 정하는 토크나이저. 항상 C0 를 준다")
     ap.add_argument("--name", default=None)
+    ap.add_argument("--subjects", default="d3", choices=tuple(SUBJECT_SETS),
+                    help="d3 = 등록된 6과목(기본) · rest = 나머지 39과목(P3-F) · all")
     ap.add_argument("--tag", default="d3")
     ap.add_argument("--skip-env-check", action="store_true")
     args = ap.parse_args(argv)
@@ -187,8 +208,9 @@ def main(argv: list | None = None) -> int:
         return len(ptok(s, add_special_tokens=False)["input_ids"])
 
     # 프롬프트를 모델을 올리기 전에 전부 만든다 — 모델과 무관해야 하므로.
+    subjects = SUBJECT_SETS[args.subjects]
     work = []
-    for subject in SUBJECTS:
+    for subject in subjects:
         shots = read_items(DATA / f"{subject}-dev.csv")
         for i, item in enumerate(read_items(DATA / f"{subject}-test.csv")):
             prompt, k = build_prompt(shots, item, n_tokens)
@@ -203,7 +225,8 @@ def main(argv: list | None = None) -> int:
 
     config = {"model": args.model, "prompt_tokenizer": args.prompt_tokenizer,
               "benchmark": BENCHMARK, "repo": KMMLU_REPO,
-              "revision": KMMLU_REVISION, "subjects": list(SUBJECTS),
+              "revision": KMMLU_REVISION, "subject_set": args.subjects,
+              "subjects": list(subjects),
               "max_shots": MAX_SHOTS, "ctx_limit": CTX_LIMIT,
               "scoring": "loglik_letter", "n_boot": N_BOOT,
               "boot_seed": BOOT_SEED, "purpose": "d3_hanja_probe"}
@@ -234,8 +257,9 @@ def main(argv: list | None = None) -> int:
             for r in rows:
                 fh.write("\t".join(str(r[c]) for c in PRED_COLUMNS) + "\n")
 
-        groups = [(BENCHMARK, rows)] + [
-            (f"kmmlu_{s}", [r for r in rows if r["subject"] == s]) for s in SUBJECTS]
+        groups = [(BENCHMARK if args.subjects == "d3" else f"{BENCHMARK}_{args.subjects}",
+                   rows)] + [
+            (f"kmmlu_{s}", [r for r in rows if r["subject"] == s]) for s in subjects]
         for bench, rs in groups:
             c = [r["correct"] for r in rs]
             lo, hi = bootstrap_ci(c)
