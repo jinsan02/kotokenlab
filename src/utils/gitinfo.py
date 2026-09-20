@@ -97,3 +97,33 @@ def git_dirty(cwd: Path | None = None) -> str:
     if out.returncode != 0:
         return "NA"
     return "1" if dirty_paths(out.stdout) else "0"
+
+
+# `git_dirty` 가 기록 경로를 빼고 세기 시작한 커밋 (2026-09-17).
+# 이 커밋을 조상으로 갖지 않는 run 의 dirty=1 은 **코드가 아니라 원장·리포트**
+# 때문일 수 있다. 둘을 구분할 수 없으므로 그렇게 말해야 한다.
+DIRTY_SCOPE_COMMIT = "a4784269ed3d5586ba415a4b5ca8a27f56adbf99"
+
+
+def dirty_is_code_scoped(sha: str, cwd: Path | None = None):
+    """그 run 의 `git_dirty` 가 **코드 기준**이었나. True/False/None(모름).
+
+    RULES 는 결과를 커밋 해시로 고정하라고 한다. 그런데 옛 정의의 dirty=1 을
+    "코드가 커밋 안 된 채 돌았다" 로 읽으면 없는 결함을 만든다 — 대부분은
+    그 run 이 직접 append 한 원장 행이었다. 반대로 "괜찮다" 로 읽으면 진짜
+    코드 오염을 놓친다. **모르는 것은 모른다고 답한다.**
+    """
+    if not sha:
+        return None
+    try:
+        out = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", DIRTY_SCOPE_COMMIT, sha],
+            cwd=str(cwd or repo_root()), capture_output=True, text=True,
+            encoding="utf-8", timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode == 0:
+        return True
+    # 1 은 "조상 아님", 그 외(128 등)는 "커밋을 모른다".
+    return False if out.returncode == 1 else None

@@ -478,3 +478,21 @@ def test_run_pins_git_commit_at_entry(tmp_path, monkeypatch):
     assert [r["git_commit"] for r in rows] == ["a" * 40, "a" * 40]
     cap = ledger.read_rows("capability", tmp_path)
     assert cap[0]["git_commit"] == "a" * 40
+
+
+def test_옛_run_의_dirty_는_코드_기준이_아니라고_답한다():
+    """a478426 이전 run 의 dirty=1 을 '코드가 더러웠다' 로 읽지 않는다."""
+    from src.utils.gitinfo import dirty_is_code_scoped
+    # cpt_t2b_mean_r5_* 세 seed 가 전부 돌았던 커밋. 2026-09-17 이전이다.
+    assert dirty_is_code_scoped("7683b83cc05d") is False
+
+
+def test_새_정의_이후_run_은_코드_기준이다():
+    from src.utils.gitinfo import dirty_is_code_scoped
+    assert dirty_is_code_scoped("409930aecf2d") is True
+
+
+def test_모르는_커밋은_모른다고_답한다():
+    from src.utils.gitinfo import dirty_is_code_scoped
+    assert dirty_is_code_scoped("0" * 40) is None
+    assert dirty_is_code_scoped("") is None

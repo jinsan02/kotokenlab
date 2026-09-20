@@ -35,6 +35,23 @@ sigma 를 재려고 일부러 seed 를 바꾼 3 run 을 비교할 때만 `--allo
 옛 run 의 config 에는 `eval_budget` 이 없다 (2026-09-15 에 추가했다).
 **없는 것을 "같다" 로 취급하지 않는다** — "기록 없음" 으로 경고한다.
 비교해도 되는지 알 수 없다는 뜻이고, 그것이 정확한 상태다.
+
+## config 가 같아도 코드가 다를 수 있다 (2026-09-20 에 추가)
+
+2주차에 `cpt_c0_qwen_r5_seed42` 와 `seed123` 을 비교하면서 드러났다. config
+필드는 `--allow seed` 로 전부 통과하는데, 그 사이 `src/training/cpt.py` 가
++232/-24 줄 바뀌어 있었다. **이 도구는 그것을 못 봤다.** 사람이 커밋 5개를
+손으로 대조해서 "실제로 동작을 바꾼 것은 `2da591e` 하나" 를 확인했다.
+
+손으로 하면 다음에 또 빠뜨린다. 이제 두 run 의 `git_commit` 사이에서
+**측정 코드**(`src/`, `configs/`)를 건드린 커밋을 세고, 있으면 치명으로 다룬다.
+`tools/`·`tests/`·`docs/` 만 바뀐 경우는 걸리지 않는다 — 측정에 안 닿는다.
+
+정당한 이유가 있으면 `--allow code` 를 준다. `seed` 와 같은 취급이다:
+**기본은 막고, 사람이 근거를 갖고 열어야 한다.**
+
+`git_dirty=1` 인 run 은 그 커밋만으로 코드를 복원할 수 없다. 막지는 않지만
+경고한다 — 이미 돌아간 run 을 되돌릴 수는 없고, 한계로 적어야 할 사실이다.
 """
 
 from __future__ import annotations
@@ -68,6 +85,13 @@ TIMING = {"eval_bytes", "eval_at", "save_at", "damaged_rows"}
 # 당연히 다르다.
 IDENTITY = {"model", "revision", "name", "purpose"}
 
+# 측정값을 만들어내는 코드. 여기가 바뀌면 config 가 같아도 숫자가 달라질 수 있다.
+# tools/ 는 뺀다 — 원장을 읽어 표를 적을 뿐 학습·평가 경로에 없다.
+MEASURE_PATHS = ("src", "configs")
+
+# --allow 에 줄 수 있는 가짜 필드. 코드 계보 차이를 통과시킨다.
+ALLOW_CODE = "code"
+
 
 def load(run_id: str) -> dict:
     p = RUNS / run_id / "config.json"
@@ -92,12 +116,55 @@ def load_argv(run_id: str) -> str:
     return ""
 
 
+def load_lineage(run_id: str) -> tuple:
+    """원장의 (git_commit, git_dirty). 없으면 (None, None)."""
+    import csv as _csv
+    led = ROOT / "experiments" / "LEDGER.tsv"
+    with led.open(encoding="utf-8", newline="") as fh:
+        for r in _csv.DictReader(fh, delimiter="\t", quoting=_csv.QUOTE_NONE):
+            if r["run_id"] == run_id and r["status"] == "ok":
+                sha = (r.get("git_commit") or "").strip()
+                dirty = (r.get("git_dirty") or "").strip()
+                return (sha or None, dirty or None)
+    return (None, None)
+
+
+def _git(*a) -> tuple:
+    """(성공?, 출력). git 이 없거나 커밋을 모르면 조용히 실패를 돌려준다."""
+    import subprocess
+    try:
+        p = subprocess.run(("git", "-C", str(ROOT)) + a, capture_output=True,
+                           text=True, encoding="utf-8", errors="replace")
+    except OSError:
+        return (False, "")
+    return (p.returncode == 0, (p.stdout or "").strip())
+
+
+def known_commit(sha: str) -> bool:
+    return _git("cat-file", "-e", f"{sha}^{{commit}}")[0]
+
+
+def measure_commits(sha_a: str, sha_b: str) -> list:
+    """두 커밋 사이에서 **측정 코드** 를 건드린 커밋. 양쪽 방향을 다 본다.
+
+    `A...B` 대칭차를 쓴다 — 어느 쪽이 앞인지 몰라도 되고, 한쪽에만 있는
+    커밋도 잡힌다.
+    """
+    ok, out = _git("log", "--oneline", "--no-decorate", f"{sha_a}...{sha_b}",
+                   "--", *MEASURE_PATHS)
+    if not ok or not out:
+        return []
+    return out.splitlines()
+
+
 def main(argv: list | None = None) -> int:
     ap = argparse.ArgumentParser(
         description="두 run 을 비교해도 되는지 config 로 확인한다")
     ap.add_argument("runs", nargs="+", help="run_id 둘 이상")
     ap.add_argument("--allow", nargs="*", default=[],
-                    help="달라도 되는 필드 (예: seed — sigma 측정용 3 run 비교)")
+                    help="달라도 되는 필드 (예: seed — sigma 측정용 3 run 비교). "
+                         "'code' 를 주면 측정 코드가 바뀐 것도 통과시킨다 — "
+                         "커밋마다 옛 동작이 재현되는지 직접 확인한 뒤에만 쓴다")
     args = ap.parse_args(argv)
 
     if len(args.runs) < 2:
@@ -158,6 +225,67 @@ def main(argv: list | None = None) -> int:
         print(f"  {r}")
         print(f"    {a if a else '<원장에 argv 없음>'}")
     print()
+
+    # 코드 계보 — config 가 같아도 측정 코드가 다르면 숫자가 달라질 수 있다.
+    lineage = {r: load_lineage(r) for r in args.runs}
+    print("코드 계보 — config 가 같아도 여기가 다르면 숫자가 달라질 수 있다")
+    dirty_runs: list = []
+    for r in args.runs:
+        sha, dirty = lineage[r]
+        mark = ""
+        if dirty == "1":
+            dirty_runs.append(r)
+            mark = "  dirty=1 (아래 참조)"
+        print(f"  {r}  {sha[:12] if sha else '<원장에 없음>'}{mark}")
+    print()
+
+    base = args.runs[0]
+    base_sha = lineage[base][0]
+    code_diff: list = []
+    unknown_sha: list = []
+    for r in args.runs[1:]:
+        sha = lineage[r][0]
+        if not base_sha or not sha:
+            unknown_sha.append(r)
+            continue
+        if sha == base_sha:
+            continue
+        if not (known_commit(base_sha) and known_commit(sha)):
+            unknown_sha.append(r)
+            continue
+        hits = measure_commits(base_sha, sha)
+        if hits:
+            code_diff.append((r, hits))
+
+    if unknown_sha:
+        print("  커밋을 확인할 수 없는 run: " + ", ".join(unknown_sha))
+        print("  **\"코드가 같다\" 가 아니라 \"모른다\" 다.**")
+        print()
+    if dirty_runs:
+        from src.utils.gitinfo import dirty_is_code_scoped
+        for r in dirty_runs:
+            scoped = dirty_is_code_scoped(lineage[r][0] or "")
+            if scoped is True:
+                print(f"  {r}: **커밋되지 않은 코드 위에서 돌았다.** 그 커밋만으로")
+                print("    결과를 재현할 수 없다. 한계로 같이 적어라")
+            else:
+                print(f"  {r}: a478426(2026-09-17) 이전이라 dirty 정의에 원장·리포트가")
+                print("    포함됐다. 이 1 은 대개 그 run 이 append 한 원장 행이다 —")
+                print("    코드 오염이라고 단정하지 않되, 아니라고도 단정하지 않는다")
+        print()
+    if code_diff:
+        for r, hits in code_diff:
+            print(f"  {base} <-> {r} 사이에 {', '.join(MEASURE_PATHS)} 를 "
+                  f"건드린 커밋 {len(hits)}개")
+            for line in hits:
+                print(f"    {line}")
+        print()
+        if ALLOW_CODE in allow:
+            print("  --allow code 로 통과시켰다. **왜 비교 가능한지 기록에 적어라** —")
+            print("  커밋마다 기본값이 옛 동작을 재현하는지 직접 확인해야 한다.")
+            print()
+        else:
+            fatal.append("<코드 계보>")
 
     if missing_all:
         print("모든 run 에서 기록이 없는 치명 필드: " + ", ".join(sorted(missing_all)))

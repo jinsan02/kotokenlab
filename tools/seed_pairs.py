@@ -157,17 +157,39 @@ def main(argv: list | None = None) -> int:
     w("## 학습 회계\n")
     w("`2da591e` 이후 run 은 완전한 update 경계에서 멈춘다. seed 42 는 그 전에")
     w("돌았으므로 관찰량과 반영량이 갈린다. 그 차이를 표에 남긴다.\n")
-    w("| run | 관찰 토큰 | 반영 토큰 | update | wall_sec |")
-    w("|---|---:|---:|---:|---:|")
+    w("| run | 관찰 토큰 | 반영 토큰 | update | wall_sec | 커밋 |")
+    w("|---|---:|---:|---:|---:|---|")
+    dirty: list = []
     for s in SEEDS:
         for pref in (CTRL, TREAT):
             rid = f"{pref}{s}"
             if rid not in ok:
                 continue
             r = ok[rid]
+            sha = (r.get("git_commit") or "")[:12] or "NA"
+            if (r.get("git_dirty") or "").strip() == "1":
+                dirty.append(rid)
+                sha += " *dirty*"
             w(f"| `{rid}` | {num(r, 'tokens_seen')} | {num(r, 'tokens_applied')} | "
-              f"{num(r, 'updates')} | {float(r['wall_sec']):,.0f} |")
+              f"{num(r, 'updates')} | {float(r['wall_sec']):,.0f} | `{sha}` |")
     w("")
+    if dirty:
+        from src.utils.gitinfo import dirty_is_code_scoped
+        code_scoped = [d for d in dirty
+                       if dirty_is_code_scoped(ok[d].get("git_commit", "")) is True]
+        old_scoped = [d for d in dirty if d not in code_scoped]
+        w("**`dirty` 인 run 이 있다.**\n")
+        if old_scoped:
+            w("- " + " · ".join(f"`{d}`" for d in old_scoped))
+            w("  — `a478426`(2026-09-17) **이전** 에 돌았다. 그때의 `git_dirty` 는")
+            w("  원장·리포트 파일도 dirty 로 셌으므로, 이 `1` 은 대개 그 run 이")
+            w("  직접 append 한 원장 행이다. **코드가 더러웠다는 뜻이 아니다** —")
+            w("  다만 둘을 구분할 수 없으므로 \"같은 코드였다\" 고 단정하지도 않는다")
+        if code_scoped:
+            w("- " + " · ".join(f"`{d}`" for d in code_scoped))
+            w("  — 새 정의(코드 기준)에서 dirty 다. **커밋되지 않은 코드 위에서**")
+            w("  **돌았다.** 그 커밋만으로 결과를 재현할 수 없다")
+        w("")
     w("`NA` 는 회계 수정 이전 run 이라 그 열이 기록되지 않았다는 뜻이다.")
     w("**사후에 복원하지 않는다** — 복원할 수 없는 값이기 때문이다.\n")
 
