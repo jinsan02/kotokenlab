@@ -249,6 +249,7 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 | **도메인 라벨** | [`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md) — 라벨 검증 기록과 신뢰 범위 |
 | **검토** | [`docs/REVIEW.md`](docs/REVIEW.md) — 결함·헛점과 보강 우선순위 |
 | **스펙과의 차이** | [`docs/DESIGN_DELTA.md`](docs/DESIGN_DELTA.md) — 다르게 한 것과 **그 이유.** 반증된 가설이 여기 있다 |
+| **틀린 것** | [`docs/MISTAKES.md`](docs/MISTAKES.md) — 사건 기록, 무엇이 잡아냈나, 되풀이된 패턴 넷 |
 | **2차 설계** | [`docs/SPEC_P2.md`](docs/SPEC_P2.md) — 손상된 임베딩의 회복 한계 |
 | **2차 일정** | [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md) — 일정과 결과, 종료 |
 | **3차 설계** | [`docs/SPEC_P3.md`](docs/SPEC_P3.md) — 스케줄 이후의 질문 |

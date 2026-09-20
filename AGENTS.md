@@ -24,6 +24,8 @@
    — **3차 원 설계 기록.** 현재 실행은 5a amendment를 따른다. 사전 등록은 `docs/PLAN.md`.
    2차([`docs/SPEC_P2.md`](docs/SPEC_P2.md) · [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md))는
    닫혔고 결과가 그 일정 문서에 있다
+6d. [`docs/MISTAKES.md`](docs/MISTAKES.md) — **실제로 틀린 것과 되풀이된 패턴 넷.**
+   새 도구를 만들거나 두 run 을 비교하기 전에 본다. 같은 종류를 또 하지 않기 위해서다
 7. [`docs/SPEC_KoTokenLab.md`](docs/SPEC_KoTokenLab.md) — 연구 설계 원본. 필요한 절만
 
 그리고 현재 상태를 복원한다:
