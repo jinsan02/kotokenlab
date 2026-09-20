@@ -170,7 +170,7 @@ seed 쌍 잔차표     tools/seed_pairs.py 가 적는다                        
 **핵심 결과는 seed 42 의 우연이 아니다.** 한국어 잔차 d = Bf-Cf 가 세 쌍에서
 +0.345466 ~ +0.345931 (표본 SD 0.000235) 이고 seed 42 의 +0.345639 가 그 안에 있다.
 예전 방식(C0 seed 42 고정)과의 평균 차이는 +0.000136 으로 d 자체의 0.04% 다 —
-예전 표의 결론은 바뀌지 않는다. 수치는 [`reports/tables/seed_pairs.md`].
+예전 표의 결론은 바뀌지 않는다. 수치는 [`reports/tables/seed_pairs.md`](../reports/tables/seed_pairs.md) 에 있다.
 
 돌리면서 나온 것 둘:
 
