@@ -1485,6 +1485,66 @@ v1 은 이대로 간다. 상한을 비율로 바꾸려면 코퍼스를 다시 �
 
 ---
 
+### 2주차 run 설정 동결 — 2026-09-20 (돌리기 전)
+
+amendment 의 최소 추가 실험 1번(핵심 결과가 seed 42 의 우연인가)을 돌린다.
+**이 절을 커밋한 뒤에 실행한다.**
+
+#### 무엇을 돌리나
+
+```
+cpt_c0_qwen_r5_seed123     상수 LR C0, 168.5MB
+cpt_c0_qwen_r5_seed2026    상수 LR C0, 168.5MB
+```
+
+T2b 상수 LR 3 seed 는 이미 있다 (`cpt_t2b_mean_r5_seed{42,123,2026}`).
+C0 가 seed 42 하나뿐이라 **대응 seed 쌍이 없다** — 그것만 채운다.
+
+#### 명령 (원장 argv 를 그대로 따른다)
+
+```
+.conda/python.exe -m src.training.cpt --model Qwen/Qwen2.5-0.5B \
+  --revision 060db6499f32faf8b98477b0a26969ef7d8b9987 --name c0_qwen \
+  --budget-bytes 168500000 --pool-docs 50000 --eval-bytes 20000000 \
+  --eval-budget 2000000 --lr-schedule constant --seed <123|2026> --tag r5
+```
+
+`cpt_c0_qwen_r5_seed42` 의 argv 와 **`--seed` 만** 달라야 한다. 돌리기 전에
+
+```
+.conda/python.exe tools/compare_runs.py cpt_c0_qwen_r5_seed123 cpt_c0_qwen_r5_seed42 --allow seed
+```
+
+를 통과시킨다 (run 이 끝난 뒤 대조하는 것이므로, 시작 전에는 argv 를 눈으로 맞춘다).
+
+#### 한 가지 달라지는 것 — 회계 수정
+
+`2da591e` 이후 run 은 **완전한 update 경계에서 멈춘다.** seed 42 는 그 전에
+돌았으므로 예산 종점이 한 update 미만 다르다.
+
+```
+seed 42 (기존)    49,922,048 토큰 관찰 · 49,905,664 반영 · 16,384 미반영
+seed 123·2026     경계에서 멈춘다. 관찰 = 반영
+```
+
+**이 차이를 숨기지 않는다.** 새 run 의 `tokens_applied` 가 원장에 남고,
+비교표에 세 seed 의 실제 반영량을 함께 싣는다. 한 update 는 전체의 0.03% 이고
+BPB 격차(0.35~0.43)보다 네 자릿수 작지만, 적어 두지 않으면 나중에 못 찾는다.
+
+#### 예상 시간과 판정
+
+```
+시간    C0 상수 168.5MB 약 1.62h x 2 = 약 3.2h (±30%)
+지표    B0 · Bf · Cf 와 잔차 Bf-Cf 를 우선 본다. R 은 보조 (RULES 14b amendment)
+```
+
+**이것은 가설 검정이 아니라 재현 확인이다.** 판정 경계를 새로 만들지 않는다.
+세 seed 의 잔차 평균과 표본 SD, paired 차이를 기술 통계로 보고하고,
+seed 42 값이 그 분포 안에 있는지 본다. 밖이면 그 사실을 적고 원인을 찾는다.
+
+**중단 조건:** NaN · OOM · `compare_runs` 치명 필드 불일치. 효과 방향을 보고
+seed 수를 줄이지 않는다.
+
 ## 2026-09-19 외부 비판 검토 amendment
 
 위 사전 등록과 과거 결과는 역사적 기록으로 보존한다. 아직 실행하지 않은 P3의
