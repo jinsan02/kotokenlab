@@ -111,6 +111,59 @@ def save_checkpoint(model, tokenizer, run_id: str, suffix: str,
     return sha
 
 
+class Counters:
+    """관찰한 양과 **실제로 optimizer step 에 반영된 양** 을 따로 센다.
+
+    2026-09-19 감사가 잡았다 — 예산에 닿는 순간 accumulation 중간이어도 멈춰서,
+    마지막 microbatch 들이 gradient 만 쌓고 step 되지 못한 채 `tokens_seen` 에
+    들어갔다 (C0 16,384토큰 · T2b10k 28,672토큰). 한 update 미만이라 큰 BPB
+    격차를 뒤집지는 않지만, 예산을 정밀하게 말할 수 없게 만든다.
+
+    이제 경계에서 멈추므로 정상 종료면 둘이 같다. **비정상 종료에서 갈린다** —
+    그 경우가 바로 구분이 필요한 경우다.
+    """
+
+    def __init__(self) -> None:
+        self.observed_tokens = 0
+        self.observed_bytes = 0.0
+        self.applied_tokens = 0
+        self.applied_bytes = 0.0
+        self._w_tokens = 0
+        self._w_bytes = 0.0
+
+    def observe(self, tokens: int, raw_bytes: float) -> None:
+        self.observed_tokens += tokens
+        self.observed_bytes += raw_bytes
+        self._w_tokens += tokens
+        self._w_bytes += raw_bytes
+
+    def apply(self) -> None:
+        """optimizer step 직후에 부른다. 지금까지 쌓인 창을 반영분으로 옮긴다."""
+        self.applied_tokens += self._w_tokens
+        self.applied_bytes += self._w_bytes
+        self._w_tokens = 0
+        self._w_bytes = 0.0
+
+    @property
+    def tail_tokens(self) -> int:
+        """step 되지 못하고 남은 꼬리."""
+        return self._w_tokens
+
+    @property
+    def tail_bytes(self) -> float:
+        return self._w_bytes
+
+
+def should_break(budget_reached: bool, micro: int, accum: int) -> bool:
+    """예산에 닿아도 **완전한 update 경계** 에서만 멈춘다.
+
+    중간에 끊으면 마지막 몇 microbatch 가 학습에 반영되지 않는다. 경계까지
+    가면 예산을 한 update 미만 넘기지만, 넘긴 양이 기록에 그대로 남는다 —
+    반영되지 않은 양을 예산으로 세는 것보다 이쪽이 정확하다.
+    """
+    return budget_reached and micro % accum == 0
+
+
 def warmup_fraction(warmup_bytes: int, budget: int,
                     default_frac: float = 0.02) -> float:
     """워밍업 끝 지점을 **예산 비율** 이 아니라 **바이트** 로 고정할 수 있게 한다.
@@ -406,6 +459,7 @@ def main(argv: list | None = None) -> int:
         torch.cuda.reset_peak_memory_stats()
         saved_at = None
         step = micro = 0
+        counts = Counters()
         tokens_seen = 0
         raw_bytes = 0.0
         loss_acc = 0.0
@@ -419,6 +473,7 @@ def main(argv: list | None = None) -> int:
                 batch.append(chunk)
                 raw_bytes += take
                 tokens_seen += len(chunk)
+                counts.observe(tokens=len(chunk), raw_bytes=take)
                 if len(batch) < args.micro_bs:
                     continue
                 x = torch.tensor(batch, device=device)
@@ -450,6 +505,7 @@ def main(argv: list | None = None) -> int:
                         scale = float(torch.linalg.vector_norm(dmg_before))
                         dmg_ratio = moved / scale if scale > 0 else None
                     opt.zero_grad(set_to_none=True)
+                    counts.apply()          # 여기까지가 학습에 반영된 양이다
                     step += 1
                     train_loss = loss_acc / args.accum
                     loss_acc = 0.0
@@ -486,7 +542,8 @@ def main(argv: list | None = None) -> int:
                             model, tokenizer, run_id,
                             f"_at{int(args.save_at / 1e6)}mb", int(raw_bytes))
 
-                if (tokens_seen if by_tokens else raw_bytes) >= budget:
+                if should_break((tokens_seen if by_tokens else raw_bytes) >= budget,
+                                micro, args.accum):
                     break
 
         # 문서 풀이 예산보다 작으면 스트림이 먼저 끝나고 그냥 종료된다. 그러면
@@ -500,6 +557,13 @@ def main(argv: list | None = None) -> int:
             if not args.allow_short:
                 raise RuntimeError(msg)
             print(f"  [주의] {msg}")
+
+        if counts.tail_tokens:
+            # 여기 오면 경계 규칙이 깨진 것이다 (스트림 고갈 등). 숨기지 않는다.
+            print(f"  [주의] step 되지 못한 꼬리 {counts.tail_tokens:,}토큰 · "
+                  f"{counts.tail_bytes / 1e6:.3f}MB — 예산 회계에서 뺀다")
+        print(f"  반영된 양  {counts.applied_tokens:,}토큰 "
+              f"{counts.applied_bytes / 1e6:.2f}MB  ({step:,} update)")
 
         final = dev_bpb()
         final_bpb = final["ko"]
@@ -519,6 +583,9 @@ def main(argv: list | None = None) -> int:
 
         run.tokens_seen = tokens_seen
         run.raw_bytes_seen = int(raw_bytes)
+        run.extra["tokens_applied"] = counts.applied_tokens
+        run.extra["raw_bytes_applied"] = int(counts.applied_bytes)
+        run.extra["updates"] = step
         run.extra["peak_vram_mb"] = int(torch.cuda.max_memory_allocated() / 1e6)
         run.note = (f"steps={step} ko {base_bpb:.4f}->{final_bpb:.4f} "
                     + " ".join(f"{k} {base[k]:.4f}->{final[k]:.4f}"

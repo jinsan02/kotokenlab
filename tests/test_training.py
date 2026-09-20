@@ -313,3 +313,45 @@ def test_노출_구간이_행_선택을_제한한다():
     import pytest as _p
     with _p.raises(SystemExit):        # 구간에 K 만큼 없으면 조용히 줄이지 않는다
         pick_rows(stats, parents, id2tok, 5, count_min=14, count_max=1430)
+
+
+# ── 예산 꼬리 회계 (2026-09-19 감사) ──────────────────────────────────────
+# 예산에 닿는 순간 accumulation 중간이어도 멈춰서, 마지막 microbatch 들이
+# gradient 만 쌓고 step 되지 않은 채 tokens_seen 에 들어갔다.
+# C0 16,384토큰 · T2b10k 28,672토큰이 그랬다 (reports/tables/methodology_audit.md).
+
+def test_예산에_닿아도_update_경계에서만_멈춘다():
+    from src.training.cpt import should_break
+
+    # 예산 전에는 경계여도 안 멈춘다
+    assert not should_break(False, micro=8, accum=8)
+    # 예산에 닿았어도 accumulation 중간이면 계속 먹는다
+    for micro in (1, 3, 7, 9, 15):
+        assert not should_break(True, micro=micro, accum=8)
+    # 경계에서 멈춘다
+    for micro in (8, 16, 800):
+        assert should_break(True, micro=micro, accum=8)
+
+
+def test_accum_1_이면_매_microbatch_가_경계다():
+    from src.training.cpt import should_break
+
+    assert should_break(True, micro=1, accum=1)
+    assert should_break(True, micro=7, accum=1)
+
+
+def test_적용된_양과_관찰된_양을_따로_센다():
+    """step 된 것만 applied 다. 중간에 죽은 run 은 둘이 다르다."""
+    from src.training.cpt import Counters
+
+    c = Counters()
+    for _ in range(8):                      # accum 8 짜리 한 창
+        c.observe(tokens=2048, raw_bytes=6000.0)
+    assert (c.observed_tokens, c.applied_tokens) == (16384, 0)
+    c.apply()                               # optimizer step
+    assert c.applied_tokens == 16384
+    assert round(c.applied_bytes) == 48000
+    for _ in range(3):                      # 다음 창을 채우다 중단
+        c.observe(tokens=2048, raw_bytes=6000.0)
+    assert c.observed_tokens == 22528 and c.applied_tokens == 16384
+    assert c.tail_tokens == 6144            # step 되지 않은 꼬리

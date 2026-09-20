@@ -42,6 +42,13 @@ LEDGER_COLUMNS: tuple[str, ...] = (
     "model_revision",    # HF snapshot 해시. 저장소가 갱신돼도 계보가 끊기지 않게 (§58)
     "embedding_share",   # 임베딩이 전체 파라미터에서 차지하는 비율. 결론의 유효 범위 (REVIEW A2)
     "clock_check_sha256",  # 실행 직전 외부 시각 검증. clock_checks.tsv 로 연결된다 (§59)
+    # ── 2026-09-19 방법론 감사 이후 추가 ─────────────────────────────────
+    # tokens_seen / raw_bytes_seen 은 **읽은** 양이고, 예산에 닿는 순간
+    # accumulation 중간이면 마지막 microbatch 들이 step 되지 못한 채 거기
+    # 포함됐다 (C0 16,384토큰 · T2b10k 28,672토큰). 아래 셋은 **실제로 학습에
+    # 반영된** 양이다. 이 커밋 이후 run 은 update 경계에서 멈추므로 정상
+    # 종료면 둘이 같고, 중간에 죽은 run 에서 갈린다.
+    "tokens_applied", "raw_bytes_applied", "updates",
 )
 
 # 외부 모델·토크나이저 레지스트리 (REVIEW D1).
