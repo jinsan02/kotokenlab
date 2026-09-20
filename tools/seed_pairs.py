@@ -106,6 +106,9 @@ def recovery(b0: float, bf: float, cf: float):
 def describe(vals: list) -> dict:
     """평균·표본 SD·탐색적 t 95% CI. n<2 면 SD 를 내지 않는다."""
     n = len(vals)
+    if n == 0:
+        # R 이 정의되지 않는 축에서는 빈 목록이 온다. 0 을 지어내지 않는다.
+        return {"n": 0, "mean": None, "sd": None, "lo": None, "hi": None}
     mean = statistics.fmean(vals)
     if n < 2:
         return {"n": n, "mean": mean, "sd": None, "lo": None, "hi": None}
@@ -167,6 +170,31 @@ def main(argv: list | None = None) -> int:
     w("")
     w("`NA` 는 회계 수정 이전 run 이라 그 열이 기록되지 않았다는 뜻이다.")
     w("**사후에 복원하지 않는다** — 복원할 수 없는 값이기 때문이다.\n")
+
+    # 통제군의 update 수가 seed 마다 다르면 Cf 차이에 seed 와 학습량이 섞인다.
+    # 그 교란을 표가 스스로 드러내게 한다 — 사람이 눈으로 찾게 두지 않는다.
+    upd = {}
+    for s in have:
+        v = ok[f"{CTRL}{s}"].get("updates", "NA")
+        upd[s] = int(v) if v not in ("", "NA", None) else None
+    known = {s: u for s, u in upd.items() if u is not None}
+    # 값이 갈리거나(확인된 불일치), 일부가 NA 라(같다고 확인할 수 없다) 경고한다.
+    # "모른다" 를 "같다" 로 읽지 않기 위해 둘을 같이 취급한다.
+    if len(set(known.values())) > 1 or len(known) < len(have):
+        w("### 통제군 학습량이 seed 마다 같지 않다\n")
+        w("`Cf` 차이에 **seed 효과와 학습량 차이가 섞인다.** 분리할 수 없으므로")
+        w("나란히 적는다.\n")
+        w("| seed | C0 update | C0 반영 토큰 | Cf (한국어) |")
+        w("|---:|---:|---:|---:|")
+        for s in have:
+            cf = bpb[(f"{CTRL}{s}", "final", "ko")]
+            r = ok[f"{CTRL}{s}"]
+            w(f"| {s} | {num(r, 'updates')} | {num(r, 'tokens_applied')} | {cf:.6f} |")
+        w("")
+        w("update 를 덜 밟은 run 이 `Cf` 가 높으면(나쁘면) 방향이 맞는 것이지만,")
+        w("**n=3 에 seed 와 교란되어 있어 크기를 가를 수 없다.** 이 차이를")
+        w("\"회계 수정의 효과\" 라고 부르지 않는다. 3주차의 동일 update 대조가")
+        w("이 축을 따로 잰다.\n")
 
     for dom, dom_ko in DOMAINS:
         w(f"## {dom_ko} (`{dom}`)\n")

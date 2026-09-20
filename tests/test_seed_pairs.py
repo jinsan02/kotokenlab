@@ -31,3 +31,10 @@ def test_세_쌍이면_표본_SD_와_t_구간을_낸다():
     assert math.isclose(st["sd"], 0.01, rel_tol=1e-9)
     # 구간은 평균을 감싼다
     assert st["lo"] < st["mean"] < st["hi"]
+
+
+def test_R_이_정의되지_않는_축이면_빈_목록이_와도_지어내지_않는다():
+    st = describe([])
+    assert st["n"] == 0
+    assert st["mean"] is None
+    assert st["sd"] is None
