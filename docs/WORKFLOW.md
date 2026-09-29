@@ -73,7 +73,9 @@ Config-SHA256: <config.json 의 sha256>
 Embedding Alignment 는 탐침 끝에 **폐기했다**
 ([`DESIGN_DELTA.md`](DESIGN_DELTA.md) 1-5).
 
-2차가 다루는 것은 셋 중 **65% 벽의 정체** 다 (R1~R5, 본안은 R4=Q7).
+2차는 셋 중 **65% 회복 정체** 를 다뤘고 2026-09-17 에 종료됐다 (R1~R5, 본안은
+R4=Q7). 결과의 현재 해석은
+[`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md) 를 따른다.
 Level 3 능력 평가와 N<10,000 은 여전히 열려 있고 새 사전 등록이 필요하다 —
 [`HANDOFF.md`](HANDOFF.md) 10번 참조.
 

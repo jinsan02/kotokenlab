@@ -36,9 +36,15 @@ subword 기반 초기화**를 단계적으로 적용한다.
 ### Optimizing Korean-Centric LLMs via Token Pruning
 [arXiv:2604.16235](https://arxiv.org/pdf/2604.16235) (2026-04, Hoyeol Kim · Hyeonwoo Kim)
 
-Qwen3 / Gemma-3 / Llama-3 / Aya 에 대해 vocabulary 를 Original / En-Ko / En-Ko-Zh
-세 가지로 잘라내고 벤치마크한다. 언어 혼동 감소, 한국어 기계번역 성능 향상,
-**추론 지연은 소폭 개선**을 보고했다.
+Qwen3(0.6B~14B) · Gemma-3(270M~12B) · Llama-3(3.1-8B, 3.2-3B) · Tri · Ministral ·
+Aya · Seed-X 에 대해 vocabulary 를 Original / En-Ko / En-Ko-Zh 세 가지로 잘라내고
+벤치마크한다. 언어 혼동 감소, 한국어 기계번역 성능 향상, **추론 지연은 소폭
+개선**을 보고했다. (모델 범위는 외부 세션의 원문 대조 결과로 2026-09-29 보완했다.
+이 저장소 작업 중에 원문을 다시 열어 확인하지는 않았다.)
+
+> 우리 T2a(빈도 기반 제거)의 prefill 차이는 2% 미만은 주장하지 않는 기준 안이었다
+> ([`system_bench.md`](../reports/tables/system_bench.md)). 지연 이득을 이 논문과
+> 같은 방향의 재현으로 쓰지 않는다.
 
 > **T2(Substitution)와 정면으로 겹친다.** 다만 결정적 차이가 있다:
 > 이들은 **잘라내기만 하고 vocab 크기를 줄인다.** 우리 T2 는 **vocab 크기를 유지한 채
@@ -54,8 +60,10 @@ Qwen3 / Gemma-3 / Llama-3 / Aya 에 대해 vocabulary 를 Original / En-Ko / En-
 ### HanjaBridge
 [arXiv:2507.10920](https://arxiv.org/pdf/2507.10920)
 
-한자 정보를 주입해 한국어 의미 모호성을 해소. 토크나이저보다는 표현 쪽이지만,
-한국어 CPT 의 최근 흐름으로 참고.
+한국어에 대응하는 한자(정자)를 토크나이저 vocab 에 **추가**해 한–중 의미 정렬을
+만들고 한국어 의미 모호성을 줄인다 ([`PLAN.md`](PLAN.md) "외부 문헌 근거 —
+HanjaBridge"). 우리 T2a 가 빈도 필터의 부수 효과로 한자 토큰을 **뺀** 것과 **같은
+축(vocab 속 한자)의 반대 방향**이다. 다른 축으로 분류하지 않는다.
 
 ### Qwen-Tokenizer-Pruner (코드)
 [github.com/KaihuaTang/Qwen-Tokenizer-Pruner](https://github.com/KaihuaTang/Qwen-Tokenizer-Pruner)
@@ -71,10 +79,10 @@ Qwen 토크나이저는 BPE 라서 단어만 추가해서는 확장되지 않고
 
 | 방법 | 논문 | 스펙 대응 |
 |---|---|---|
-| **FVT** (Fast Vocabulary Transfer) | 분해 토큰 임베딩 평균 | **E1 Mean** 과 동일 |
+| **FVT** (Fast Vocabulary Transfer) | 분해 토큰 임베딩 평균 | **E1 Mean** — FVT 가 정의되는 25,821개에서 동등하고, FVT 가 정의되지 않는 4,179개(13.9%)까지 merge 계보로 확장 ([`fvt_check.md`](../reports/tables/fvt_check.md)) |
 | **FOCUS** | 겹치는 토큰들의 **희소 선형결합**으로 새 토큰 표현 | **E2 Weighted** 의 정교한 버전 |
 | **Learned Embedding Propagation** | [arXiv:2412.21140](https://arxiv.org/pdf/2412.21140) (러시아어) | E3 계열 |
-| **ALM / Cross-Tokenizer Distillation** | [arXiv:2503.20083](https://arxiv.org/pdf/2503.20083) | **E3 Distillation** |
+| **ALM / Cross-Tokenizer Distillation** | [arXiv:2503.20083](https://arxiv.org/pdf/2503.20083) | **E3 Distillation** — `src/surgery/distillation.py` 는 스텁(미구현) |
 | **OMP 이식 (학습 불필요)** | [arXiv:2506.06607](https://arxiv.org/pdf/2506.06607) | E2/E3 사이 |
 
 **시사점**: `random < mean/FVT` 는 여러 논문이 반복 확인했다. E0 를 baseline 으로
@@ -110,6 +118,12 @@ Qwen 토크나이저는 BPE 라서 단어만 추가해서는 확장되지 않고
 > 에서 72.42%). ZeTT 는 여전히 못 돌렸고, 대신 P3-E 가 **CPT 를 마친 행을 옮겨 심는
 > "완벽한 초기화" 상한** 을 잰다 ([`SPEC_P3.md`](SPEC_P3.md)). 그 상한으로도 격차가
 > 절반 이상 남으면, ZeTT 류 초기화의 이득이 이 설정에서 제한적이라는 근거가 된다.
+>
+> **2026-09-19 정정** ([amendment](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md) §3·§7) —
+> 위 09-17 갱신의 두 문장을 철회한다. "벽" 은 식별되지 않았다 — 상수 LR 은 168.5MB
+> 종점 잔차만 0.084012 BPB 줄였고 점근선은 모른다. P3-E 이식은 몸통–행 상호적응을
+> 깨므로 "완벽한 초기화 상한" 도 ZeTT 대체도 아니며, compatibility stress test 로
+> 재정의되어 핵심 범위에서 빠졌다. **ZeTT 는 실행하지 않았다.**
 
 ### Teaching Old Tokenizers New Words
 [arXiv:2512.03989](https://arxiv.org/html/2512.03989v2)
@@ -162,8 +176,10 @@ CPT 진행에 따라 추적하는 작업. `train_curve.tsv` 에 `grad_norm_emb /
   1.5B scale validation 이 있어야 "방향성이 유지된다" 정도까지 말할 수 있다.
 - **ZeTT 를 baseline 에 넣지 않으면** "왜 하이퍼네트워크 대신 CPT 를 했나"라는
   질문에 답할 수 없다.
-- Token Pruning 논문(2026-04)이 **Qwen3** 를 쓴다. 우리는 Qwen2.5 다. 백본이 다르니
-  숫자를 직접 비교하지 않는다 ([RULES.md](RULES.md) 4번과 같은 이유).
+- Token Pruning 논문(2026-04)은 Qwen3 · Gemma-3(270M~) · Llama-3 등 여러 계열을 쓰고
+  **0.5B 미만 규모도 포함한다** — "0.5B 는 그 논문의 범위 밖" 으로 방어하지 않는다.
+  절단 규칙(스크립트 단위 vs 우리의 빈도 기준)과 평가가 달라 숫자를 직접 비교하지
+  않는다 ([RULES.md](RULES.md) 4번과 같은 이유). Qwen2.5 가 포함됐는지는 미확인이다.
 
 ---
 
