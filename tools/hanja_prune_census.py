@@ -279,7 +279,7 @@ def main(argv: list | None = None) -> int:
     w("- 한자 **포함** 은 한 글자라도 있으면 센다. 한글·영문과 섞인 토큰도 들어간다")
     w("")
 
-    OUT.write_text("\n".join(L), encoding="utf-8")
+    OUT.write_text("\n".join(L), encoding="utf-8", newline="\n")
     print(f"썼다 {OUT.relative_to(ROOT)}")
     return 0
 
