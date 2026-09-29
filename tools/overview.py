@@ -101,6 +101,8 @@ def main(argv: list | None = None) -> int:
     b0_10k = bpb("cpt_t2b10k_mean_main_seed42", "step0")
     r_cos = recovery(b0_t2b, t2b, c0)
     r_10k = recovery(b0_10k, t2b10k, c0)
+    r_eqtok = recovery(bpb("cpt_t2b_mean_eqtok_seed42", "step0"),
+                       bpb("cpt_t2b_mean_eqtok_seed42"), c0)
 
     r5_t2b = [bpb(f"cpt_t2b_mean_r5_seed{s}") for s in (42, 123, 2026)]
     r5_c0 = bpb("cpt_c0_qwen_r5_seed42")
@@ -225,8 +227,11 @@ def main(argv: list | None = None) -> int:
     w("")
     w("## 4. 2차 결과 — 무엇이 회복을 정하는가")
     w("")
-    w("1차에서 회복률이 조건을 바꿔도 65% 근처에서 겹쳤다. 2차는 그 이유를 물었고,")
-    w("**사전 등록한 가설 셋 중 둘이 반증됐다.**")
+    # "65% 근처에서 겹쳤다" 는 쓰지 않는다 — 최종값은 2.8%p 벌어지고, 1%p 안은
+    # 곡선의 20~60MB 지점뿐이다 (FINAL_REPORT §4.3 정정). 값만 적고 해석하지 않는다.
+    w(f"1차(코사인 LR, seed42)에서 세 조건의 최종 R 은 N=30k {r_cos:.1%} ·")
+    w(f"등토큰 {r_eqtok:.1%} · N=10k {r_10k:.1%} 였다. 2차는 그 종점을 무엇이 정하는지")
+    w("물었고, **사전 등록한 가설 셋 중 둘이 반증됐다.**")
     w("")
     w("### R1 — 임베딩 손상 일반의 성질인가 (부정)")
     w("")
@@ -288,7 +293,9 @@ def main(argv: list | None = None) -> int:
     w("")
     w("T2a 가 제거한 30,000개 중 13,310개(44.4%)가 한자 포함 토큰이었다. 빈도")
     w("필터의 부수 효과이고, 절단면은 **간체 전용자** 쪽으로 치우쳐 정자(國 無 韓)는")
-    w("남았다. 한자가 밀집한 부분집합(787문서)과 KMMLU 로 확인했다.")
+    w("남았다 — **사후 관측이라 예측 근거로만 쓰고 결과로 인용하지 않는다**")
+    w("(`docs/PLAN.md` 사전 등록). 사전 등록한 세 측정 — 한자가 밀집한 부분집합")
+    w("(787문서)의 tok/byte·BPB 와 KMMLU — 으로 T2a 와 C0 를 비교했다.")
     w("")
     w("| | C0 | T2a | T2b |")
     w("|---|---:|---:|---:|")
