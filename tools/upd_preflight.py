@@ -265,10 +265,29 @@ def static_checks(rows: list) -> list:
             got = (cfg.get("seq_len"), cfg.get("micro_bs"), cfg.get("accum"))
             add(f"짝 C0 seed{s} update 크기", PASS if got == (S.SEQ_LEN, S.MICRO_BS, S.ACCUM) else FAIL,
                 f"seq_len·micro_bs·accum = {got} -> {S.TOKENS_PER_UPDATE:,} 토큰/update")
+            # 옛 config 에 없는 치명 필드는 compare_runs 가 "비교 불가" 로 막는다.
+            # 2026-10-02 seed 42 짝의 warmup_bytes 를 실행 뒤에야 알았다 — 미리 본다.
+            # 기준은 현재 코드의 C0 config 가 가진 키다 (max_bytes·split 같은 평가 전용
+            # 필드는 학습 config 에 원래 없다).
+            from tools.compare_runs import CRITICAL
+            ref_p = RUNS / f"{S.CTRL}{S.SEEDS[-1]}" / "config.json"
+            ref = json.loads(ref_p.read_text(encoding="utf-8")) if ref_p.exists() else cfg
+            missing = sorted(k for k in CRITICAL & set(ref) if k not in cfg)
+            add(f"짝 C0 seed{s} config 기록 없는 치명 필드", PASS if not missing else WARN,
+                "없음" if not missing else
+                ", ".join(missing) + " — '모른다' 다. compare_runs 에서 허용하려면 근거를 PLAN 에 적는다")
 
-    taken = sorted({r["run_id"] for r in rows if r["run_id"] in {S.run_id(s) for s in S.SEEDS}})
-    add("새 run_id 가 비어 있는가", PASS if not taken else FAIL,
-        ", ".join(S.run_id(s) for s in S.SEEDS) if not taken else "이미 있음: " + ", ".join(taken))
+    # 끝난 seed 는 건너뛰고, 남은 seed 의 run_id 만 비어 있어야 한다. 시작 행만 있고
+    # ok 가 없으면(중단) 같은 id 로 다시 돌릴 수 없으니 사람이 봐야 한다.
+    for s in S.SEEDS:
+        rid = S.run_id(s)
+        sts = [r["status"] for r in rows if r["run_id"] == rid]
+        if "ok" in sts:
+            add(f"run_id seed{s}", PASS, f"{rid} — 이미 돌았다 (ok)")
+        elif sts:
+            add(f"run_id seed{s}", FAIL, f"{rid} — 끝나지 않은 행 {sts} — 원인을 먼저 본다")
+        else:
+            add(f"run_id seed{s}", PASS, f"{rid} — 비어 있음")
 
     for s in S.SEEDS:
         o = ok_row(rows, f"{S.OLD_TREAT}{s}")
