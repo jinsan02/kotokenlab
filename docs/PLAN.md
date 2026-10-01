@@ -1545,6 +1545,133 @@ seed 42 값이 그 분포 안에 있는지 본다. 밖이면 그 사실을 적�
 **중단 조건:** NaN · OOM · `compare_runs` 치명 필드 불일치. 효과 방향을 보고
 seed 수를 줄이지 않는다.
 
+### 3주차 run 설정 동결 — 2026-10-02 (돌리기 전)
+
+amendment 의 최소 추가 실험 2번 — **원문량 결과의 격차가 적은 update 때문인가.**
+168.5MB 에서 T2b 는 C0 보다 토큰을 적게 내 update 가 1,063 뿐이었다 (C0 1,523~1,524).
+T2b 를 C0 와 **같은 update 수** 까지 돌려 그 몫을 떼어 낸다.
+**이 절을 커밋하고, 집계 도구를 먼저 만든 뒤에 실행한다.**
+
+#### 무엇을 돌리나 — update 수는 seed 별로 C0 와 맞춘다
+
+```
+run                          짝 (통제군)                 update   --budget-tokens
+cpt_t2b_mean_upd_seed42      cpt_c0_qwen_r5_seed42      1,523    49,905,664
+cpt_t2b_mean_upd_seed123     cpt_c0_qwen_r5_seed123     1,524    49,938,432
+cpt_t2b_mean_upd_seed2026    cpt_c0_qwen_r5_seed2026    1,524    49,938,432
+```
+
+한 update 는 2,048 x 2 x 8 = **32,768토큰** 이고 패킹이 고정 길이라, 토큰 예산을
+update 수 x 32,768 로 주면 그 update 경계에서 정확히 멈춘다 (`should_break`).
+amendment 의 "1,523" 은 C0 가 seed 42 하나뿐이던 때의 값이다. seed 123·2026 의
+C0 는 회계 수정(`2da591e`) 뒤에 돌아 1,524 update 로 끝났으므로, 짝마다 같은 수로
+맞춘다 — 전부 1,523 으로 두면 두 짝에서 C0 가 1 update 더 학습한 상태로 비교된다.
+
+#### 명령
+
+```
+.conda/python.exe -m src.training.cpt --model artifacts/models/kot2b_v2_n30000_mean \
+  --name t2b_mean --budget-tokens <위 표> --pool-docs 50000 --pool-extend-docs 20000 \
+  --eval-bytes 20000000 --eval-at 168500000 --eval-budget 2000000 \
+  --lr-schedule constant --seed <42|123|2026> --tag upd --save
+```
+
+- **문서 풀** — T2b 가 1,523 update 를 채우려면 원문 약 241.4MB 가 필요하다
+  (`cpt_t2b_mean_eqtok_seed42` 실측 241,390,978바이트). 앞 50,000문서는 201.3MB,
+  70,000문서는 282.0MB 라 **반복 없이** 충분하다. amendment 가 대비한 반복·고유
+  바이트 분리는 필요 없다 — 반복 바이트 0 을 그대로 보고한다. 풀이 모자라면
+  run 이 `RuntimeError` 로 멈추고, 그 경우 결과를 쓰지 않는다
+- **확장(`--pool-extend-docs`)이지 풀 교체(`--pool-docs 70000`)가 아니다.** 확장은
+  앞 50,000문서의 순서를 보존하므로(`order_pool`), 같은 seed 면 **앞 168.5MB 가
+  C0·기존 T2b 와 같은 문서를 같은 순서로** 본다
+- **워밍업** — 토큰 예산이면 예산의 2% 가 토큰으로 잡혀 약 30 update 다. C0(바이트
+  예산 2%)도 약 30 update 라 update 단위로 같다. 기존 T2b r5 는 약 21 update 였다 —
+  아래 분해에서 이 차이를 알고 쓴다
+- **`--budget-bytes` 는 주지 않는다.** 토큰 예산에서는 쓰이지 않고 config 에 기본값
+  18,000,000 이 남는다. 그 값을 학습량으로 읽지 않는다
+- **`--save`** — 체크포인트를 남긴다 (run 당 약 1GB, 디스크 여유 1.6TB). 기존 상수 LR
+  run 들은 저장하지 않아, 5주차 Final Test 대표 조건 선정이나 과제 평가 때 재학습이
+  필요했다
+
+#### 코드 계보 — 주 비교는 통과시키고, 분해는 새 run 안에서 한다
+
+`compare_runs` 는 2026-09-20 부터 측정 경로(`src`·`configs`) 커밋 차이를 치명으로
+잡는다 ([`DESIGN_DELTA.md`](DESIGN_DELTA.md) 3-13).
+
+```
+짝                                      사이의 src/configs 커밋        처리
+새 T2b  vs  C0 seed123 (409930a)        2b37998                       --allow code
+새 T2b  vs  C0 seed2026 (0fde665)       2b37998                       --allow code
+새 T2b  vs  C0 seed42 (23237cc)         2b37998 외 회계 수정 등        --allow code
+새 T2b  vs  기존 T2b r5 (7683b83)       10개                          비교하지 않는다 (기술적 교차 확인만)
+```
+
+- `2b37998` 은 `src/utils/gitinfo.py` 에 `dirty_is_code_scoped()` 를 **추가만** 했다.
+  학습 경로에서 부르지 않는다
+- C0 seed 42 와의 차이는 09-20 에 커밋별로 확인했다 — 기본값이 옛 동작을 재현하고,
+  동작을 바꾼 것은 `2da591e`(예산 꼬리) 하나다 (HANDOFF 2주차 절). 2주차 seed 쌍
+  표도 같은 근거로 seed 42 짝을 썼다
+- **분해(168.5MB 대 같은 update)는 새 run 안에서 한다.** `--eval-at 168500000` 으로
+  각 새 run 이 168.5MB 를 지나는 첫 update 경계에서 dev BPB 를 잰다. 그 지점과 종점이
+  같은 코드·같은 데이터 순서·같은 run 이다. 기존 T2b r5(1,063 update) 와는 워밍업
+  (21 vs 30 update)과 코드 계보가 달라 판정에 쓰지 않고, 168.5MB 지점 값이 얼마나
+  가까운지 **기술적 교차 확인** 으로만 싣는다
+
+비교 명령 (run 이 끝난 뒤):
+
+```
+.conda/python.exe tools/compare_runs.py cpt_t2b_mean_upd_seed<s> cpt_c0_qwen_r5_seed<s> \
+  --allow budget_bytes budget_tokens lr_schedule pool_extend_docs code
+.conda/python.exe tools/compare_runs.py cpt_t2b_mean_upd_seed123 cpt_t2b_mean_upd_seed42 \
+  --allow seed budget_tokens
+```
+
+첫 줄에서 허용한 넷은 이 실험이 **일부러** 바꾼 것이다 (예산 축 · 그에 딸린 스케줄
+표기 · 풀 확장). 나머지 치명 필드(seq_len · micro_bs · accum · lr · pool_docs ·
+skip_docs · optimizer · dtype · eval_budget · warmup_bytes)는 같아야 한다.
+
+#### 지표와 사전 등록 예측
+
+seed 별 짝으로 계산한다. `Cf` 는 같은 seed C0 의 최종 한국어 dev BPB.
+
+```
+d_upd    = Bf(새 T2b 종점, C0 와 같은 update)   - Cf
+d_168    = Bf(새 T2b 의 168.5MB 지점)           - Cf
+ρ        = (d_168 - d_upd) / d_168              update 부족이 설명하는 잔차의 몫
+```
+
+세 seed 의 평균 · 표본 SD · 탐색적 t(df=2) 95% CI 를 낸다 (RULES 14c — 형식적 검정이
+아니다). R 은 보조로만 싣는다.
+
+```
+예측     ρ <= 25%     — 168.5MB 잔차의 대부분은 update 수 부족이 아니다
+근거     1차 코사인 등토큰 run 에서 update 를 늘려 줄어든 잔차는 8.1%
+         (1.567095 -> 1.532183, 잔차 0.429555 의 0.034912). 상수 LR 곡선은 168.5MB
+         에서도 내려가고 있었으므로(r5 seed42 140->160MB 1.487434 -> 1.476835,
+         lm_metrics.tsv) 코사인보다 여유를 둔다
+해석     ρ <= 25%          예측 적중. 동일 원문 격차의 주장 유지, 계산량 몫을 함께 보고
+         25% < ρ <= 50%    부분 설명. 헤드라인은 유지하되 "격차의 ρ 는 update 수" 를
+                           결론 문장 안에 넣는다
+         ρ > 50%           헤드라인 변경. 동일 원문 격차의 절반 이상이 계산량 효과다
+```
+
+**ρ 는 seed 평균으로 판정한다.** 셋 중 하나만 경계를 넘으면 그 사실을 함께 적는다.
+`d_168` 은 같은 run 의 중간 지점이라 상수 LR 이 이어지는 중이고, 종점에서 멈춘 기존
+T2b r5 의 168.5MB 종점과 학습 상태가 같지 않다 — 해석에 이 차이를 붙인다.
+
+#### 순서 · 시간 · 중단
+
+```
+0. 집계 도구를 먼저 만든다 (결과를 보기 전에). 데이터 없이 돌려 "아직 없음" 을 확인
+1. seed 42   약 1.75h   (cpt_t2b_mean_eqtok_seed42 1,523 update 실측 6,310초)
+2. seed 123  약 1.75h
+3. seed 2026 약 1.75h   합계 약 5.3h (±30%)
+VRAM         peak 약 11.4GB (기존 T2b run 실측 11,382MB). 학습은 한 번에 하나만
+```
+
+**중단 조건:** seed 42 에서 NaN · OOM · 풀 고갈 · `compare_runs` 의 허용 밖 치명 필드
+불일치 · 종료 update 수가 표와 다름. 효과 방향을 보고 seed 수를 줄이지 않는다.
+
 ## 2026-09-19 외부 비판 검토 amendment
 
 위 사전 등록과 과거 결과는 역사적 기록으로 보존한다. 아직 실행하지 않은 P3의
