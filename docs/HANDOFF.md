@@ -4,7 +4,9 @@
 > [`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)에
 > 한 문서로 정리했다. 아래의 과거 P3 실행 순서보다 amendment를 우선한다.
 
-최종 갱신 2026-09-17 (**2차 종료 · 3차 설계와 사전 등록 완료, 실행 전**). 1차 결과 전체는
+최종 갱신 2026-10-02 (**amendment 3주차 진행 중 — seed 42 완료, 123·2026 남음**).
+아래 "한 줄 상태" 는 2026-09-17 기준이고, 지금 할 일은 "지금 — amendment 3주차" 절이다.
+1차 결과 전체는
 [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md).
 규칙은 [`RULES.md`](RULES.md), 범위와 종료 조건은
 [`PLAN.md`](PLAN.md), 프롬프트는 [`PROMPTS.md`](PROMPTS.md),
@@ -154,7 +156,56 @@ R5  LR 스케줄 때문이다                        긍정 (168.5MB 종점, 벽
 **논문 헤드라인이 바뀐다.** 그리고 1차의 절대값은 전부 코사인 조건부다 —
 C0 도 상수 LR 에서 더 나았다.
 
-### 다음 — amendment 3주차 (T2b 상수를 같은 update 수로)
+### 지금 — amendment 3주차 (2026-10-02, seed 42 완료)
+
+설정과 예측은 [`PLAN.md`](PLAN.md) "3주차 run 설정 동결 — 2026-10-02" (`b471c36`)에
+고정했다. 결정 넷: 주 비교는 `--allow code` + 근거 기록, 분해(168.5MB 대 같은
+update)는 새 run 안의 `--eval-at 168500000` 지점으로, update 수는 seed 별로 C0 와
+맞춤(42 -> 1,523, 123·2026 -> 1,524), `--save`.
+
+```
+도구          upd_spec · upd_preflight · upd_pairs                         3f50e83
+사전 점검     34개 통과. 기존 run 6개의 토큰 -> 원문 바이트를 바이트 단위로 재현  c7ff9a6
+seed 42       1.66h · ok · 1,523 update · 원문 241,398,542 (예측과 일치)       f198700
+```
+
+**seed 42 (기술만 — 판정은 세 seed 평균)** — [`upd_pairs.md`](../reports/tables/upd_pairs.md)
+
+```
+Cf 1.127397   Bf_168 1.473430 (d_168 +0.346033)   Bf_upd 1.448416 (d_upd +0.321019)
+rho 7.2%      예측 <= 25%
+```
+
+168.5MB 잔차의 7.2% 만 update 수 부족으로 설명된다 (seed 42). 같은 update 를
+줘도 한국어 잔차 +0.321 이 남는다. 영어·코드 잔차는 update 가 늘며 조금
+커졌다 (+0.0082 -> +0.0099, +0.0091 -> +0.0112).
+
+**다음:** seed 123 -> 2026 (각 약 1.7h, peak VRAM 약 11.4GB, 하나씩).
+
+```
+.conda/python.exe tools/check_clock.py --record     # 24시간 지났으면
+.conda/python.exe tools/upd_preflight.py            # 전부 통과해야 시작
+# 명령은 reports/tables/upd_preflight.md "실행 명령" 그대로
+.conda/python.exe tools/compare_runs.py cpt_t2b_mean_upd_seed<s> cpt_c0_qwen_r5_seed<s> \
+  --allow budget_bytes budget_tokens lr_schedule pool_extend_docs code
+.conda/python.exe tools/upd_pairs.py                # 세 seed 가 차면 판정까지 쓴다
+.conda/python.exe tools/register_artifact.py artifacts/models/cpt_t2b_mean_upd_seed<s> \
+  --kind checkpoint --name cpt_t2b_mean_upd_seed<s> --run-id cpt_t2b_mean_upd_seed<s> \
+  --tokenizer-version kot2b_v2_n30000
+```
+
+알아 둘 것:
+
+- seed 42 짝만 `compare_runs` 에 `warmup_bytes` 도 허용해야 했다 (옛 config 에 없음.
+  PLAN "실행 후 정정"). 123·2026 짝은 원래 명령 그대로다
+- 파이프로 출력을 받으면 학습 로그가 끝날 때까지 비어 있다 (블록 버퍼링). 진행은
+  `experiments/train_curve.tsv` 로 본다
+- `cpt.py` 의 워밍업 출력 "1.00MB" 는 토큰 예산에서 실제로 1.00M **토큰** 이다.
+  3주차가 끝난 뒤 고친다 — 지금 `src/` 를 고치면 남은 seed 의 계보가 벌어진다
+- 새 run 의 168.5MB 지점이 기존 r5 seed42 종료보다 +0.000394 높다. 같은 데이터·같은
+  update 수이고 워밍업(약 30 vs 21 update)과 코드 계보가 다르다 — 판정 밖 교차 확인
+
+### amendment 1·2주차와 3주차 계획 (2026-09-20 기록)
 
 **2026-09-20 에 1주차(GPU 0시간)와 2주차(GPU 3.2h)를 둘 다 닫았다.**
 
@@ -200,7 +251,7 @@ T2b 는 같은 168.5MB 에서 토큰을 적게 내 update 가 1,063 뿐이라, �
 `cpt_t2b_mean_eqtok_seed42` 가 부분적으로 답하지만 pool_docs 가 70,000 이고
 코사인이라 대조군이 되지 못한다.
 
-**3주차를 동결할 때 먼저 결정할 것:** 새 T2b run 은 현재 코드에서 돌고, 기존
+**3주차를 동결할 때 먼저 결정할 것** (2026-10-02 결정 — 위 "지금" 절): 새 T2b run 은 현재 코드에서 돌고, 기존
 T2b 상수 3 seed 는 `7683b83` 에서 돌았다. `compare_runs` 가 이제 그 사이의
 `src/`·`configs/` 커밋을 **치명** 으로 잡는다 (2026-09-20 에 추가,
 [`DESIGN_DELTA.md` 3-13](DESIGN_DELTA.md)). 커밋마다 기본값이 옛 동작을

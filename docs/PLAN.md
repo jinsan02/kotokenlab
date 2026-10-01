@@ -1672,6 +1672,21 @@ VRAM         peak 약 11.4GB (기존 T2b run 실측 11,382MB). 학습은 한 번
 **중단 조건:** seed 42 에서 NaN · OOM · 풀 고갈 · `compare_runs` 의 허용 밖 치명 필드
 불일치 · 종료 update 수가 표와 다름. 효과 방향을 보고 seed 수를 줄이지 않는다.
 
+#### 실행 후 정정 — 2026-10-02 (seed 42 를 돌린 뒤, 예측·경계는 그대로)
+
+위 비교 명령의 허용 목록에서 **`warmup_bytes` 를 빠뜨렸다.** seed 42 짝의 C0
+(`23237cc`)는 이 필드가 생기기(`7c3dfda`) 전에 돌아 config 에 값이 없다 —
+"다르다" 가 아니라 "모른다" 다. 기본값 0 이 옛 동작(예산의 2%)을 재현한다는 것은
+2주차 때 커밋별로 확인했다(HANDOFF 2주차 절). seed 42 짝에만 이렇게 준다.
+
+```
+.conda/python.exe tools/compare_runs.py cpt_t2b_mean_upd_seed42 cpt_c0_qwen_r5_seed42 \
+  --allow budget_bytes budget_tokens lr_schedule pool_extend_docs warmup_bytes code
+```
+
+seed 123·2026 짝의 C0 는 config 에 `warmup_bytes: 0` 이 기록돼 있어 원래 명령 그대로다.
+나머지 치명 필드는 seed 42 짝에서 전부 같았다 ("비교 가능").
+
 ## 2026-09-19 외부 비판 검토 amendment
 
 위 사전 등록과 과거 결과는 역사적 기록으로 보존한다. 아직 실행하지 않은 P3의
