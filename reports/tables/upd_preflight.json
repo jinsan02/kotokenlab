@@ -1,0 +1,35 @@
+{
+  "42": {
+    "run_id": "cpt_t2b_mean_upd_seed42",
+    "updates": 1523,
+    "budget_tokens": 49905664,
+    "raw_bytes_final": 241398542,
+    "d168_update": 1063,
+    "d168_raw_bytes": 168502276,
+    "pool_full_tokens": 58310656,
+    "old_r5_tokens": 34832384,
+    "old_r5_raw_bytes": 168502276
+  },
+  "123": {
+    "run_id": "cpt_t2b_mean_upd_seed123",
+    "updates": 1524,
+    "budget_tokens": 49938432,
+    "raw_bytes_final": 241545084,
+    "d168_update": 1063,
+    "d168_raw_bytes": 168503536,
+    "pool_full_tokens": 58310656,
+    "old_r5_tokens": 34832384,
+    "old_r5_raw_bytes": 168503536
+  },
+  "2026": {
+    "run_id": "cpt_t2b_mean_upd_seed2026",
+    "updates": 1524,
+    "budget_tokens": 49938432,
+    "raw_bytes_final": 241521009,
+    "d168_update": 1063,
+    "d168_raw_bytes": 168545685,
+    "pool_full_tokens": 58310656,
+    "old_r5_tokens": 34824192,
+    "old_r5_raw_bytes": 168505066
+  }
+}
