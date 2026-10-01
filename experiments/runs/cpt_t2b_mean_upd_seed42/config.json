@@ -1,0 +1,26 @@
+{
+  "accum": 8,
+  "budget_bytes": 18000000,
+  "budget_tokens": 49905664,
+  "damaged_rows": null,
+  "dtype": "bfloat16",
+  "eval_at": [
+    168500000
+  ],
+  "eval_budget": 2000000,
+  "eval_bytes": 20000000,
+  "grad_checkpointing": true,
+  "lr": 1e-05,
+  "lr_schedule": "constant_by_tokens",
+  "micro_bs": 2,
+  "model": "artifacts/models/kot2b_v2_n30000_mean",
+  "optimizer": "adamw8bit",
+  "pool_docs": 50000,
+  "pool_extend_docs": 20000,
+  "revision": null,
+  "save_at": 0,
+  "seed": 42,
+  "seq_len": 2048,
+  "skip_docs": 0,
+  "warmup_bytes": 0
+}
