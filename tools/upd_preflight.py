@@ -127,6 +127,24 @@ def code_commits_since(sha: str) -> list:
     return [x for x in raw.splitlines() if x]
 
 
+def running_training_pids():
+    """이 저장소의 `src.training.cpt` 를 돌리는 python 프로세스 PID. 못 읽으면 None."""
+    ps = shutil.which("powershell") or shutil.which("powershell.exe")
+    if not ps:
+        return None
+    q = ("Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
+         "Where-Object { $_.CommandLine -like '*src.training.cpt*' } | "
+         "ForEach-Object { $_.ProcessId }")
+    try:
+        out = subprocess.run([ps, "-NoProfile", "-Command", q], capture_output=True,
+                             text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if out.returncode != 0:
+        return None
+    return [int(x) for x in out.stdout.split() if x.strip().isdigit()]
+
+
 # ── 데이터 흐름 재현 ─────────────────────────────────────────────────────
 
 def byte_table(tokenizer):
@@ -334,6 +352,17 @@ def static_checks(rows: list) -> list:
     free = shutil.disk_usage(ROOT).free
     add("디스크 여유", PASS if free >= MIN_FREE_DISK else FAIL,
         f"{free / 1024 ** 3:.0f}GB (체크포인트 3 x 약 1GB)")
+
+    # 2026-10-02: seed 2026 이 같은 run_id 로 두 번 떴다. 중복은 원장만 어지럽힌 게
+    # 아니라 남은 run 의 메모리 일부를 시스템 RAM 으로 밀어내 약 2배 느리게 만든
+    # 것으로 보인다. GPU 여유 메모리만 보면 시작 직후의 중복은 못 잡는다 — 프로세스를 본다.
+    running = running_training_pids()
+    if running is None:
+        add("돌고 있는 학습 프로세스", WARN, "프로세스 목록을 못 읽었다 — 사람이 확인")
+    else:
+        add("돌고 있는 학습 프로세스", PASS if not running else FAIL,
+            "없음" if not running else
+            "이미 돌고 있다: PID " + ", ".join(map(str, running)) + " — 끝나기 전에 새로 띄우지 않는다")
 
     smi = shutil.which("nvidia-smi")
     if not smi:
