@@ -4,8 +4,8 @@
 > [`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)에
 > 한 문서로 정리했다. 아래의 과거 P3 실행 순서보다 amendment를 우선한다.
 
-최종 갱신 2026-10-02 (**amendment 3주차 진행 중 — seed 42 완료, 123·2026 남음**).
-아래 "한 줄 상태" 는 2026-09-17 기준이고, 지금 할 일은 "지금 — amendment 3주차" 절이다.
+최종 갱신 2026-10-02 (**amendment 3주차 완료 — 예측 적중, 다음은 4주차**).
+아래 "한 줄 상태" 는 2026-09-17 기준이고, 지금 할 일은 "지금 — amendment 3주차 완료" 절이다.
 1차 결과 전체는
 [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md).
 규칙은 [`RULES.md`](RULES.md), 범위와 종료 조건은
@@ -156,54 +156,56 @@ R5  LR 스케줄 때문이다                        긍정 (168.5MB 종점, 벽
 **논문 헤드라인이 바뀐다.** 그리고 1차의 절대값은 전부 코사인 조건부다 —
 C0 도 상수 LR 에서 더 나았다.
 
-### 지금 — amendment 3주차 (2026-10-02, seed 42 완료)
+### 지금 — amendment 3주차 완료, 다음은 4주차 (2026-10-02)
 
-설정과 예측은 [`PLAN.md`](PLAN.md) "3주차 run 설정 동결 — 2026-10-02" (`b471c36`)에
-고정했다. 결정 넷: 주 비교는 `--allow code` + 근거 기록, 분해(168.5MB 대 같은
-update)는 새 run 안의 `--eval-at 168500000` 지점으로, update 수는 seed 별로 C0 와
-맞춤(42 -> 1,523, 123·2026 -> 1,524), `--save`.
+**3주차 판정: 예측 적중.** 설정·예측은 [`PLAN.md`](PLAN.md) "3주차 run 설정 동결"
+(`b471c36`), 결과 절도 같은 곳에 있다. 표는 [`upd_pairs.md`](../reports/tables/upd_pairs.md).
 
 ```
 도구          upd_spec · upd_preflight · upd_pairs                         3f50e83
 사전 점검     34개 통과. 기존 run 6개의 토큰 -> 원문 바이트를 바이트 단위로 재현  c7ff9a6
-seed 42       1.66h · ok · 1,523 update · 원문 241,398,542 (예측과 일치)       f198700
+seed 42       1.66h · 1,523 update · 예측과 일치                               f198700
+seed 123·2026 1.66h / 3.46h(오염) · 1,524 update · 예측과 일치                  090faaa
 ```
 
-**seed 42 (기술만 — 판정은 세 seed 평균)** — [`upd_pairs.md`](../reports/tables/upd_pairs.md)
-
 ```
-Cf 1.127397   Bf_168 1.473430 (d_168 +0.346033)   Bf_upd 1.448416 (d_upd +0.321019)
-rho 7.2%      예측 <= 25%
-```
-
-168.5MB 잔차의 7.2% 만 update 수 부족으로 설명된다 (seed 42). 같은 update 를
-줘도 한국어 잔차 +0.321 이 남는다. 영어·코드 잔차는 update 가 늘며 조금
-커졌다 (+0.0082 -> +0.0099, +0.0091 -> +0.0112).
-
-**다음:** seed 123 -> 2026 (각 약 1.7h, peak VRAM 약 11.4GB, 하나씩).
-
-```
-.conda/python.exe tools/check_clock.py --record     # 24시간 지났으면
-.conda/python.exe tools/upd_preflight.py            # 전부 통과해야 시작
-# 명령은 reports/tables/upd_preflight.md "실행 명령" 그대로
-.conda/python.exe tools/compare_runs.py cpt_t2b_mean_upd_seed<s> cpt_c0_qwen_r5_seed<s> \
-  --allow budget_bytes budget_tokens lr_schedule pool_extend_docs code
-.conda/python.exe tools/upd_pairs.py                # 세 seed 가 차면 판정까지 쓴다
-.conda/python.exe tools/register_artifact.py artifacts/models/cpt_t2b_mean_upd_seed<s> \
-  --kind checkpoint --name cpt_t2b_mean_upd_seed<s> --run-id cpt_t2b_mean_upd_seed<s> \
-  --tokenizer-version kot2b_v2_n30000
+seed   Cf        Bf_168    Bf_upd    d_168      d_upd      rho
+42     1.127397  1.473430  1.448416  +0.346033  +0.321019  7.2%
+123    1.127111  1.472896  1.448304  +0.345785  +0.321193  7.1%
+2026   1.127276  1.473443  1.448630  +0.346167  +0.321354  7.2%
+rho 평균 7.2% [7.0, 7.3]   d_upd 평균 +0.321189 (SD 0.000168)   -> 예측 적중 (<= 25%)
 ```
 
-알아 둘 것:
+168.5MB 잔차의 약 93% 는 update 수 부족이 아니다. **C0 와 같은 update 를 받아도
+한국어 BPB 잔차 +0.321 이 남는다.** 동일 원문 격차의 주장을 유지하고, 계산량 몫(약 7%)을
+함께 보고한다. 영어·코드 잔차는 update 가 늘며 세 seed 모두 조금 커졌다.
 
-- seed 42 짝만 `compare_runs` 에 `warmup_bytes` 도 허용해야 했다 (옛 config 에 없음.
-  PLAN "실행 후 정정"). 123·2026 짝은 원래 명령 그대로다
-- 파이프로 출력을 받으면 학습 로그가 끝날 때까지 비어 있다 (블록 버퍼링). 진행은
+**다음: amendment 4주차 — 신규 행 warm-start** (amendment §6 셋째 줄). 첫 33.7MB 는 새 행만
+gradient, 뒤 134.8MB 는 전체 CPT. seed42 약 1.2h, gate 통과 시 seed123·2026 +2.4h.
+3주차처럼 **돌리기 전에** PLAN 동결 · 집계 도구 · 사전 점검을 먼저 만든다. 먼저 정할 것:
+tied 행렬에서 옛 행 gradient 를 0 으로 막는 방법과 그 테스트, practical floor 값.
+
+3주차를 닫으며 남은 일:
+
+- `cpt.py` 워밍업 출력 단위 표기("1.00MB" -> 토큰 예산이면 "1.00M 토큰"). 3주차가
+  끝났으니 고쳐도 된다 — 4주차 동결 전에 `fix(cpt)` 로 따로 커밋한다
+- 체크포인트 셋 `artifacts/models/cpt_t2b_mean_upd_seed*` 는 등록됐다 (5주차 Final Test
+  대표 조건 후보)
+
+긴 run 을 돌릴 때 (2026-10-02 에 실제로 겪었다):
+
+- **이 환경의 백그라운드 명령은 약 30분이면 "종료" 로 보고되지만, 셸과 학습 프로세스는
+  살아 있을 수 있다.** 그 보고를 믿고 연쇄를 하나 더 걸었다가 seed 2026 이 두 번 떴다.
+  다시 걸기 전에 `tasklist` 로 실제 프로세스를 본다. `upd_preflight` 가 이제 돌고 있는
+  학습 프로세스를 실패로 막는다 (`64f3b84`)
+- 몇 시간짜리 연쇄는 셸 스크립트 하나에 묶지 않는다. 학습은 `nohup` 으로 분리하고,
+  감시는 30분짜리 Monitor 를 다시 거는 식으로 한다
+- 파이프로 출력을 받으면 로그가 끝날 때까지 비어 있다. `python -u` 를 쓰거나
   `experiments/train_curve.tsv` 로 본다
-- `cpt.py` 의 워밍업 출력 "1.00MB" 는 토큰 예산에서 실제로 1.00M **토큰** 이다.
-  3주차가 끝난 뒤 고친다 — 지금 `src/` 를 고치면 남은 seed 의 계보가 벌어진다
-- 새 run 의 168.5MB 지점이 기존 r5 seed42 종료보다 +0.000394 높다. 같은 데이터·같은
-  update 수이고 워밍업(약 30 vs 21 update)과 코드 계보가 다르다 — 판정 밖 교차 확인
+- GPU 메모리가 16GB 에 붙으면 Windows 가 넘치는 양을 시스템 RAM 으로 보내 멈추지 않고
+  느려진다 (seed 2026: 전용 15.2GB + 공유 3.9GB, 약 2배 느림). 성능 카운터
+  `\GPU Process Memory(*)\Dedicated Usage` 로 프로세스별로 본다 — `nvidia-smi` 는 이
+  드라이버 모드에서 프로세스별 값을 안 준다
 
 ### amendment 1·2주차와 3주차 계획 (2026-09-20 기록)
 
