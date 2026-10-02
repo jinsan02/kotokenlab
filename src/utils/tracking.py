@@ -24,12 +24,16 @@ from typing import Any, Mapping
 
 from . import clock as clock_mod
 from . import env as env_mod
+from . import gpulock
 from . import ledger
 from .gitinfo import git_commit, git_dirty
 from .hashing import sha256_obj
 from .seed import set_seed
 
 PHASES: tuple[str, ...] = ("data", "tok", "surgery", "align", "cpt", "eval", "sys")
+# GPU 를 쓰는 phase. 이 run 들은 진입 시 GPU 잠금을 잡는다 (src/utils/gpulock.py).
+# data · tok 은 CPU 만 쓴다.
+GPU_PHASES: tuple[str, ...] = ("surgery", "align", "cpt", "eval", "sys")
 # 커밋 훅(tools/check_commit_msg.py)의 RUN_ID_RE 와 **같은 규칙** 이어야 한다.
 # 두 곳이 갈리면 기록이 끝난 뒤에 거부당한다.
 RUN_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]*$")
@@ -135,6 +139,7 @@ class RunContext:
         root: Path | str | None = None,
         skip_env_check: bool = False,
         set_seeds: bool = True,
+        gpu_lock: bool | None = None,
         **ledger_fields: Any,
     ) -> None:
         if phase not in PHASES:
@@ -146,6 +151,9 @@ class RunContext:
         self.root = Path(root) if root else None
         self.skip_env_check = skip_env_check
         self.set_seeds = set_seeds
+        # None 이면 phase 로 정한다. GPU 를 안 쓰는 eval(예: CPU 집계)만 False 를 준다.
+        self.gpu_lock = (phase in GPU_PHASES) if gpu_lock is None else bool(gpu_lock)
+        self._lock_held = False
         self.config_sha256 = sha256_obj(self.config) if self.config else ledger.NA
         self.env_sha256 = ledger.NA
         self.clock_check_sha256 = ledger.NA
@@ -176,6 +184,18 @@ class RunContext:
 
     # ── 수명 ──────────────────────────────────────────────────────────
     def __enter__(self) -> "RunContext":
+        # 잠금이 **가장 먼저** 다. 원장 start 행보다 앞서 잡아야, 거부된 쪽이 짝 없는
+        # start 행을 남기지 않는다 (2026-10-02 seed 2026 중복 실행).
+        if self.gpu_lock:
+            gpulock.acquire(self.root or ledger.repo_root(), self.run_id, self.phase)
+            self._lock_held = True
+        try:
+            return self._enter()
+        except BaseException:
+            self._release_lock()
+            raise
+
+    def _enter(self) -> "RunContext":
         self.git_commit = git_commit(self.root)
         self.git_dirty = git_dirty(self.root)
         self.clock_check_sha256 = clock_mod.require_recent_check(self.root)
@@ -214,9 +234,17 @@ class RunContext:
         # 트레이스백은 __exit__ 이후에 인터프리터가 찍으므로 tee 로는 못 잡는다.
         if exc_type is not None:
             print("".join(traceback.format_exception(exc_type, exc, tb)), file=sys.stderr)
-        self._ledger_row(status)
-        self._restore_streams()
+        try:
+            self._ledger_row(status)
+            self._restore_streams()
+        finally:
+            self._release_lock()
         return False  # 예외를 삼키지 않는다
+
+    def _release_lock(self) -> None:
+        if self._lock_held:
+            gpulock.release(self.root or ledger.repo_root())
+            self._lock_held = False
 
     def _restore_streams(self) -> None:
         saved = getattr(self, "_saved_streams", None)
