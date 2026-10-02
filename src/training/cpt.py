@@ -453,7 +453,10 @@ def main(argv: list | None = None) -> int:
                              "(--budget-tokens 와 같이 주지 마라)")
         lr_fn = SCHEDULES[args.lr_schedule]
         warm = warmup_fraction(args.warmup_bytes, budget)
-        print(f"      워밍업  {warm * budget / 1e6:.2f}MB  ({warm:.2%} 지점)")
+        # 토큰 예산이면 budget 이 토큰 수다. 예전엔 둘 다 "MB" 로 찍어 3주차 로그가
+        # "1.00MB" 로 보였다 (실제로는 1.00M 토큰).
+        unit = "M 토큰" if by_tokens else "MB"
+        print(f"      워밍업  {warm * budget / 1e6:.2f}{unit}  ({warm:.2%} 지점)")
 
         model.train()
         torch.cuda.reset_peak_memory_stats()
@@ -578,8 +581,11 @@ def main(argv: list | None = None) -> int:
         # 저장하지 않으면 103분 학습한 가중치를 버리게 되고, Step 7 시스템
         # 벤치마크와 Level 3 capability 가 쓸 체크포인트가 없어 다시 학습해야 한다.
         if args.save:
-            sha = save_checkpoint(model, tokenizer, run_id, "", int(raw_bytes))
-            run.extra["tokenizer_sha256"] = sha
+            save_checkpoint(model, tokenizer, run_id, "", int(raw_bytes))
+            # 예전엔 이 해시를 원장 tokenizer_sha256 칸에 넣었다 — 칸의 뜻과 다른 값
+            # (모델 가중치 해시)이다. 체크포인트 계보는 artifacts.tsv 에
+            # tools/register_artifact.py 로 남긴다. 2026-10-02 이전 --save run 의 그
+            # 칸은 model.safetensors 해시로 읽는다 (DESIGN_DELTA 3-16).
 
         run.tokens_seen = tokens_seen
         run.raw_bytes_seen = int(raw_bytes)

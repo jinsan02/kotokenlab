@@ -116,6 +116,18 @@ def _peak_vram_mb() -> Any:
     return None
 
 
+def _peak_reserved_mb() -> Any:
+    """캐싱 할당기가 쥐었던 최대량. GPU 점유·메모리 넘침은 allocated 가 아니라 이쪽이 정한다."""
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return torch.cuda.max_memory_reserved() // (1024 * 1024)
+    except ImportError:
+        pass
+    return None
+
+
 def _reset_vram_stats() -> None:
     try:
         import torch
@@ -276,6 +288,7 @@ class RunContext:
             row["tokens_seen"] = self.tokens_seen
             row["raw_bytes_seen"] = self.raw_bytes_seen
             row["peak_vram_mb"] = _peak_vram_mb()
+            row["peak_reserved_mb"] = _peak_reserved_mb()
             row["note"] = self.note or None
         ledger.append_row("ledger", {k: v for k, v in row.items() if v is not None}, self.root)
 

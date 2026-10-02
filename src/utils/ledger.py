@@ -49,6 +49,12 @@ LEDGER_COLUMNS: tuple[str, ...] = (
     # 반영된** 양이다. 이 커밋 이후 run 은 update 경계에서 멈추므로 정상
     # 종료면 둘이 같고, 중간에 죽은 run 에서 갈린다.
     "tokens_applied", "raw_bytes_applied", "updates",
+    # ── 2026-10-02 추가 ──────────────────────────────────────────────────
+    # peak_vram_mb 는 max_memory_allocated(텐서가 실제로 쓴 양)다. 캐싱 할당기가
+    # 쥐고 있는 양(reserved)은 그보다 크고, GPU 점유와 메모리 넘침은 이쪽이 정한다.
+    # 3주차 seed 2026 이 allocated 11.4GB 로 기록됐는데 실제 점유는 15.2GB + 시스템
+    # RAM 3.9GB 였다 — allocated 만 보고 원인을 잘못 짚었다.
+    "peak_reserved_mb",
 )
 
 # 외부 모델·토크나이저 레지스트리 (REVIEW D1).
