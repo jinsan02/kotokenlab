@@ -226,13 +226,71 @@ def pack(tokenizer, docs: list, seq_len: int, eos_id: int, byte_len_fn):
             yield chunk, byte_len_fn(chunk)
 
 
-def main(argv: list | None = None) -> int:
-    import torch
-    from torch.nn.attention import SDPBackend, sdpa_kernel
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+class WarmStart:
+    """신규 행 warm-start 의 1단계 (amendment §6 · PLAN "4주차 run 설정 동결").
 
-    from src.evaluation.bpb import evaluate, token_byte_length
+    1단계에서는 **새 행만** 학습한다. 몸통은 requires_grad=False 로 얼리고,
+    임베딩(tied 라 lm_head 와 같은 텐서)은 gradient hook 으로 옛 행의 gradient 를
+    0 으로 만든다.
 
+    마스크만으로는 부족하다 — AdamW 의 decoupled weight decay 는 gradient 와 무관하게
+    `p -= lr * wd * p` 를 하므로 옛 행이 계속 줄어든다. 그래서 1단계 동안 임베딩
+    param group 의 weight decay 를 0 으로 둔다. 그러면 옛 행의 Adam 상태(m, v)가 0 에
+    머물러 이동량이 정확히 0 이다.
+
+    `finish()` 가 2단계로 넘기며 **옛 행이 시작과 비트 단위로 같은지** 확인한다.
+    다르면 RuntimeError 로 멈춘다 — CPU 테스트는 torch AdamW 로 하므로 bitsandbytes
+    8비트 상태의 동작은 실제 run 의 이 검사가 지킨다.
+    """
+
+    def __init__(self, model, emb_w, rows: list) -> None:
+        import torch
+
+        self.emb_w = emb_w
+        self.model = model
+        n = emb_w.shape[0]
+        bad = [r for r in rows if r < 0 or r >= n]
+        if bad:
+            raise SystemExit(f"warm-start 행 id 가 임베딩 밖이다: {bad[:5]} (vocab {n})")
+        new = torch.zeros(n, dtype=torch.bool)
+        new[torch.tensor(rows)] = True
+        self.n_new = int(new.sum())
+        self.old_idx = torch.nonzero(~new).flatten()
+        mask = new.to(device=emb_w.device, dtype=emb_w.dtype).unsqueeze(1)
+        self._snapshot = emb_w.detach()[self.old_idx.to(emb_w.device)].to("cpu").clone()
+        self.frozen = [p for p in model.parameters() if p is not emb_w and p.requires_grad]
+        for p in self.frozen:
+            p.requires_grad_(False)
+        self._hook = emb_w.register_hook(lambda g: g * mask)
+        self.active = True
+        self.wd = None
+
+    def param_groups(self, weight_decay: float) -> list:
+        """임베딩을 따로 묶는다. 1단계 동안 임베딩 group 의 weight decay 는 0 이다."""
+        self.wd = weight_decay
+        return [{"params": [self.emb_w], "weight_decay": 0.0},
+                {"params": self.frozen, "weight_decay": weight_decay}]
+
+    def finish(self, opt) -> dict:
+        """2단계로 넘긴다. 옛 행이 그대로인지 먼저 확인한다."""
+        import torch
+
+        now = self.emb_w.detach()[self.old_idx.to(self.emb_w.device)].to("cpu")
+        diff = float((now.float() - self._snapshot.float()).abs().max())
+        if not torch.equal(now, self._snapshot):
+            raise RuntimeError(f"warm-start 1단계에서 옛 행이 움직였다 (최대 {diff:.3e})")
+        self._hook.remove()
+        for p in self.frozen:
+            p.requires_grad_(True)
+        opt.param_groups[0]["weight_decay"] = self.wd
+        self.active = False
+        self._snapshot = None
+        return {"old_rows": int(self.old_idx.numel()), "new_rows": self.n_new,
+                "old_rows_max_diff": diff}
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """CLI. tools/ 의 사전 점검이 같은 파서로 계획 config 를 미리 만든다."""
     ap = argparse.ArgumentParser(description="Continued Pretraining")
     ap.add_argument("--model", required=True)
     ap.add_argument("--revision", default=None)
@@ -277,19 +335,21 @@ def main(argv: list | None = None) -> int:
     ap.add_argument("--allow-short", action="store_true",
                     help="예산을 못 채워도 통과시킨다 (조건 간 비교에는 쓰지 마라)")
     ap.add_argument("--skip-env-check", action="store_true")
-    args = ap.parse_args(argv)
+    # 신규 행 warm-start (amendment 4주차). 둘 다 주거나 둘 다 안 준다.
+    ap.add_argument("--warm-rows", default=None, metavar="JSON",
+                    help="1단계에서 학습할 행 목록 (id_map.json 이면 T2b 의 새 행). "
+                         "나머지 행과 몸통은 얼린다")
+    ap.add_argument("--warm-bytes", type=int, default=0, metavar="BYTES",
+                    help="1단계가 끝나는 원문 바이트 (그 뒤 첫 update 경계에서 2단계로)")
+    return ap
 
-    name = args.name or Path(args.model).name
-    kw = {"revision": args.revision} if args.revision else {}
-    tokenizer = AutoTokenizer.from_pretrained(args.model, **kw)
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model, dtype=torch.bfloat16, attn_implementation="sdpa", **kw)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model.to(device)
-    model.gradient_checkpointing_enable()
-    model.config.use_cache = False
 
-    eos_id = tokenizer.eos_token_id or 0
+def build_config(args) -> dict:
+    """run 의 config. config_sha256 이 이것의 해시다.
+
+    warm-start 필드는 **그 모드일 때만** 넣는다. 직접 CPT 의 config 가 지금까지와
+    바이트 단위로 같아야 다시 돌린 run 의 config_sha256 이 기존 run 과 맞는다.
+    """
     config = {
         "model": args.model, "revision": args.revision, "seed": args.seed,
         "budget_bytes": args.budget_bytes,
@@ -312,6 +372,37 @@ def main(argv: list | None = None) -> int:
         "lr_schedule": (f"{args.lr_schedule}_by_tokens" if args.budget_tokens
                         else f"{args.lr_schedule}_by_raw_bytes"),
     }
+    if args.warm_rows or args.warm_bytes:
+        config["warm_rows"] = args.warm_rows
+        config["warm_bytes"] = args.warm_bytes
+    return config
+
+
+def main(argv: list | None = None) -> int:
+    import torch
+    from torch.nn.attention import SDPBackend, sdpa_kernel
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    from src.evaluation.bpb import evaluate, token_byte_length
+
+    args = build_parser().parse_args(argv)
+    if bool(args.warm_rows) != bool(args.warm_bytes):
+        raise SystemExit("--warm-rows 와 --warm-bytes 는 같이 준다")
+    if args.warm_bytes and not args.budget_tokens and args.warm_bytes >= args.budget_bytes:
+        raise SystemExit("--warm-bytes 가 예산보다 크거나 같다 — 2단계가 없다")
+
+    name = args.name or Path(args.model).name
+    kw = {"revision": args.revision} if args.revision else {}
+    tokenizer = AutoTokenizer.from_pretrained(args.model, **kw)
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model, dtype=torch.bfloat16, attn_implementation="sdpa", **kw)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(device)
+    model.gradient_checkpointing_enable()
+    model.config.use_cache = False
+
+    eos_id = tokenizer.eos_token_id or 0
+    config = build_config(args)
     run_id = make_run_id("cpt", name, args.tag, seed=args.seed)
 
     with RunContext(run_id, phase="cpt", config=config, seed=args.seed,
@@ -350,8 +441,21 @@ def main(argv: list | None = None) -> int:
                       else f"{args.budget_bytes / 1e6:.1f}MB 원문")
         print(f"{name}  seed {args.seed}  문서 풀 {len(docs):,}  예산 {budget_txt}")
 
-        opt = bnb.optim.AdamW8bit(model.parameters(), lr=args.lr,
-                                  betas=(0.9, 0.95), weight_decay=0.1)
+        # warm-start 가 아니면 예전과 **같은 호출** 이다 — param group 을 나누는 것만으로
+        # 직접 CPT 의 경로가 바뀌지 않게 한다.
+        warm = None
+        if args.warm_rows:
+            warm = WarmStart(model, model.get_input_embeddings().weight,
+                             load_damaged_rows(args.warm_rows))
+            opt = bnb.optim.AdamW8bit(warm.param_groups(0.1), lr=args.lr,
+                                      betas=(0.9, 0.95), weight_decay=0.1)
+            print(f"      warm-start 1단계  새 행 {warm.n_new:,} 만 학습 "
+                  f"(옛 행 {warm.old_idx.numel():,} · 몸통 얼림) -> "
+                  f"{args.warm_bytes / 1e6:.1f}MB 에서 전체 학습으로")
+        else:
+            opt = bnb.optim.AdamW8bit(model.parameters(), lr=args.lr,
+                                      betas=(0.9, 0.95), weight_decay=0.1)
+        warm_info: dict = {}
 
         # 모듈별 기울기 노름. 스키마에 컬럼이 있는데 오래 비워 뒀다.
         # 회복이 멎을 때 임베딩 기울기가 죽는지 살아 있는지가 기전을 가른다 —
@@ -513,6 +617,15 @@ def main(argv: list | None = None) -> int:
                     train_loss = loss_acc / args.accum
                     loss_acc = 0.0
 
+                    # warm-start 1단계 -> 2단계. update 경계에서만 넘긴다.
+                    if warm is not None and warm.active and raw_bytes >= args.warm_bytes:
+                        warm_info = warm.finish(opt)
+                        warm_info.update(step=step, raw_bytes=int(raw_bytes),
+                                         tokens=counts.applied_tokens)
+                        print(f"  warm-start 2단계  step {step}  {raw_bytes / 1e6:.2f}MB  "
+                              f"옛 행 최대 차이 {warm_info['old_rows_max_diff']:.1e} — "
+                              "이제 전체를 학습한다")
+
                     if curve.due(int(raw_bytes)):
                         curve.mark(int(raw_bytes))
                         cur = dev_bpb()
@@ -597,6 +710,14 @@ def main(argv: list | None = None) -> int:
                     + " ".join(f"{k} {base[k]:.4f}->{final[k]:.4f}"
                                for k in final if k != "ko")
                     + f" lr={args.lr} seed={args.seed}")
+        if warm is not None:
+            if warm.active:
+                raise RuntimeError("warm-start 가 2단계로 넘어가지 못했다 (--warm-bytes 확인)")
+            # 원장에 단계 경계를 남긴다 — 1단계가 실제로 몇 update·몇 바이트였는지.
+            run.note += (f" warm_end_step={warm_info['step']}"
+                         f" warm_end_bytes={warm_info['raw_bytes']}"
+                         f" warm_end_tokens={warm_info['tokens']}"
+                         f" warm_old_rows_max_diff={warm_info['old_rows_max_diff']:.1e}")
     return 0
 
 

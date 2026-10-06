@@ -74,6 +74,8 @@ CRITICAL = {
     "grad_checkpointing", "eval_budget", "seed",
     # P3 에서 추가. 워밍업 길이와 데이터 순서를 바꾸므로 치명이다
     "warmup_bytes", "pool_extend_docs",
+    # amendment 4주차. 무엇을 언제까지 얼리는지가 학습 자체를 바꾼다
+    "warm_rows", "warm_bytes",
     # eval (bpb.py)
     "max_bytes", "split",
 }
