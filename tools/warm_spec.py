@@ -59,6 +59,7 @@ REVIEWED_COMMITS = {
     "61017a3": "GPU 잠금 — 진입·종료에서만 돈다",
     "b9a2144": "reserved 메모리 기록 · 로그 단위 · 체크포인트 해시 칸 (계산 무관)",
     "16b9733": "warm-start 추가. 직접 CPT config 해시가 원장과 같음을 테스트한다",
+    "75d955c": "warm-start 객체 이름 수정 (warm 경로만 — 첫 시도가 step 1 에서 죽었다)",
 }
 
 

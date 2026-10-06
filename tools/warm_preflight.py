@@ -92,9 +92,18 @@ def static_checks(rows: list) -> list:
     for s in W.SEEDS:
         rid = W.run_id(s)
         sts = [r["status"] for r in rows if r["run_id"] == rid]
-        add(f"run_id seed{s}", PASS if not sts or "ok" in sts else FAIL,
-            f"{rid} — " + ("비어 있음" if not sts else
-                           "이미 돌았다 (ok)" if "ok" in sts else f"끝나지 않은 행 {sts}"))
+        # 결과 없이 끝난 시도(fail·abort)뿐이면 같은 id 로 다시 돌아도 된다 — 집계는 ok
+        # 행만 읽는다. start 수가 종료 행 수보다 많으면 끝나지 않은 시도가 있다는 뜻이다.
+        unterminated = sts.count("start") > sum(sts.count(x) for x in ("ok", "fail", "abort"))
+        if not sts:
+            st, msg = PASS, "비어 있음"
+        elif "ok" in sts:
+            st, msg = PASS, "이미 돌았다 (ok)"
+        elif unterminated:
+            st, msg = FAIL, f"끝나지 않은 시도가 있다 {sts} — 원인을 먼저 본다"
+        else:
+            st, msg = PASS, f"이전 시도가 결과 없이 끝났다 {sts} — 같은 id 로 다시 돈다"
+        add(f"run_id seed{s}", st, f"{rid} — {msg}")
 
     direct_commit = None
     for s in W.SEEDS:
