@@ -1891,8 +1891,41 @@ R5 seed42(1,523 update)보다 1 update 더 돈다. 폭을 넘으면 Final Test �
 2. 재학습 둘 (약 2.8h, 하나씩, 사전 점검 통과 후)
 3. 재학습 체크포인트 doc_nll                    -> doc_bootstrap (상수 LR 쌍)
 4. contamination · system 축 문구 확정 (문서 작업)
-5. Final Test 선택 규칙 동결 — 이 절 아래에 따로 적는다 (사용자 결정 뒤)
+5. Final Test 선택 규칙 동결 — 아래 D (2026-10-06 사용자 결정)
 ```
+
+#### D. Final Test 선택 규칙 — 2026-10-06 동결 (개봉 전)
+
+amendment §9 의 여섯 항목을 정한다. **이 절은 Final Test 를 열지 않는다.** 개봉 여부는
+사용자가 따로 정한다. 개봉 전에는 final_test 파일을 읽는 코드를 돌리지 않는다.
+
+```
+1. 대표 조건     cpt_c0_qwen_ft_seed42 · cpt_t2b_mean_ft_seed42 (상수 LR 168.5MB, C 의 재학습)
+                 둘만 평가한다. gate 를 통과한 적응은 없다. 다른 체크포인트는 final_test 에
+                 올리지 않는다 (다중 비교를 만들지 않는다)
+2. 체크포인트    각 run 의 168.5MB 예산 종점 하나. dev 로 고르지 않는다
+3. 1차 outcome   한국어 final_test BPB = 총 NLL / 총 채점 바이트 (bpb.evaluate, seq 2048),
+                 원문 앞에서부터 고정 순서로 20MB. 잔차 d = BPB(T2b) - BPB(C0)
+   확증 기준     d 의 문서 단위 paired bootstrap 95% 구간 하한 > 0
+                 ("같은 원문 CPT 후 T2b 의 한국어 BPB 가 C0 보다 나쁘다" 가 본 적 없는
+                 문서에서도 성립하는가). 크기는 dev 값(상수 LR seed 쌍 평균 약 +0.346)과
+                 나란히 기술만 한다
+4. 부차 outcome  영어·코드 final_test BPB (같은 방식, 언어별 2MB), 압축률(tok/byte).
+                 시스템 지표(prefill · KV)는 품질과 무관한 토큰 수의 함수라 dev 측정을
+                 그대로 쓴다
+5. 불확실성      문서 단위 bootstrap(10,000회, seed 0) 과 학습 seed 불확실성(dev 의 seed 쌍
+                 SD — seed_pairs.md · upd_pairs.md)을 따로 보고한다. 섞지 않는다
+6. 고정          final_test 를 처음 평가하는 커밋 직전에 `final-test-opened` 태그를 단다.
+                 그 뒤로 조건 · 경계 · 체크포인트 · 평가량을 바꾸지 않는다
+```
+
+**예측:** 확증 기준 충족 (d 의 구간 하한 > 0). 근거 — dev 에서 d 는 상수 LR 세 seed 모두
++0.3455~+0.3459 이고 seed 간 SD 0.000235 다. 격차가 커서 문서 표본이 바뀌어도 부호가
+뒤집힐 가능성은 낮다. 크기는 dev 낙관 편향(N 과 E1 을 dev 로 골랐다, REVIEW A5)만큼
+작아질 수 있다.
+
+Final Test 평가 도구(`doc_nll` 에 split 선택을 더하는 것)는 개봉 결정 뒤에 만들어 따로
+커밋한다. 그 도구는 이 절의 1~5 를 코드로 고정한 상수로 갖는다.
 
 ## 2026-09-19 외부 비판 검토 amendment
 

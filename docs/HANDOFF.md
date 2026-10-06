@@ -4,7 +4,7 @@
 > [`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)에
 > 한 문서로 정리했다. 아래의 과거 P3 실행 순서보다 amendment를 우선한다.
 
-최종 갱신 2026-10-06 (**amendment 4주차 완료 — gate 미달, 다음은 5주차(GPU 0)**).
+최종 갱신 2026-10-06 (**amendment 5주차 준비 완료 — GPU 작업 전**).
 아래 "한 줄 상태" 는 2026-09-17 기준이고, 지금 할 일은 "지금 — amendment 3주차 완료" 절이다.
 1차 결과 전체는
 [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md).
@@ -194,9 +194,29 @@ warm-start(첫 33.7MB 새 행만 + 134.8MB 전체)가 직접 CPT 보다 한국�
 (`75d955c`), GPU 시험 실행이 8비트 옵티마이저가 gradient 0 인 옛 행을 움직이는 것을 잡았다
 — 매 step 되돌리기로 바꿨다 (`062f4b4`).
 
-**다음: amendment 5주차 (GPU 0).** 문서-paired BPB bootstrap, 제거 토큰 노출 층화,
-contamination·system 축 문구 확정, **Final Test 선택 규칙 동결**. 6주차 WSD(2.8h)는
-여유가 있을 때만. Final Test 개봉 여부는 사용자가 따로 정한다.
+**지금: amendment 5주차 — 준비 완료, GPU 작업 전 (2026-10-06).** PLAN "5주차 동결" A~D.
+
+```
+평가 경로   bpb.evaluate(docs_out) · src/evaluation/doc_nll.py           3bfba96
+도구        w5_spec · doc_bootstrap · exposure_strata · w5_preflight     fa12696
+동결        A 문서 bootstrap · B 노출 층화 · C 재학습 · D Final Test 규칙
+```
+
+결정 (2026-10-06): 대표 체크포인트는 seed 42 재학습(C0·T2b 상수 LR, 약 2.8h), 문서별
+평가는 dev 2MB(원장 재현으로 자기 검증), Final Test 는 대표 둘만 · 한국어 20MB ·
+확증 기준 "잔차 d 의 문서 구간 하한 > 0" · 부차는 영어·코드 BPB 와 압축률.
+**Final Test 개봉은 아직 결정하지 않았다.**
+
+다음 순서 (PLAN "5주차 동결" 순서 절):
+
+```
+1. 기존 체크포인트 7개 doc_nll (각 수 분)
+   .conda/python.exe -m src.evaluation.doc_nll --model <경로> --source-run <run_id>
+   경로·run_id 는 tools/w5_spec.py CHECKPOINTS. 그다음 doc_bootstrap · exposure_strata
+2. .conda/python.exe tools/w5_preflight.py -> 재학습 둘 (argv 는 w5_spec.FT_RUNS)
+3. 재학습 체크포인트 doc_nll -> doc_bootstrap
+4. contamination · system 축 문구 확정
+```
 
 새 학습 모드를 넣을 때 (2026-10-06 에 겪었다):
 
