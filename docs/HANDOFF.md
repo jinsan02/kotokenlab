@@ -4,7 +4,7 @@
 > [`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)에
 > 한 문서로 정리했다. 아래의 과거 P3 실행 순서보다 amendment를 우선한다.
 
-최종 갱신 2026-10-06 (**amendment 4주차 준비 완료 — warm-start seed 42 실행 전**).
+최종 갱신 2026-10-06 (**amendment 4주차 완료 — gate 미달, 다음은 5주차(GPU 0)**).
 아래 "한 줄 상태" 는 2026-09-17 기준이고, 지금 할 일은 "지금 — amendment 3주차 완료" 절이다.
 1차 결과 전체는
 [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md).
@@ -180,27 +180,34 @@ rho 평균 7.2% [7.0, 7.3]   d_upd 평균 +0.321189 (SD 0.000168)   -> 예측 �
 한국어 BPB 잔차 +0.321 이 남는다.** 동일 원문 격차의 주장을 유지하고, 계산량 몫(약 7%)을
 함께 보고한다. 영어·코드 잔차는 update 가 늘며 세 seed 모두 조금 커졌다.
 
-**다음: amendment 4주차 — 신규 행 warm-start. 준비 완료, seed 42 실행 전 (2026-10-06).**
-설정·예측·gate 는 [`PLAN.md`](PLAN.md) "4주차 run 설정 동결". 결정 셋: 옛 행은 마스크 +
-1단계 임베딩 weight decay 0, gate 는 seed 42 의 잔차 개선 delta >= 0.010 BPB, 비교 대상은
-기존 직접 CPT(`cpt_t2b_mean_r5_seed*`, 커밋마다 근거를 달아 다시 돌리지 않음).
-사전 등록 예측은 **gate 미달** (1차 정렬 탐침 7.2배 근거).
+**amendment 4주차 — 신규 행 warm-start: gate 미달, 예측 적중 (2026-10-06).**
+PLAN "4주차 run 설정 동결"과 그 결과 절. 표는 [`warm_pairs.md`](../reports/tables/warm_pairs.md).
 
 ```
-구현        cpt.py WarmStart · build_parser/build_config               16b9733
-도구        warm_spec · warm_preflight · warm_pairs                    41f2119
-사전 점검   시각 검증 외 전부 통과 · 직접 CPT 3 run 바이트 단위 재현 · 전환 213/213/214
+d_direct +0.345639   d_warm +0.357348   delta -0.011709 (경계 +0.010)   기록 117f8a9
 ```
 
-seed 42 를 돌리는 순서:
+warm-start(첫 33.7MB 새 행만 + 134.8MB 전체)가 직접 CPT 보다 한국어 BPB 0.0117 나쁘다.
+격차가 20MB 0.524 -> 160MB 0.013 으로 좁혀졌지만 역전하지 못했다. seed 42 하나로 닫는다.
 
-```
-.conda/python.exe tools/check_clock.py --record
-.conda/python.exe tools/warm_preflight.py           # 전부 통과해야 시작
-# 명령은 reports/tables/warm_preflight.md "실행 명령" (seed 42 만)
-.conda/python.exe tools/compare_runs.py cpt_t2b_mean_warm_seed42 cpt_t2b_mean_r5_seed42   --allow warm_rows warm_bytes warmup_bytes pool_extend_docs code
-.conda/python.exe tools/warm_pairs.py               # gate 판정
-```
+실행 전에 두 번 걸렸다 (PLAN "실행 전 정정"): 변수 이름 충돌로 첫 시도가 step 1 에서 죽었고
+(`75d955c`), GPU 시험 실행이 8비트 옵티마이저가 gradient 0 인 옛 행을 움직이는 것을 잡았다
+— 매 step 되돌리기로 바꿨다 (`062f4b4`).
+
+**다음: amendment 5주차 (GPU 0).** 문서-paired BPB bootstrap, 제거 토큰 노출 층화,
+contamination·system 축 문구 확정, **Final Test 선택 규칙 동결**. 6주차 WSD(2.8h)는
+여유가 있을 때만. Final Test 개봉 여부는 사용자가 따로 정한다.
+
+새 학습 모드를 넣을 때 (2026-10-06 에 겪었다):
+
+- 학습 루프(`cpt.main`)는 단위 테스트로 못 돈다. **본 실행 전에 작은 예산의 GPU 시험
+  실행** 으로 전 경로를 한 번 지난다 — 이번에는 그것이 8비트 옵티마이저 문제를 15분
+  손실 대신 3분에 잡았다
+- CPU 테스트의 옵티마이저(torch AdamW)와 실제 옵티마이저(bitsandbytes AdamW8bit)는
+  다르게 동작한다. "옵티마이저가 무엇을 안 건드린다" 는 가정은 실제 옵티마이저로 확인한다
+- 원장 `peak_reserved_mb` 가 물리 VRAM 을 넘을 수 있다 (warm seed42: 18,868 MiB,
+  allocated 11,437) — 일부가 공유 메모리에 있다는 뜻이다. 3주차 seed 2026 의 지연과
+  같은 계열로 보인다. 할당기 단편화를 줄이는 설정(`expandable_segments`)은 시험하지 않았다
 
 3주차를 닫으며 남은 일:
 
