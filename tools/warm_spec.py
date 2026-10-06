@@ -60,6 +60,7 @@ REVIEWED_COMMITS = {
     "b9a2144": "reserved 메모리 기록 · 로그 단위 · 체크포인트 해시 칸 (계산 무관)",
     "16b9733": "warm-start 추가. 직접 CPT config 해시가 원장과 같음을 테스트한다",
     "75d955c": "warm-start 객체 이름 수정 (warm 경로만 — 첫 시도가 step 1 에서 죽었다)",
+    "062f4b4": "1단계 옛 행 매 step 되돌리기 · 전환 때 임베딩 상태 비우기 (warm 경로만)",
 }
 
 
