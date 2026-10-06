@@ -18,7 +18,8 @@
 
 - 두 평가가 **같은 문서 집합을 같은 순서로** 봤는가 (문서 번호 · 원문 바이트가 같다)
 - 각 평가가 그 체크포인트를 만든 학습 run 의 **원장 dev BPB 를 재현** 했는가
-  (doc_nll 이 원장 note 에 `<lang>_vs_ledger=` 로 남긴다. 반올림 6자리에서 같아야 한다)
+  — 문서별 파일의 합으로 낸 BPB 를 원장 최종 값과 **직접** 대조한다 (반올림 6자리에서
+  같아야 한다). 평가 run note 의 `<lang>_vs_ledger=` 는 참고로만 본다
 
 하나라도 어긋나면 그 쌍은 계산하지 않고 이유를 적는다.
 
@@ -114,16 +115,44 @@ def paired_bootstrap(a: list, b: list, n_boot: int, seed: int) -> dict:
             "lo": float(lo), "hi": float(hi), "se": float(diffs.std(ddof=1))}
 
 
+def ledger_final(run_id: str) -> dict:
+    """학습 run 의 원장 최종 dev BPB (언어별)."""
+    out: dict = {}
+    with (ROOT / "experiments" / "lm_metrics.tsv").open(encoding="utf-8", newline="") as fh:
+        for r in csv.DictReader(fh, delimiter="\t", quoting=csv.QUOTE_NONE):
+            if r["run_id"] == run_id and r["checkpoint"] == "final" and r["split"] == "dev":
+                out[r["domain"]] = float(r["bpb"])
+    return out
+
+
+def reproduction(name: str, docs: dict) -> dict:
+    """lang -> True/False/None. 문서별 파일의 합으로 낸 BPB 를 **직접** 원장과 대조한다.
+
+    2026-10-07: 평가 run 의 note 에 기대던 첫 판은 연쇄 스크립트의 CRLF 로
+    --source-run 끝에 '\\r' 이 붙어 대조 기록이 빠진 run 들을 "기록 없음" 으로 막았다.
+    평가 자체는 맞았으므로 note 를 거치지 않고 여기서 다시 잰다.
+    """
+    want = ledger_final(S.CHECKPOINTS[name][1])
+    out: dict = {}
+    for lang in LANGS:
+        rows = docs.get(lang)
+        if not rows or lang not in want:
+            out[lang] = None
+            continue
+        got = round(bpb([x[1] for x in rows], [x[2] for x in rows]), 6)
+        out[lang] = abs(got - want[lang]) < 5e-7
+    return out
+
+
 def status(name: str, docs: dict) -> str:
     if not docs:
         return "아직 없음"
-    note = ok_note(S.doc_run_id(name))
-    marks = {lang: reproduced(note, lang) for lang in LANGS}
+    marks = reproduction(name, docs)
     bad = [lang for lang, v in marks.items() if v is False]
     if bad:
         return "원장 재현 실패: " + ", ".join(bad)
     if any(v is None for v in marks.values()):
-        return "원장 대조 기록 없음"
+        return "원장 대조 불가: " + ", ".join(k for k, v in marks.items() if v is None)
     return "통과"
 
 

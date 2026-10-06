@@ -40,6 +40,17 @@ def test_reproduced_is_three_valued():
     assert reproduced("doc_nll 3행", "ko") is None
 
 
+def test_reproduction_is_checked_against_ledger_directly(monkeypatch):
+    """note 가 비어 있어도(2026-10-07 CRLF 사고) 문서별 합을 원장과 직접 대조한다."""
+    import tools.doc_bootstrap as D
+    rows = [(0, 1.0, 10, 11), (1, 3.0, 30, 31)]
+    good = round(4.0 / (math.log(2) * 40), 6)
+    monkeypatch.setattr(D, "ledger_final", lambda rid: {"ko": good, "en": good + 0.001})
+    docs = {"ko": rows, "en": rows}
+    assert D.reproduction("c0_cos", docs) == {"ko": True, "en": False, "code": None}
+    assert D.status("c0_cos", docs).startswith("원장 재현 실패: en")
+
+
 def test_bins_use_median_of_nonzero_counts():
     names, m = bins_for([0, 0, 1, 2, 3, 10, 0])
     assert m == 2.5
