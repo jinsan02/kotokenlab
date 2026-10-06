@@ -1,0 +1,8 @@
+{
+  "max_bytes": 2000000,
+  "model": "artifacts/models/cpt_t2b10k_mean_main_seed42",
+  "purpose": "doc_nll",
+  "seq_len": 2048,
+  "source_run": "cpt_t2b10k_mean_main_seed42\r",
+  "split": "dev"
+}
