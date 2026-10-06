@@ -70,6 +70,9 @@ def main(argv: list | None = None) -> int:
     ap.add_argument("--tag", default="dev2mb")
     ap.add_argument("--skip-env-check", action="store_true")
     args = ap.parse_args(argv)
+    # 2026-10-07: CRLF 작업 목록에서 읽은 run_id 끝에 '\r' 이 붙어 원장을 못 찾았다.
+    if args.source_run:
+        args.source_run = args.source_run.strip()
 
     name = args.name or Path(args.model).name
     tokenizer = AutoTokenizer.from_pretrained(args.model)
@@ -96,6 +99,10 @@ def main(argv: list | None = None) -> int:
               "purpose": "doc_nll"}
     run_id = make_run_id("eval", "docnll", name, args.tag)
     want = ledger_final_bpb(args.source_run) if args.source_run else {}
+    if args.source_run and not want:
+        # 조용히 대조를 건너뛰지 않는다 — 그러면 "재현 확인" 이 빠진 채 결과가 남는다.
+        raise SystemExit(f"--source-run {args.source_run!r} 의 원장 최종 dev BPB 가 없다 "
+                         "(run_id 오타 · 공백 · 아직 안 끝난 run 인지 확인)")
 
     with RunContext(run_id, phase="eval", config=config,
                     skip_env_check=args.skip_env_check) as run:
