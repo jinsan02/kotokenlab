@@ -443,14 +443,16 @@ def main(argv: list | None = None) -> int:
 
         # warm-start 가 아니면 예전과 **같은 호출** 이다 — param group 을 나누는 것만으로
         # 직접 CPT 의 경로가 바뀌지 않게 한다.
-        warm = None
+        # 이름은 warm_start 다. 아래에서 LR 워밍업 비율을 `warm` 으로 받는다 — 2026-10-06
+        # 첫 run 이 이 두 이름이 겹쳐 첫 update 에서 죽었다.
+        warm_start = None
         if args.warm_rows:
-            warm = WarmStart(model, model.get_input_embeddings().weight,
-                             load_damaged_rows(args.warm_rows))
-            opt = bnb.optim.AdamW8bit(warm.param_groups(0.1), lr=args.lr,
+            warm_start = WarmStart(model, model.get_input_embeddings().weight,
+                                   load_damaged_rows(args.warm_rows))
+            opt = bnb.optim.AdamW8bit(warm_start.param_groups(0.1), lr=args.lr,
                                       betas=(0.9, 0.95), weight_decay=0.1)
-            print(f"      warm-start 1단계  새 행 {warm.n_new:,} 만 학습 "
-                  f"(옛 행 {warm.old_idx.numel():,} · 몸통 얼림) -> "
+            print(f"      warm-start 1단계  새 행 {warm_start.n_new:,} 만 학습 "
+                  f"(옛 행 {warm_start.old_idx.numel():,} · 몸통 얼림) -> "
                   f"{args.warm_bytes / 1e6:.1f}MB 에서 전체 학습으로")
         else:
             opt = bnb.optim.AdamW8bit(model.parameters(), lr=args.lr,
@@ -618,8 +620,9 @@ def main(argv: list | None = None) -> int:
                     loss_acc = 0.0
 
                     # warm-start 1단계 -> 2단계. update 경계에서만 넘긴다.
-                    if warm is not None and warm.active and raw_bytes >= args.warm_bytes:
-                        warm_info = warm.finish(opt)
+                    if (warm_start is not None and warm_start.active
+                            and raw_bytes >= args.warm_bytes):
+                        warm_info = warm_start.finish(opt)
                         warm_info.update(step=step, raw_bytes=int(raw_bytes),
                                          tokens=counts.applied_tokens)
                         print(f"  warm-start 2단계  step {step}  {raw_bytes / 1e6:.2f}MB  "
@@ -710,8 +713,8 @@ def main(argv: list | None = None) -> int:
                     + " ".join(f"{k} {base[k]:.4f}->{final[k]:.4f}"
                                for k in final if k != "ko")
                     + f" lr={args.lr} seed={args.seed}")
-        if warm is not None:
-            if warm.active:
+        if warm_start is not None:
+            if warm_start.active:
                 raise RuntimeError("warm-start 가 2단계로 넘어가지 못했다 (--warm-bytes 확인)")
             # 원장에 단계 경계를 남긴다 — 1단계가 실제로 몇 update·몇 바이트였는지.
             run.note += (f" warm_end_step={warm_info['step']}"

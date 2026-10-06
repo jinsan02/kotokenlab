@@ -123,3 +123,30 @@ def test_warm_fields_appear_only_in_warm_mode():
     cfg = build_config(build_parser().parse_args(
         base + ["--warm-rows", "ids.json", "--warm-bytes", "33700000"]))
     assert cfg["warm_rows"] == "ids.json" and cfg["warm_bytes"] == 33_700_000
+
+
+def test_warmstart_name_is_never_rebound_in_main():
+    """2026-10-06 첫 warm run 은 WarmStart 객체를 담은 이름이 LR 워밍업 비율로 다시
+    할당돼 첫 update 에서 죽었다. main 은 GPU·모델 없이 못 돌리므로 구조로 막는다:
+    WarmStart(...) 를 받은 이름에는 그 뒤로 None 외의 값을 다시 넣지 않는다."""
+    import ast
+    import inspect
+
+    from src.training import cpt
+
+    tree = ast.parse(inspect.getsource(cpt.main))
+    assigns = [n for n in ast.walk(tree) if isinstance(n, ast.Assign)]
+
+    def names(node):
+        return {t.id for t in node.targets if isinstance(t, ast.Name)}
+
+    holders = set()
+    for a in assigns:
+        if isinstance(a.value, ast.Call) and getattr(a.value.func, "id", "") == "WarmStart":
+            holders |= names(a)
+    assert holders, "main 에 WarmStart(...) 할당이 없다"
+    for a in assigns:
+        is_none = isinstance(a.value, ast.Constant) and a.value.value is None
+        is_ctor = isinstance(a.value, ast.Call) and getattr(a.value.func, "id", "") == "WarmStart"
+        assert not (names(a) & holders) or is_none or is_ctor, \
+            f"{names(a) & holders} 가 {ast.unparse(a.value)} 로 다시 할당된다 (line {a.lineno})"
