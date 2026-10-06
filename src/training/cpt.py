@@ -241,6 +241,16 @@ class WarmStart:
     `finish()` 가 2단계로 넘기며 **옛 행이 시작과 비트 단위로 같은지** 확인한다.
     다르면 RuntimeError 로 멈춘다 — CPU 테스트는 torch AdamW 로 하므로 bitsandbytes
     8비트 상태의 동작은 실제 run 의 이 검사가 지킨다.
+
+    **마스크 + decay 0 만으로는 8비트 옵티마이저에서 부족했다** (2026-10-06 시험 실행이
+    이 검사에 걸렸다: 최대 1.37e-4). AdamW8bit 는 상태(m, v)를 블록 단위로 양자화해,
+    gradient 가 0 인 원소도 상태가 정확히 0 으로 돌아오지 않는다 — 미니 실험에서 20 step
+    에 옛 행이 최대 0.0115 움직였고, 같은 조건의 32비트 AdamW 는 0 이었다. 그래서:
+
+    - `restore()`: 1단계의 매 optimizer step 직후 옛 행을 GPU 사본으로 되돌린다.
+      되돌리기 전 이동량의 최대값을 남긴다 (무엇을 막았는지 기록)
+    - `finish()`: 임베딩의 옵티마이저 상태를 비운다. 옛 행 원소에 쌓인 양자화 찌꺼기가
+      2단계로 넘어가지 않게 하고, 2단계가 몸통·임베딩 모두 새 상태로 시작하게 한다
     """
 
     def __init__(self, model, emb_w, rows: list) -> None:
@@ -257,7 +267,11 @@ class WarmStart:
         self.n_new = int(new.sum())
         self.old_idx = torch.nonzero(~new).flatten()
         mask = new.to(device=emb_w.device, dtype=emb_w.dtype).unsqueeze(1)
-        self._snapshot = emb_w.detach()[self.old_idx.to(emb_w.device)].to("cpu").clone()
+        self._old_dev = self.old_idx.to(emb_w.device)
+        self._snapshot = emb_w.detach()[self._old_dev].to("cpu").clone()
+        # 되돌리기용 사본은 GPU 에 둔다 (옛 행 약 12만 x 896 bf16 = 약 220MB).
+        self._old_rows_dev = emb_w.detach()[self._old_dev].clone()
+        self.max_drift = 0.0
         self.frozen = [p for p in model.parameters() if p is not emb_w and p.requires_grad]
         for p in self.frozen:
             p.requires_grad_(False)
@@ -271,11 +285,21 @@ class WarmStart:
         return [{"params": [self.emb_w], "weight_decay": 0.0},
                 {"params": self.frozen, "weight_decay": weight_decay}]
 
+    def restore(self) -> None:
+        """optimizer step 직후에 부른다. 옛 행을 되돌리고, 움직이려던 양을 기록한다."""
+        import torch
+
+        with torch.no_grad():
+            cur = self.emb_w.data[self._old_dev]
+            drift = float((cur.float() - self._old_rows_dev.float()).abs().max())
+            self.max_drift = max(self.max_drift, drift)
+            self.emb_w.data[self._old_dev] = self._old_rows_dev
+
     def finish(self, opt) -> dict:
         """2단계로 넘긴다. 옛 행이 그대로인지 먼저 확인한다."""
         import torch
 
-        now = self.emb_w.detach()[self.old_idx.to(self.emb_w.device)].to("cpu")
+        now = self.emb_w.detach()[self._old_dev].to("cpu")
         diff = float((now.float() - self._snapshot.float()).abs().max())
         if not torch.equal(now, self._snapshot):
             raise RuntimeError(f"warm-start 1단계에서 옛 행이 움직였다 (최대 {diff:.3e})")
@@ -283,10 +307,13 @@ class WarmStart:
         for p in self.frozen:
             p.requires_grad_(True)
         opt.param_groups[0]["weight_decay"] = self.wd
+        # 임베딩의 옵티마이저 상태를 비운다. 다음 step 에서 옵티마이저가 새로 만든다.
+        opt.state.pop(self.emb_w, None)
         self.active = False
         self._snapshot = None
+        self._old_rows_dev = None
         return {"old_rows": int(self.old_idx.numel()), "new_rows": self.n_new,
-                "old_rows_max_diff": diff}
+                "old_rows_max_diff": diff, "max_drift_restored": self.max_drift}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -607,6 +634,8 @@ def main(argv: list | None = None) -> int:
                     gnorm = float(torch.nn.utils.clip_grad_norm_(
                         model.parameters(), 1.0))
                     opt.step()
+                    if warm_start is not None and warm_start.active:
+                        warm_start.restore()    # 8비트 상태가 옛 행을 움직인 만큼 되돌린다
                     dmg_ratio = None
                     if dmg_before is not None:
                         moved = float(torch.linalg.vector_norm(
@@ -626,7 +655,8 @@ def main(argv: list | None = None) -> int:
                         warm_info.update(step=step, raw_bytes=int(raw_bytes),
                                          tokens=counts.applied_tokens)
                         print(f"  warm-start 2단계  step {step}  {raw_bytes / 1e6:.2f}MB  "
-                              f"옛 행 최대 차이 {warm_info['old_rows_max_diff']:.1e} — "
+                              f"옛 행 최대 차이 {warm_info['old_rows_max_diff']:.1e} "
+                              f"(되돌린 이동 최대 {warm_info['max_drift_restored']:.2e}) — "
                               "이제 전체를 학습한다")
 
                     if curve.due(int(raw_bytes)):
@@ -720,7 +750,8 @@ def main(argv: list | None = None) -> int:
             run.note += (f" warm_end_step={warm_info['step']}"
                          f" warm_end_bytes={warm_info['raw_bytes']}"
                          f" warm_end_tokens={warm_info['tokens']}"
-                         f" warm_old_rows_max_diff={warm_info['old_rows_max_diff']:.1e}")
+                         f" warm_old_rows_max_diff={warm_info['old_rows_max_diff']:.1e}"
+                         f" warm_max_drift_restored={warm_info['max_drift_restored']:.3e}")
     return 0
 
 

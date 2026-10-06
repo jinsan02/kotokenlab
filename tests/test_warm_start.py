@@ -36,7 +36,8 @@ def TinyTied():
     return _M()
 
 
-def _steps(model, opt, n=5):
+def _steps(model, opt, n=5, warm=None):
+    """cpt.py 의 순서 그대로: step 직후, 1단계면 옛 행을 되돌린다."""
     torch = _torch()
     nn = torch.nn
     torch.manual_seed(0)
@@ -46,6 +47,8 @@ def _steps(model, opt, n=5):
         opt.zero_grad()
         loss.backward()
         opt.step()
+        if warm is not None and warm.active:
+            warm.restore()
 
 
 def test_stage1_moves_only_new_rows_and_keeps_body_bitwise():
@@ -59,7 +62,7 @@ def test_stage1_moves_only_new_rows_and_keeps_body_bitwise():
 
     warm = WarmStart(m, m.emb.weight, new)
     opt = torch.optim.AdamW(warm.param_groups(0.1), lr=1e-2)
-    _steps(m, opt)
+    _steps(m, opt, warm=warm)
 
     assert torch.equal(m.emb.weight.detach()[old], emb0[old])         # 옛 행: 비트 단위로 그대로
     assert not torch.equal(m.emb.weight.detach()[new], emb0[new])     # 새 행: 움직였다
@@ -67,9 +70,12 @@ def test_stage1_moves_only_new_rows_and_keeps_body_bitwise():
         assert torch.equal(v, body0[k])                                # 몸통: 그대로
 
     info = warm.finish(opt)
-    assert info == {"old_rows": 9, "new_rows": 3, "old_rows_max_diff": 0.0}
+    # 32비트 AdamW + decay 0 이면 되돌릴 것도 없다 (0)
+    assert info == {"old_rows": 9, "new_rows": 3, "old_rows_max_diff": 0.0,
+                    "max_drift_restored": 0.0}
     assert opt.param_groups[0]["weight_decay"] == 0.1
     assert all(p.requires_grad for p in m.parameters())
+    assert m.emb.weight not in opt.state                               # 임베딩 상태를 비웠다
 
     _steps(m, opt, 2)                                                  # 2단계: 전부 움직인다
     assert not torch.equal(m.emb.weight.detach()[old], emb0[old])
@@ -92,6 +98,26 @@ def test_weight_decay_alone_would_move_old_rows():
     assert not torch.equal(m.emb.weight.detach()[old], emb0[old])
     with pytest.raises(RuntimeError, match="옛 행이 움직였다"):
         warm.finish(opt)
+
+
+def test_restore_undoes_an_optimizer_that_moves_zero_grad_rows():
+    """8비트 AdamW 처럼 gradient 0 인 옛 행을 움직이는 옵티마이저를 흉내 낸다
+    (decay 를 켜면 torch AdamW 도 옛 행을 움직인다). 매 step 되돌리면 옛 행은 그대로이고,
+    되돌린 이동량이 기록된다."""
+    torch = _torch()
+    torch.manual_seed(1)
+    m = TinyTied()
+    new = [3, 7, 9]
+    old = [i for i in range(12) if i not in new]
+    emb0 = m.emb.weight.detach().clone()
+    warm = WarmStart(m, m.emb.weight, new)
+    groups = warm.param_groups(0.1)
+    groups[0]["weight_decay"] = 0.1                                   # 옛 행을 움직이는 옵티마이저
+    opt = torch.optim.AdamW(groups, lr=1e-2)
+    _steps(m, opt, warm=warm)
+    assert torch.equal(m.emb.weight.detach()[old], emb0[old])
+    info = warm.finish(opt)
+    assert info["old_rows_max_diff"] == 0.0 and info["max_drift_restored"] > 0
 
 
 def test_rows_outside_vocab_are_refused():
