@@ -1,0 +1,29 @@
+{
+  "42": {
+    "run_id": "cpt_t2b_mean_warm_seed42",
+    "end_update": 1063,
+    "end_raw_bytes": 168502276,
+    "end_tokens": 34832384,
+    "switch_update": 213,
+    "switch_raw_bytes": 33796179,
+    "switch_tokens": 6979584
+  },
+  "123": {
+    "run_id": "cpt_t2b_mean_warm_seed123",
+    "end_update": 1063,
+    "end_raw_bytes": 168503536,
+    "end_tokens": 34832384,
+    "switch_update": 213,
+    "switch_raw_bytes": 33792802,
+    "switch_tokens": 6979584
+  },
+  "2026": {
+    "run_id": "cpt_t2b_mean_warm_seed2026",
+    "end_update": 1063,
+    "end_raw_bytes": 168545685,
+    "end_tokens": 34832384,
+    "switch_update": 214,
+    "switch_raw_bytes": 33846388,
+    "switch_tokens": 7012352
+  }
+}

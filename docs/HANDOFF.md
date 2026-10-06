@@ -4,7 +4,7 @@
 > [`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)에
 > 한 문서로 정리했다. 아래의 과거 P3 실행 순서보다 amendment를 우선한다.
 
-최종 갱신 2026-10-02 (**amendment 3주차 완료 — 예측 적중, 다음은 4주차**).
+최종 갱신 2026-10-06 (**amendment 4주차 준비 완료 — warm-start seed 42 실행 전**).
 아래 "한 줄 상태" 는 2026-09-17 기준이고, 지금 할 일은 "지금 — amendment 3주차 완료" 절이다.
 1차 결과 전체는
 [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md).
@@ -180,10 +180,27 @@ rho 평균 7.2% [7.0, 7.3]   d_upd 평균 +0.321189 (SD 0.000168)   -> 예측 �
 한국어 BPB 잔차 +0.321 이 남는다.** 동일 원문 격차의 주장을 유지하고, 계산량 몫(약 7%)을
 함께 보고한다. 영어·코드 잔차는 update 가 늘며 세 seed 모두 조금 커졌다.
 
-**다음: amendment 4주차 — 신규 행 warm-start** (amendment §6 셋째 줄). 첫 33.7MB 는 새 행만
-gradient, 뒤 134.8MB 는 전체 CPT. seed42 약 1.2h, gate 통과 시 seed123·2026 +2.4h.
-3주차처럼 **돌리기 전에** PLAN 동결 · 집계 도구 · 사전 점검을 먼저 만든다. 먼저 정할 것:
-tied 행렬에서 옛 행 gradient 를 0 으로 막는 방법과 그 테스트, practical floor 값.
+**다음: amendment 4주차 — 신규 행 warm-start. 준비 완료, seed 42 실행 전 (2026-10-06).**
+설정·예측·gate 는 [`PLAN.md`](PLAN.md) "4주차 run 설정 동결". 결정 셋: 옛 행은 마스크 +
+1단계 임베딩 weight decay 0, gate 는 seed 42 의 잔차 개선 delta >= 0.010 BPB, 비교 대상은
+기존 직접 CPT(`cpt_t2b_mean_r5_seed*`, 커밋마다 근거를 달아 다시 돌리지 않음).
+사전 등록 예측은 **gate 미달** (1차 정렬 탐침 7.2배 근거).
+
+```
+구현        cpt.py WarmStart · build_parser/build_config               16b9733
+도구        warm_spec · warm_preflight · warm_pairs                    41f2119
+사전 점검   시각 검증 외 전부 통과 · 직접 CPT 3 run 바이트 단위 재현 · 전환 213/213/214
+```
+
+seed 42 를 돌리는 순서:
+
+```
+.conda/python.exe tools/check_clock.py --record
+.conda/python.exe tools/warm_preflight.py           # 전부 통과해야 시작
+# 명령은 reports/tables/warm_preflight.md "실행 명령" (seed 42 만)
+.conda/python.exe tools/compare_runs.py cpt_t2b_mean_warm_seed42 cpt_t2b_mean_r5_seed42   --allow warm_rows warm_bytes warmup_bytes pool_extend_docs code
+.conda/python.exe tools/warm_pairs.py               # gate 판정
+```
 
 3주차를 닫으며 남은 일:
 

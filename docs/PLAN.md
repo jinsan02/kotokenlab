@@ -1706,6 +1706,93 @@ d_upd   +0.321019 · +0.321193 · +0.321354   평균 +0.321189 (SD 0.000168)
 (워밍업 30 vs 21 update, 코드 계보 차이). 영어·코드 잔차는 update 가 늘며 조금 커졌다.
 seed 2026 은 중복 실행 사고로 학습 시간이 3.46h 로 오염됐지만 BPB 는 다른 seed 와 SD 안이다.
 
+### 4주차 run 설정 동결 — 2026-10-06 (돌리기 전)
+
+amendment 최소 추가 실험 3번 — **직접 CPT 보다 신규 행 warm-start 가 나은가.**
+첫 33.7MB(예산의 20%)는 T2b 의 새 행 30,000 만 학습하고 몸통과 옛 행은 얼린다. 나머지
+134.8MB 는 전체를 학습한다. 총 원문은 직접 CPT 와 같은 168.5MB — 1단계 비용이 예산
+안에 있다 (amendment "budget 밖 prep 금지"). 이 절을 커밋한 뒤에 실행한다.
+
+동결 설정은 [`tools/warm_spec.py`](../tools/warm_spec.py) 한 곳에 있다. 사전 점검
+[`warm_preflight.py`](../tools/warm_preflight.py), 집계·판정
+[`warm_pairs.py`](../tools/warm_pairs.py) 는 **결과를 보기 전에** 만들었다.
+
+#### 구현 (`16b9733`)
+
+```
+1단계   몸통 requires_grad=False · 임베딩(tied)은 hook 으로 옛 행 gradient 0
+        임베딩 param group 의 weight decay 0 — AdamW 의 decoupled decay 는 gradient 와
+        무관하게 옛 행을 줄이므로 마스크만으로는 부족하다 (테스트로 확인)
+전환    원문 33.7MB 를 지난 첫 update 경계. 옛 행이 시작과 비트 단위로 같은지 run 안에서
+        확인하고, 다르면 RuntimeError 로 멈춘다 (8비트 옵티마이저 상태까지 지킨다)
+2단계   전부 학습 · 임베딩 decay 0.1 복원. 학습률·스케줄은 두 단계가 같다 (상수 1e-5,
+        워밍업 예산의 2%)
+기록    원장 note 에 warm_end_step · warm_end_bytes · warm_end_tokens ·
+        warm_old_rows_max_diff. 새 행의 기울기·이동량은 --damaged-rows 로 train_curve 에
+```
+
+#### 무엇과 비교하나
+
+같은 seed 의 **기존 직접 CPT** `cpt_t2b_mean_r5_seed<s>` (상수 LR 168.5MB, `7683b83`)
+와 짝짓는다. 다시 돌리지 않는다 (2026-10-06 결정). 근거:
+
+- 그 뒤 측정 경로 커밋 13개를 `warm_spec.REVIEWED_COMMITS` 에 커밋마다 근거를 달아
+  적었다. 사전 점검이 실제 git log 와 대조해 목록 밖 커밋이 끼면 막는다
+- `cpt.build_config` 로 원장 argv 를 다시 넣으면 직접 CPT 계열(3주차 T2b, 2주차 C0)의
+  config 해시가 원장과 같다 — 테스트로 확인 (`tests/test_warm_start.py`)
+- 계획 config 와 직접 CPT config 의 치명 필드 차이는 `warm_rows` · `warm_bytes`(처치),
+  `warmup_bytes` · `pool_extend_docs`(옛 config 에 없음, 기본값이 예전 동작) 넷뿐이다 —
+  사전 점검이 **실제로 config 를 만들어** 대조한다 (3주차 seed 42 의 누락을 막는다)
+- 예산 꼬리(`2da591e`): seed 42·123 의 직접 CPT 는 1,063 update 경계에서 끝났다.
+  seed 2026 은 0.75 update 의 미반영 꼬리가 있었다 — gate 경계(0.010)보다 수십 배 작다
+
+#### 명령
+
+```
+.conda/python.exe -u -m src.training.cpt --model artifacts/models/kot2b_v2_n30000_mean \
+  --name t2b_mean --budget-bytes 168500000 --pool-docs 50000 --eval-bytes 20000000 \
+  --eval-at 33700000 --eval-budget 2000000 --lr-schedule constant --seed <s> --tag warm \
+  --warm-rows artifacts/tokenizers/kot2b_v2_n30000/id_map.json --warm-bytes 33700000 \
+  --damaged-rows artifacts/tokenizers/kot2b_v2_n30000/id_map.json --save
+```
+
+사전 점검 예측(`reports/tables/warm_preflight.json`): 2단계 전환 update 213 · 213 · 214,
+종료 update 1,063 (seed 42·123 은 직접 CPT 와 같은 원문 바이트에서 끝난다).
+
+#### 지표 · gate · 사전 등록 예측
+
+```
+d_direct = Bf(직접 CPT) - Cf      d_warm = Bf(warm-start) - Cf      (Cf: 같은 seed C0 상수 LR)
+delta    = d_direct - d_warm      양수면 warm-start 가 낫다
+gate     seed 42 의 delta >= 0.010 BPB 이면 seed 123 · 2026 을 돌린다. 아니면 멈춘다
+```
+
+0.010 은 직접 CPT 잔차(약 0.346)의 약 2.9%, seed 간 잔차 SD(0.000235)의 약 40배다.
+gate 를 통과해 세 seed 가 모이면 delta 의 평균 · 표본 SD · 탐색적 t(2) 95% CI 를 적는다.
+
+```
+예측   gate 미달 (delta < 0.010). 방향도 음수(warm 이 더 나쁨)일 가능성이 크다
+근거   1차 정렬 탐침: 몸통을 얼리고 임베딩만 학습하면 같은 약 17MB 에서 한국어 -3.03%,
+       전체 CPT 는 -21.87% — 7.2배 차이 (reports/tables/alignment_probe.md).
+       1단계 33.7MB 동안 몸통이 배우지 못하는 손해를 2단계 134.8MB 가 메우고도 0.010 을
+       더 벌어야 한다. 직접 CPT 는 140MB -> 종점에서도 0.014 내려갔다 (r5 seed42)
+반대   Smith et al. (amendment §5) 은 embedding-only -> 전체 2단계 적응을 보고했다.
+       이 실험은 옛 행을 건드리지 않아 1차 정렬처럼 영어·코드를 밀어내지 않는다
+```
+
+**예측이 틀려도 gate 규칙은 그대로다.** 효과 방향을 보고 경계를 바꾸지 않는다.
+
+#### 순서 · 시간 · 중단
+
+```
+0. tools/check_clock.py --record (24시간 지났으면) -> tools/warm_preflight.py 전부 통과
+1. seed 42   약 1.2h (±30%) · peak VRAM 약 11.4GB 이하 (1단계는 몸통 gradient 가 없다)
+2. tools/warm_pairs.py 로 gate 판정. 통과면 seed 123 -> 2026 (각 약 1.2h), 다시 사전 점검
+```
+
+**중단 조건:** 옛 행 이동(전환 시 RuntimeError) · NaN · OOM · 사전 점검 실패 · 종료 update
+나 전환 지점이 예측과 다름. 효과 방향을 보고 seed 수를 줄이거나 늘리지 않는다.
+
 ## 2026-09-19 외부 비판 검토 amendment
 
 위 사전 등록과 과거 결과는 역사적 기록으로 보존한다. 아직 실행하지 않은 P3의
