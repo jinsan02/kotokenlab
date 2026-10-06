@@ -66,7 +66,13 @@ def token_byte_length(token: str, alphabet: set) -> int:
 
 
 def evaluate(model, tokenizer, path: Path, max_bytes: int, seq_len: int,
-             device: str, byte_len_fn) -> dict:
+             device: str, byte_len_fn, docs_out: list | None = None) -> dict:
+    """`docs_out` 에 리스트를 주면 문서마다 {doc, nll, bytes, tokens, raw_bytes} 를 덧붙인다.
+
+    문서 단위 paired bootstrap (amendment §4, 5주차) 용이다. 합계는 **예전과 같은
+    순서로** 더한다 — 문서별 값은 따로 모으므로 docs_out 을 줘도 반환값이 바뀌지 않는다.
+    `doc` 은 파일에서 빈 줄을 뺀 순번이다. 토크나이저와 무관하게 같은 문서를 가리킨다.
+    """
     import torch
 
     total_nll = 0.0
@@ -76,8 +82,9 @@ def evaluate(model, tokenizer, path: Path, max_bytes: int, seq_len: int,
     seen_bytes = 0
     n_docs = 0
 
-    def score(ids: list) -> None:
+    def score(ids: list) -> tuple:
         nonlocal total_nll, total_bytes, total_chars, total_tokens
+        d_nll, d_tok, d_bytes = 0.0, 0, 0
         for i in range(0, len(ids), seq_len):
             chunk = ids[i:i + seq_len]
             if len(chunk) < 2:
@@ -88,20 +95,30 @@ def evaluate(model, tokenizer, path: Path, max_bytes: int, seq_len: int,
             lp = torch.log_softmax(logits[0, :-1], dim=-1)
             tgt = x[0, 1:]
             nll = -lp.gather(1, tgt.unsqueeze(1)).squeeze(1)
-            total_nll += float(nll.sum())
+            c_nll = float(nll.sum())
+            c_bytes = byte_len_fn(chunk[1:])
+            total_nll += c_nll
             total_tokens += len(chunk) - 1
-            total_bytes += byte_len_fn(chunk[1:])
+            total_bytes += c_bytes
             # bpc 는 부차 지표다. 토크나이저가 다르면 BPB 로만 비교한다.
             total_chars += len(tokenizer.decode(chunk[1:]))
+            d_nll += c_nll
+            d_tok += len(chunk) - 1
+            d_bytes += c_bytes
+        return d_nll, d_tok, d_bytes
 
     with path.open("r", encoding="utf-8") as fh:
         for line in fh:
             if not line.strip():
                 continue
             text = json.loads(line)["text"]
-            seen_bytes += len(text.encode("utf-8"))
+            raw = len(text.encode("utf-8"))
+            seen_bytes += raw
+            d_nll, d_tok, d_bytes = score(tokenizer(text, add_special_tokens=False)["input_ids"])
+            if docs_out is not None:
+                docs_out.append({"doc": n_docs, "nll": d_nll, "bytes": d_bytes,
+                                 "tokens": d_tok, "raw_bytes": raw})
             n_docs += 1
-            score(tokenizer(text, add_special_tokens=False)["input_ids"])
             if seen_bytes >= max_bytes:
                 break
 
