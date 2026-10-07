@@ -78,6 +78,55 @@ def recovery(b0: float, bf: float, cf: float) -> float:
     return (b0 - bf) / (b0 - cf)
 
 
+def amendment_results(w) -> None:
+    """3차(amendment 2~5주차) 결과. 숫자는 원장과 문서별 NLL 파일에서 읽는다.
+
+    판정 문구는 각 주차의 사전 등록(PLAN.md) 결과 절과 같게 둔다 — 여기서 새로
+    판정하지 않는다.
+    """
+    from tools import upd_pairs as U
+    seeds = (42, 123, 2026)
+    cf = {s: bpb(f"cpt_c0_qwen_r5_seed{s}") for s in seeds}
+    d168 = [bpb(f"cpt_t2b_mean_r5_seed{s}") - cf[s] for s in seeds]
+    # 3주차 rho 는 upd run 자신의 168.5MB 지점으로 잰다 (upd_pairs 와 같은 함수).
+    # 기존 r5 run 의 종점을 쓰면 다른 run 끼리의 차이가 섞여 7.1% 가 된다.
+    lm = U.lm_rows()
+    ko = [U.per_seed(s, lm)["ko"] for s in seeds]
+    dupd = [k["d_upd"] for k in ko]
+    rho = [k["rho"] for k in ko]
+    d_direct = d168[0]
+    d_warm = bpb("cpt_t2b_mean_warm_seed42") - cf[42]
+    w("### 3차 결과 (amendment 2~5주차, 2026-10-07)")
+    w("")
+    w("잔차 d = BPB(T2b) - BPB(C0), 한국어 dev, 상수 LR. 같은 seed 끼리 짝짓는다.")
+    w("")
+    w("```")
+    w(f"2주차  같은 원문 168.5MB   d 평균 {statistics.mean(d168):+.6f} "
+      f"(seed 3쌍 SD {statistics.stdev(d168):.6f})")
+    w(f"3주차  같은 update 1,523   d 평균 {statistics.mean(dupd):+.6f} "
+      f"(SD {statistics.stdev(dupd):.6f}) · 줄어든 몫 rho {statistics.mean(rho):.1%}")
+    w(f"4주차  신규 행 warm-start   d {d_warm:+.6f} vs 직접 {d_direct:+.6f} "
+      f"-> delta {d_direct - d_warm:+.6f} (gate +0.010 미달, seed 42)")
+    try:
+        from tools import doc_bootstrap as D, w5_spec as S
+        a, b = D.load_docs("t2b_const"), D.load_docs("c0_const")
+        if D.status("t2b_const", a) == "통과" and D.status("c0_const", b) == "통과":
+            r = D.paired_bootstrap(a["ko"], b["ko"], S.B, S.RNG_SEED)
+            w(f"5주차  대표 조건 재학습      d {r['diff']:+.6f}  문서 구간 "
+              f"[{r['lo']:+.6f}, {r['hi']:+.6f}]")
+        else:
+            w("5주차  대표 조건 문서 구간    미확인 (문서별 평가가 원장을 재현하지 않았다)")
+    except ImportError:
+        w("5주차  대표 조건 문서 구간    미확인 (numpy 없음)")
+    w("```")
+    w("")
+    w("**같은 update 를 받아도 잔차의 약 93% 가 남는다** — 168.5MB 격차는 계산량 부족이")
+    w("주된 원인이 아니다. 새 행만 먼저 학습시키는 warm-start 는 이 설정에서 직접 CPT")
+    w("보다 나빴다. 문서 구간은 dev 문서 표본의 불확실성만 담고, seed 불확실성은 SD 가")
+    w("따로 낸다. **Final Test 는 아직 열지 않았다** — 선택 규칙만 먼저 고정했다")
+    w("(`docs/PLAN.md` \"5주차 동결\" D).")
+
+
 def main(argv: list | None = None) -> int:
     ap = argparse.ArgumentParser(description="외부 검토용 개요")
     ap.add_argument("--bundle", action="store_true",
@@ -327,6 +376,8 @@ def main(argv: list | None = None) -> int:
     w("취소  R 유사성 기전 검정(P3-C), CPT 행 이식을 완벽한 초기화 상한으로 읽는 P3-E")
     w("```")
     w("")
+    amendment_results(w)
+    w("")
     w("## 7. 방법론에서 지키는 것")
     w("")
     w("- **사전 등록.** 예측 · 판정 경계 · 효과 크기 바닥을 돌리기 전에 커밋한다.")
@@ -399,6 +450,9 @@ def main(argv: list | None = None) -> int:
     w("docs/PLAN.md           모든 사전 등록 원문 (1차 Q1~Q6, 2차 R1~R5·D, 3차 P3)")
     w("docs/SPEC_P2.md        2차 설계    docs/SCHEDULE_P2.md  2차 일정과 결과")
     w("docs/SPEC_P3.md        3차 설계    docs/SCHEDULE_P3.md  3차 일정")
+    w("docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md  3차 실행의 정본 (주장 수정 · 7주 일정)")
+    w("docs/MISTAKES.md       실제로 틀린 것과 되풀이된 패턴")
+    w("reports/tables/seed_pairs · upd_pairs · warm_pairs · doc_bootstrap  3차 2~5주차 표")
     w("docs/DESIGN_DELTA.md   스펙과 다르게 한 것과 그 이유 (반증된 가설 포함)")
     w("reports/FINAL_REPORT.md  1차 결과 전체")
     w("reports/tables/*.md    전부 도구가 쓴 표")
