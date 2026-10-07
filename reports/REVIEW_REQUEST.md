@@ -160,6 +160,23 @@ T2a 는 BPB +0.03%, KMMLU -0.21%p 로 **C0 와 구별되지 않는다**
 취소  R 유사성 기전 검정(P3-C), CPT 행 이식을 완벽한 초기화 상한으로 읽는 P3-E
 ```
 
+### 3차 결과 (amendment 2~5주차, 2026-10-07)
+
+잔차 d = BPB(T2b) - BPB(C0), 한국어 dev, 상수 LR. 같은 seed 끼리 짝짓는다.
+
+```
+2주차  같은 원문 168.5MB   d 평균 +0.345679 (seed 3쌍 SD 0.000235)
+3주차  같은 update 1,523   d 평균 +0.321189 (SD 0.000168) · 줄어든 몫 rho 7.2%
+4주차  신규 행 warm-start   d +0.357348 vs 직접 +0.345639 -> delta -0.011709 (gate +0.010 미달, seed 42)
+5주차  대표 조건 재학습      d +0.345564  문서 구간 [+0.336924, +0.354955]
+```
+
+**같은 update 를 받아도 잔차의 약 93% 가 남는다** — 168.5MB 격차는 계산량 부족이
+주된 원인이 아니다. 새 행만 먼저 학습시키는 warm-start 는 이 설정에서 직접 CPT
+보다 나빴다. 문서 구간은 dev 문서 표본의 불확실성만 담고, seed 불확실성은 SD 가
+따로 낸다. **Final Test 는 아직 열지 않았다** — 선택 규칙만 먼저 고정했다
+(`docs/PLAN.md` "5주차 동결" D).
+
 ## 7. 방법론에서 지키는 것
 
 - **사전 등록.** 예측 · 판정 경계 · 효과 크기 바닥을 돌리기 전에 커밋한다.
@@ -230,6 +247,9 @@ docs/RULES.md          하드룰. 지표 정의(14b)와 사전 등록 규칙(14)
 docs/PLAN.md           모든 사전 등록 원문 (1차 Q1~Q6, 2차 R1~R5·D, 3차 P3)
 docs/SPEC_P2.md        2차 설계    docs/SCHEDULE_P2.md  2차 일정과 결과
 docs/SPEC_P3.md        3차 설계    docs/SCHEDULE_P3.md  3차 일정
+docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md  3차 실행의 정본 (주장 수정 · 7주 일정)
+docs/MISTAKES.md       실제로 틀린 것과 되풀이된 패턴
+reports/tables/seed_pairs · upd_pairs · warm_pairs · doc_bootstrap  3차 2~5주차 표
 docs/DESIGN_DELTA.md   스펙과 다르게 한 것과 그 이유 (반증된 가설 포함)
 reports/FINAL_REPORT.md  1차 결과 전체
 reports/tables/*.md    전부 도구가 쓴 표

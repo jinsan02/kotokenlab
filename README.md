@@ -210,8 +210,24 @@ R4 는 돌렸다. 17.5MB 설정에서 효과 크기 바닥 5%p 에 못 미쳐 �
 [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md), 판정표는 `reports/tables/`.
 
 **1차의 절대값은 전부 코사인 스케줄 조건부로 읽는다** — C0 도 상수 LR 에서 더 나았다.
-3차는 이어지는 질문(상수 LR 포화 · 불변성 · R1 격차 · 과제 비용 · WSD 처방)을 묻는다 —
-[`docs/SPEC_P3.md`](docs/SPEC_P3.md).
+
+### 3차 결과 — 외부 비판 감사 뒤 amendment (2026-10-07, 5주차까지)
+
+2026-09-19 감사로 3차 계획을 다시 잡았다 —
+[`docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md).
+원래의 3차 설계([`docs/SPEC_P3.md`](docs/SPEC_P3.md))보다 이것이 우선한다. 잔차
+d = BPB(T2b) − BPB(C0), 한국어 dev, 상수 LR 168.5MB.
+
+| 주 | 질문 | 결과 |
+|---|---|---|
+| 2 | 같은 원문 격차가 seed 42 의 우연인가 | **아니다** — seed 3쌍 d 평균 +0.345679, SD 0.000235 ([seed_pairs.md](reports/tables/seed_pairs.md)) |
+| 3 | 격차가 T2b 가 update 를 덜 받아서인가 | **주로 아니다** — 같은 1,523 update 에서도 d +0.321189, 줄어든 몫 rho 7.2% (예측 적중, [upd_pairs.md](reports/tables/upd_pairs.md)) |
+| 4 | 새 행만 먼저 학습시키면(warm-start) 나은가 | **아니다** — 직접 CPT 보다 0.0117 나쁘다, gate +0.010 미달 (seed 42, [warm_pairs.md](reports/tables/warm_pairs.md)) |
+| 5 | 문서 표본 불확실성은 | 대표 조건 d +0.345564, 문서 95% 구간 [+0.336924, +0.354955] ([doc_bootstrap.md](reports/tables/doc_bootstrap.md)). 제거 토큰이 나온 dev 문서는 434개 중 4개라 노출 층화는 비교 불가 ([exposure_strata.md](reports/tables/exposure_strata.md)) |
+
+seed 불확실성(SD)과 문서 표본 불확실성(구간)은 섞지 않는다. **Final Test 는 아직 열지
+않았다** — 선택 규칙만 먼저 고정했다 ([`docs/PLAN.md`](docs/PLAN.md) "5주차 동결" D).
+수치의 사전 등록과 결과는 PLAN 각 주차 절, 실수와 교정은 [`docs/MISTAKES.md`](docs/MISTAKES.md).
 
 ### 세 번 가설을 세웠고 세 번 반증했다
 
@@ -284,8 +300,9 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 | | |
 |---|---|
 | **최종 보고서** | [`reports/FINAL_REPORT.md`](reports/FINAL_REPORT.md) — 1차 전체 |
-| **보고표 9종** | [`reports/tables/`](reports/tables/) — 측정마다 하나. 각 문서 끝에 **한계** 절이 있다 |
-| **원장** | `experiments/*.tsv` — 모든 숫자의 출처. 239행, append-only |
+| **외부 검토 개요** | [`reports/OVERVIEW.md`](reports/OVERVIEW.md) — 1~3차 요약, 원장에서 생성 (`tools/overview.py`) |
+| **보고표** | [`reports/tables/`](reports/tables/) — 측정마다 하나. 대부분 도구가 쓰고, 각 문서 끝에 **한계** 절이 있다 |
+| **원장** | `experiments/*.tsv` — 모든 숫자의 출처. append-only |
 
 특히:
 
@@ -310,12 +327,14 @@ src/
   data/       정규화 · dedup · 문서 단위 split
   tokenizer/  Substitute(T2b) 채굴 · pruning(T2a) · vocab/merge DAG 분석
   surgery/    embedding resize · 초기화 E0/E1/E2 · distillation(스텁)
-  training/   CPT · alignment(폐기, 재현용으로 보존)
-  evaluation/ bpb · token_exposure · latency · memory · capability(스텁)
+  training/   CPT(상수 LR · WSD · warm-start) · alignment(폐기, 재현용으로 보존)
+  evaluation/ bpb · doc_nll(문서별) · token_exposure · latency · memory · capability(KMMLU)
   utils/      seed · hashing · env · ledger · run tracking
-tools/        원장 검사 · git hook 본체 · 장시간 run 감시
+tools/        원장 검사 · git hook 본체 · 장시간 run 감시 · 표 생성기
+              (주차별 동결 *_spec · 사전 점검 *_preflight · 집계 *_pairs · doc_bootstrap)
 experiments/  TSV 원장 + runs/<run_id>/
-reports/      FINAL_REPORT.md · tables/ · figures/
+reports/      FINAL_REPORT.md · OVERVIEW.md · tables/ · figures/
+docs/         규칙 · 사전 등록(PLAN) · amendment · 인수인계 · 실수 기록
 ```
 
 `alignment.py` 와 `align` phase 는 **폐기했지만 지운다 하지 않았다** — 그

@@ -63,7 +63,9 @@ Config-SHA256: <config.json 의 sha256>
 
 ## 개발 순서 (스펙 §97~§112)
 
-현재 위치는 **외부 비판 감사 뒤 P3 검증 준비**다 (2026-09-19). 1차는 `p1-closed` 로 닫혔고
+현재 위치는 **amendment 5주차 완료, Final Test 개봉 결정 전**이다 (2026-10-07) —
+[`HANDOFF.md`](HANDOFF.md) "지금" 절. 아래는 2026-09-19 시점의 서술이다.
+1차는 `p1-closed` 로 닫혔고
 (Q1~Q6 와 Phase 6 A·C·E) — [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md) —
 2차는 R1·Q7·R5 와 한자 프로브로 닫혔다 ([`SCHEDULE_P2.md`](SCHEDULE_P2.md)).
 3차 W0는 완료됐지만 외부 검토로 실행 순서를 다시 잡았다. 현재 정본은
@@ -96,7 +98,7 @@ Level 3 능력 평가와 N<10,000 은 여전히 열려 있고 새 사전 등록�
 | 8 | 0.5B Full CPT | **완료** — 3조건 168.5MB Equal-Raw-Data |
 | 8b | Phase 4: 등토큰 예산 + N 스윕 | **완료** — 기존 equal-token run은 cosine/seed42라 P3 compute 대조로 그대로 재사용하지 않음 |
 | 9 | 평가 파이프라인 고정 → `eval-freeze-v1` 태그 | |
-| 10 | 최종 후보 multi-seed (42 / 123 / 2026) | 노이즈 플로어로 3시드는 측정 완료 |
+| 10 | 최종 후보 multi-seed (42 / 123 / 2026) | **완료** — 상수 LR C0 · T2b 3 seed 쌍 ([seed_pairs.md](../reports/tables/seed_pairs.md)), 같은 update T2b 3 seed ([upd_pairs.md](../reports/tables/upd_pairs.md)) |
 | 11 | 1.5B scale validation | **부분** — Pre-CPT 손상만 측정 (Phase 6-A). CPT 는 미실행 |
 | 12 | 시스템 벤치마크 (RTX 5070 Ti) — Q6 | **완료** — [system_bench.md](../reports/tables/system_bench.md) · 배치는 [phase6.md](../reports/tables/phase6.md) |
 

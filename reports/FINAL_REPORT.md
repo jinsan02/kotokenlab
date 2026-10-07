@@ -4,7 +4,9 @@
 > 당시 판정을 소급 수정하지 않는다. Equal-Raw-Data/compute 구분, R의 보조지표화,
 > BPB 경계, R1·Q7·R5의 축소된 결론과 수정 P3는
 > [`docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](../docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)를
-> 함께 읽어야 한다.
+> 함께 읽어야 한다. 그 뒤의 3차 결과(seed 쌍 · 같은 update · warm-start · 문서 구간)는
+> [`docs/PLAN.md`](../docs/PLAN.md) 2~5주차 결과 절과 [`OVERVIEW.md`](OVERVIEW.md) §6 에 있다
+> (2026-10-07 표지).
 
 > **1차 완료 (2026-09-02).** 사전 등록 질문 Q1~Q6 와 유효 범위 Phase 6(A/C/E)이
 > 모두 닫혔다. 모든 수치는 `experiments/` 원장에서 읽었다 — 손으로 옮겨 적은

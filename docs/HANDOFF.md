@@ -4,8 +4,8 @@
 > [`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)에
 > 한 문서로 정리했다. 아래의 과거 P3 실행 순서보다 amendment를 우선한다.
 
-최종 갱신 2026-10-06 (**amendment 5주차 준비 완료 — GPU 작업 전**).
-아래 "한 줄 상태" 는 2026-09-17 기준이고, 지금 할 일은 "지금 — amendment 3주차 완료" 절이다.
+최종 갱신 2026-10-07 (**amendment 5주차 완료 — 남은 것은 Final Test 개봉 결정 · 6·7주차**).
+지금 할 일은 "지금 — amendment 5주차 완료" 절이다.
 1차 결과 전체는
 [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md).
 규칙은 [`RULES.md`](RULES.md), 범위와 종료 조건은
@@ -20,9 +20,15 @@ Gate 이원화, 도메인 2분류, 인접쌍 채굴, pretokenizer 경계 함정,
 
 ## 한 줄 상태
 
-**2차 종료. R1·Q7 부정, R5 긍정, 한자 프로브 D1~D3 "T2a = C0".**
-**3차는 설계와 사전 등록까지 끝났다. 다음은 W0 (코드 · GPU 0)** —
-[`SPEC_P3.md`](SPEC_P3.md) · [`SCHEDULE_P3.md`](SCHEDULE_P3.md) · [`PLAN.md` "P3 확장"](PLAN.md).
+**3차(amendment) 5주차까지 완료 (2026-10-07).** 같은 원문 잔차는 seed 3쌍에서 재현됐고,
+같은 update 를 줘도 약 93% 가 남으며(3주차), 신규 행 warm-start 는 직접 CPT 보다 나빴다
+(4주차, gate 미달). 5주차에 문서 단위 구간 · 노출 층화 · 문구를 확정하고 Final Test
+선택 규칙을 고정했다. **Final Test 는 열지 않았다.** 수치는 [`PLAN.md`](PLAN.md) 각
+주차 결과 절, 표는 `reports/tables/{seed,upd,warm}_pairs.md` · `doc_bootstrap.md`.
+
+남은 것: Final Test 개봉 여부(사용자 결정) → 6주차 WSD(선택) → 7주차 표 재생성 · 집필.
+
+이전 상태: 2차 종료 (2026-09-17) — R1·Q7 부정, R5 긍정, 한자 프로브 D1~D3 "T2a = C0".
 
 ### 한자 프로브 결과 (2026-09-17, record `855c07b`)
 
