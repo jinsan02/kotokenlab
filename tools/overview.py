@@ -23,6 +23,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from tools.contamination_check import scope_line  # noqa: E402
+
 EXP = ROOT / "experiments"
 OUT = ROOT / "reports" / "OVERVIEW.md"
 BUNDLE = ROOT / "reports" / "REVIEW_REQUEST.md"
@@ -222,7 +224,10 @@ def main(argv: list | None = None) -> int:
     w(f"**{r_cos:.1%}** 를 메웠고(N=10k 는 {r_10k:.1%}), 나머지는 남았다.")
     w("")
     w("**압축은 설계대로 됐고 품질은 따라오지 못했다.** 그 대신 산 것은 추론")
-    w("비용이다 — prefill -35~41%, KV cache -30%, 같은 문맥 창에 +44% 원문.")
+    w("비용이다 — prefill -35~41%, KV cache -30%, 같은 문맥 창에 +44% 원문(환산값).")
+    # amendment §1 · §3: 시스템 수치는 품질을 맞춘 서비스 개선이 아니다. 통제축을 붙인다.
+    w("이 셋은 **같은 원문** 을 넣은 비교다 — 토큰 수가 다르고 품질은 맞추지 않았다")
+    w("(같은 CPT 후 한국어 BPB 가 나쁜 모델의 비용이다). +44% 는 평균 토큰화율로 환산한 값이다.")
     w("(시스템 수치는 `reports/tables/system_bench` 계열에 있다)")
     w("")
     w("## 4. 2차 결과 — 무엇이 회복을 정하는가")
@@ -307,6 +312,9 @@ def main(argv: list | None = None) -> int:
       f"{(a_t2a[0] - a_c0[0]) * 100:+.2f}%p 로 **C0 와 구별되지 않는다**")
     w("(등록 경계 ±2%p, paired bootstrap). 다만 C0 가 찍기(25%)보다 약")
     w(f"{(a_c0[0] - 0.25) * 100:.1f}%p 위라 **감도가 낮은 계기** 다.")
+    scope = scope_line()
+    if scope:
+        w(scope)
     w("")
     w("## 6. 3차 설계 — 2026-09-19 외부 검토 amendment")
     w("")
@@ -337,8 +345,10 @@ def main(argv: list | None = None) -> int:
     w("  열지 않았다")
     w("- **CPT 코퍼스와 Qwen 사전학습은 모두 Common Crawl 계열일 수 있다.** 실제")
     w("  중복률과 편향 방향은 측정하지 않아 알 수 없다")
-    w("- **평가 문항 오염 제거가 구현되지 않았다.** 2026-09-19 에 따로 세어 보니")
-    w("  KMMLU 6과목 중 덮임 50% 이상은 2문항이었다 (상용구 겹침이 대부분)")
+    # "상용구 겹침이 대부분" 은 잰 적이 없어 뺐다 (2026-10-07). 숫자는 표에서 읽는다.
+    w("- **평가 문항 오염 제거가 구현되지 않았다.** 2026-09-19 에 따로 셌다.")
+    w("  " + (scope_line() or "(contamination.md 없음 — 미확인)")
+      + " 겹침이 곧 오염인지는 판정하지 않았다")
     w("- **도메인 라벨 정확도가 ~55%** 라 도메인별 수치를 인용하지 않는다")
     w("- **ZeTT 를 못 돌렸다.** CPT 행 이식은 몸통-행 상호적응을 깨는 compatibility")
     w("  진단일 뿐, 완벽한 초기화 상한이나 ZeTT 대체 baseline이 아니다")

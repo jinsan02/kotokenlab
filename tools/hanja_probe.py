@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT))
 from src.evaluation.capability import (  # noqa: E402
     MARGIN, bootstrap_ci, paired_diff_ci, verdict,
 )
+from tools.contamination_check import scope_line  # noqa: E402
 
 EXP = ROOT / "experiments"
 OUT = ROOT / "reports" / "tables" / "hanja_probe.md"
@@ -167,6 +168,9 @@ def main() -> int:
         L += ["", f"T2a − C0 = **{d:+.2%}p**, paired 95% CI [{dlo:+.2%}p, {dhi:+.2%}p], "
               f"동등성 경계 ±{MARGIN:.0%}p",
               "", f"**판정: {v}.**", ""]
+        scope = scope_line()
+        if scope:
+            L += [scope, ""]
         if v == "측정 불가 — 바닥":
             L += [f"C0 의 CI 하한 {acc['C0'][1]:.4f} 가 찍기(0.25) 이하다. "
                   "이 규모에서는 KMMLU 로 추론 차이를 잴 수 없다.", ""]

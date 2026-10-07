@@ -59,6 +59,26 @@ WATCH = 0.2
 MIN_GRAMS = 10         # 문항이 짧으면 덮임이 쉽게 올라간다 (4 gram 중 2개 = 50%)
 
 
+def scope_line(path: Path = OUT):
+    """KMMLU 결과 옆에 붙이는 탐지 범위 한 줄 (amendment §1). 표가 없으면 None.
+
+    숫자는 이 도구가 쓴 표에서 읽는다 — 결과를 인용하는 다른 도구가 손으로
+    옮기지 않게 (2026-10-07, 5주차 문구 확정).
+    """
+    import re
+    if not path.exists():
+        return None
+    text = path.read_text(encoding="utf-8")
+    total = re.search(r"문항 ([0-9,]+) · CPT 풀 앞 ([0-9,]+)문서", text)
+    sus = re.search(rf"그중 덮임 >= {SUSPECT:.0%}\s+([0-9,]+)", text)
+    if not (total and sus):
+        raise SystemExit(f"{path}: 형식이 바뀌었다 — scope_line 을 고쳐라")
+    return (f"오염 검사 범위: 우리 CPT 풀(앞 {total.group(2)}문서)과 질문 본문의 "
+            f"{N}-gram 겹침만 — 덮임 {SUSPECT:.0%} 이상 {sus.group(1)} / "
+            f"{total.group(1)}문항 (`contamination.md`). Qwen 사전학습 · 의역 · "
+            f"{N}자보다 짧은 겹침은 검사하지 않았다.")
+
+
 def norm(s: str) -> str:
     """공백을 지우고 NFKC 소문자화. 줄바꿈·띄어쓰기 차이로 놓치지 않게."""
     return "".join(unicodedata.normalize("NFKC", s).lower().split())
