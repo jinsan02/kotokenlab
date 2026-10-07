@@ -156,7 +156,7 @@ R5  LR 스케줄 때문이다                        긍정 (168.5MB 종점, 벽
 **논문 헤드라인이 바뀐다.** 그리고 1차의 절대값은 전부 코사인 조건부다 —
 C0 도 상수 LR 에서 더 나았다.
 
-### 지금 — amendment 3주차 완료, 다음은 4주차 (2026-10-02)
+### 지금 — amendment 5주차 1~3 단계 완료 (2026-10-07). 3·4주차 결과부터
 
 **3주차 판정: 예측 적중.** 설정·예측은 [`PLAN.md`](PLAN.md) "3주차 run 설정 동결"
 (`b471c36`), 결과 절도 같은 곳에 있다. 표는 [`upd_pairs.md`](../reports/tables/upd_pairs.md).
@@ -194,29 +194,42 @@ warm-start(첫 33.7MB 새 행만 + 134.8MB 전체)가 직접 CPT 보다 한국�
 (`75d955c`), GPU 시험 실행이 8비트 옵티마이저가 gradient 0 인 옛 행을 움직이는 것을 잡았다
 — 매 step 되돌리기로 바꿨다 (`062f4b4`).
 
-**지금: amendment 5주차 — 준비 완료, GPU 작업 전 (2026-10-06).** PLAN "5주차 동결" A~D.
+**지금: amendment 5주차 — 1~3 단계 완료, 4 단계(문구 확정) 남음 (2026-10-07).**
+PLAN "5주차 동결" A~D 와 그 결과 절.
 
 ```
-평가 경로   bpb.evaluate(docs_out) · src/evaluation/doc_nll.py           3bfba96
-도구        w5_spec · doc_bootstrap · exposure_strata · w5_preflight     fa12696
-동결        A 문서 bootstrap · B 노출 층화 · C 재학습 · D Final Test 규칙
+평가 경로   bpb.evaluate(docs_out) · src/evaluation/doc_nll.py           3bfba96 · e85e94b
+도구        w5_spec · doc_bootstrap · exposure_strata · w5_preflight     fa12696 · 925a25c
+1 단계      체크포인트 7개 문서별 NLL · 1차 격차 문서 구간 · 노출 층화     d8fa469
+2 단계      재학습 C0 상수 LR (ko 1.127395, R5 와 -0.000002)              79bc3e9
+            재학습 T2b 상수 LR (ko 1.472959, R5 와 -0.000077)             3cb54f6
+3 단계      재학습 둘 문서별 NLL · 상수 LR 쌍 셋의 문서 구간              40bc915
 ```
 
-결정 (2026-10-06): 대표 체크포인트는 seed 42 재학습(C0·T2b 상수 LR, 약 2.8h), 문서별
-평가는 dev 2MB(원장 재현으로 자기 검증), Final Test 는 대표 둘만 · 한국어 20MB ·
-확증 기준 "잔차 d 의 문서 구간 하한 > 0" · 부차는 영어·코드 BPB 와 압축률.
-**Final Test 개봉은 아직 결정하지 않았다.**
+체크포인트 9개 전부 문서별 합이 원장 dev BPB 를 소수 여섯째 자리까지 재현했다. 대표 조건
+dev 격차 T2b - C0 (재학습) +0.345564 [+0.336924, +0.354955]. 노출 층화는 제거 토큰이 나온
+문서가 4개뿐이라 비교 구간이 0 하나다 (탐색적).
 
-다음 순서 (PLAN "5주차 동결" 순서 절):
+결정 (2026-10-06): 대표 체크포인트는 seed 42 재학습(C0·T2b 상수 LR) — 이제
+`artifacts/models/cpt_{c0_qwen,t2b_mean}_ft_seed42` 로 등록됐다. Final Test 는 대표 둘만 ·
+한국어 20MB · 확증 기준 "잔차 d 의 문서 구간 하한 > 0" · 부차는 영어·코드 BPB 와 압축률.
+**Final Test 개봉은 아직 결정하지 않았다.** 개봉하면 평가 도구를 먼저 만들어 커밋하고
+`final-test-opened` 태그를 단다 (PLAN D 의 6).
+
+남은 일:
 
 ```
-1. 기존 체크포인트 7개 doc_nll (각 수 분)
-   .conda/python.exe -m src.evaluation.doc_nll --model <경로> --source-run <run_id>
-   경로·run_id 는 tools/w5_spec.py CHECKPOINTS. 그다음 doc_bootstrap · exposure_strata
-2. .conda/python.exe tools/w5_preflight.py -> 재학습 둘 (argv 는 w5_spec.FT_RUNS)
-3. 재학습 체크포인트 doc_nll -> doc_bootstrap
-4. contamination · system 축 문구 확정
+4. contamination · system 축 문구 확정 (문서 작업, 사용자 확인 후)
+6주차  여유가 있으면 WSD C0/T2b seed42, 아니면 분석·집필 (amendment §8)
 ```
+
+연쇄 스크립트에 run_id 를 넘길 때 (2026-10-07 에 겪었다): Windows python 이 쓴 파일은
+CRLF 다. sh 에서 읽으면 run_id 끝에 `\r` 이 붙는다. run_id 는 스크립트에 직접 적거나
+python 에서 바로 받는다 (MISTAKES 10-07).
+
+한 run 이 원장에 쓰는 중에 다른 run 을 기록할 때: 그 run 의 행만 인덱스에 올린다 —
+HEAD 내용 + 해당 run_id 행을 blob 으로 만들어 `git update-index --cacheinfo` (79bc3e9 에서
+그렇게 했다). 기존 행이 바뀌었으면 멈춘다.
 
 새 학습 모드를 넣을 때 (2026-10-06 에 겪었다):
 
