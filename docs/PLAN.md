@@ -1975,7 +1975,20 @@ Final Test 의 근거가 아니다. T2a 의 -0.000723 도 문서 구간이 0 을
 문서에서 나온다 — 노출로는 설명되지 않고 softmax 경쟁 항목 축소(amendment §1)와
 부합한다. seed 하나의 관측이다.
 
-**4 단계(문구 확정)는 남았다.** Final Test 는 열지 않았다.
+**4 단계 — 문구 확정 (2026-10-07, 사용자 승인).** amendment §1 의 두 조치:
+
+- **오염:** KMMLU 결과 옆에 탐지 범위 한 줄 — 우리 CPT 풀과 질문 본문 13-gram 만, 덮임
+  50% 이상 2 / 1,900문항, Qwen 사전학습 · 의역 · 짧은 겹침 미검사. 생성기
+  (`contamination_check.scope_line` → `hanja_probe` · `overview`, `6ed2231`)가 숫자를
+  표에서 읽는다. README · FINAL_REPORT 는 표지. "C0 에 유리한 편향" · "이미 본 데이터의
+  재학습" (FINAL_REPORT §9 · REVIEW A6) 은 본문 보존 + "크기와 방향은 알 수 없다" 표지.
+  개요의 "(상용구 겹침이 대부분)" 은 잰 적이 없어 뺐다
+- **시스템:** prefill · TTFT · KV · peak VRAM 에 통제축 `raw_prompt`(같은 원문, 토큰 수
+  다름, 품질 미매칭) 표지. +44% 는 환산값. README ① 표 · FINAL_REPORT 요약과 §6 ·
+  system_bench 본 결과와 결론 · 개요
+
+새 수치는 없다. **5주차 1~5 단계가 끝났다.** Final Test 는 열지 않았다 — 개봉은 사용자가
+따로 정한다.
 
 ## 2026-09-19 외부 비판 검토 amendment
 
