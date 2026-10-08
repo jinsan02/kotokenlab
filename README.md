@@ -18,15 +18,9 @@
 > **3차 설계 완료, 실행 전** (2026-09-17). [`docs/SPEC_P3.md`](docs/SPEC_P3.md) ·
 > [`docs/SCHEDULE_P3.md`](docs/SCHEDULE_P3.md) · 사전 등록 [`docs/PLAN.md`](docs/PLAN.md) "P3 확장"
 
-```
-Qwen2.5-0.5B
-        ↓
-Vocabulary Surgery
-        ↓
-Continued Pretraining
-        ↓
-Ko-Qwen
-```
+<p align="center"><img src="docs/img/pipeline.svg" alt="KoTokenLab 전체 파이프라인: 문서 단위 분할 → 토크나이저 수술 → 임베딩 초기화 → CPT → 평가 → TSV 원장" width="100%"></p>
+
+<sub>데이터를 문서 단위로 먼저 나누고 Final Test는 열지 않는다. 세 조건의 모델은 같은 원문으로 CPT한 뒤 평가하고, 모든 숫자는 append-only TSV 원장에 남긴다.</sub>
 
 > Embedding Alignment 단계는 스펙에 있었으나 **폐기했다.** 손해를 안 내면서
 > 제 일을 하는 lr 이 없다는 것을 3라운드 탐침으로 확인했다
@@ -51,6 +45,20 @@ Attention 연산량, KV Cache, 추론 지연에 미치는 영향을 **통제된 
 
 Qwen2.5-0.5B 에 T2b(크기 보존 치환, n=30,000) 수술을 하고 세 조건에 **같은
 원문 168.5MB** 로 통제된 CPT 를 돌렸다.
+
+<p align="center"><img src="docs/img/conditions.svg" alt="C0·T2a·T2b 세 조건을 같은 원문 168.5MB로 CPT해 비교" width="100%"></p>
+
+<sub>바꾼 것은 어휘뿐이다. 원문과 학습 스케줄은 세 조건이 같다.</sub>
+
+<p align="center"><img src="docs/img/two_axes.svg" alt="T2b vs C0 변화율: 토큰 −30.2%, prefill −41.3%, KV −30%, peak VRAM −17.7%, 한국어 BPB +37.8%, 영어 +0.98%, 코드 +1.84%" width="100%"></p>
+
+<sub>파랑은 개선, 빨강은 악화다. 모든 지표가 낮을수록 좋다.</sub>
+
+> **이 프로젝트는 한국어 품질 개선에 실패했다.** 압축이 잘 됐다는 사실이
+> 품질 개선을 뜻하지 않는다. 두 표를 함께 보지 않으면 결론이 뒤집힌다.
+
+<details>
+<summary><b>① 성공한 축 · ② 악화한 축 — 수치표와 출처</b></summary>
 
 **① 성공한 축 — 압축과 추론 효율**
 
@@ -80,9 +88,7 @@ Qwen2.5-0.5B 에 T2b(크기 보존 치환, n=30,000) 수술을 하고 세 조건
 | 영어 | +0.98% | 같음 |
 | 코드 | +1.84% | 같음 |
 | 등토큰 조건에서도 (C0 와 같은 토큰수) | +34.7% (1.5322) | [phase4.md](reports/tables/phase4.md) |
-
-> **이 프로젝트는 한국어 품질 개선에 실패했다.** 압축이 잘 됐다는 사실이
-> 품질 개선을 뜻하지 않는다. 두 표를 함께 보지 않으면 결론이 뒤집힌다.
+</details>
 
 <details><summary><b>시스템 수치의 측정 조건과 한계</b> — 인용 전에 반드시 본다</summary>
 
@@ -108,10 +114,27 @@ decode      **미검증.** total_ms_std/mean 이 5.7~17.5% 이고 배치별로 �
 [`docs/results_provenance.md`](docs/results_provenance.md).
 </details>
 
+### 회복률 — 수술이 벌린 격차를 CPT가 얼마나 메웠나
+
+<p align="center"><img src="docs/img/recovery.svg" alt="회복률 R: N=30,000 등원문 65.4%, N=10,000 등원문 65.9%, N=30,000 등토큰 68.2% (코사인 LR · seed42)" width="100%"></p>
+
+<sub>R 정의는 <a href="docs/RULES.md">RULES</a> 14b. 1차 절대값은 전부 코사인 스케줄 조건부로 읽는다.</sub>
+
 **토크나이저 수술은 설계대로 작동했다. 못 따라온 것은 언어모델이다.**
 T2b 는 수술 직후 BPB 2.3803 에서 출발해 1.5671 까지 왔지만 C0 는 1.1375 다 —
 메워야 할 1.2428 중 65.4% 를 메우고 **0.4296 을 남겼다** (회복률 R,
 [RULES 14b](docs/RULES.md) · 코사인 LR · seed42).
+
+한편 **T2a(제거만, 크기 축소)는 BPB 기준으로 손실이 거의 없다.** 임베딩 행
+30,208개(임베딩의 19.9%, 모델 파라미터의 5.48%, 27.07M)를 줄이고 한국어 BPB
+-0.064%, 영어 구별 불가, 코드 +0.26% 다. 2차 KMMLU 6과목에서도 저하가 검출되지
+않았다 (−0.21%p, paired 95% CI [−1.05, +0.58]%p, record `855c07b`; 오염 검사 범위: 우리 CPT 풀(앞 50,000문서)과 질문 본문의 13-gram 겹침만 — 덮임 50% 이상 2 / 1,900문항,
+Qwen 사전학습 · 의역 · 짧은 겹침은 미검사 — [contamination.md](reports/tables/contamination.md)). prefill 차이는
+2% 미만은 주장하지 않는 기준 안이다 ([system_bench.md](reports/tables/system_bench.md)). "수술을 받았는가" 가 아니라
+**"수술로 손상됐는가"** 가 결과를 가른다.
+
+<details>
+<summary><b>1차 시점 서술 — 병목 가설과 열린 질문 (원문 보존)</b></summary>
 
 **병목이 무엇인지는 아직 모른다.** 처음에는 노출 부족으로 봤다 — 새 토큰
 30,000개의 중앙값 발화가 168.5MB 전체에서 143회뿐이었다. 그래서 새 토큰을
@@ -132,19 +155,85 @@ T2b 는 수술 직후 BPB 2.3803 에서 출발해 1.5671 까지 왔지만 C0 는
 보정과 정렬이 반증된 것도 같은 구조를 가리킨다. **가설이고 아직 검증하지
 않았다.** 초기화 문제는 아니다 (E0/E1/E2 에서 부품 평균이 이미 최선이었다).
 
-한편 **T2a(제거만, 크기 축소)는 BPB 기준으로 손실이 거의 없다.** 임베딩 행
-30,208개(임베딩의 19.9%, 모델 파라미터의 5.48%, 27.07M)를 줄이고 한국어 BPB
--0.064%, 영어 구별 불가, 코드 +0.26% 다. 2차 KMMLU 6과목에서도 저하가 검출되지
-않았다 (−0.21%p, paired 95% CI [−1.05, +0.58]%p, record `855c07b`; 오염 검사 범위: 우리 CPT 풀(앞 50,000문서)과 질문 본문의 13-gram 겹침만 — 덮임 50% 이상 2 / 1,900문항,
-Qwen 사전학습 · 의역 · 짧은 겹침은 미검사 — [contamination.md](reports/tables/contamination.md)). prefill 차이는
-2% 미만은 주장하지 않는 기준 안이다 ([system_bench.md](reports/tables/system_bench.md)). "수술을 받았는가" 가 아니라
-**"수술로 손상됐는가"** 가 결과를 가른다.
-
 아직 열려 있는 문 두 개 — 같은 **토큰수** 를 주는 조건(스펙 §32~33)과 더 작은
 N. [`scripts/run_phase4.sh`](scripts/run_phase4.sh) 가 둘 다 잰다. 예측은
 [`docs/PLAN.md`](docs/PLAN.md) 에 미리 박아 뒀다.
+</details>
 
-### 토크나이저만 놓고 본 참조점 (Level 1, `phase1-tokenizer-freeze`)
+---
+
+## 연구의 흐름 — 가설을 세우고 반증한 순서
+
+<p align="center"><img src="docs/img/research_flow.svg" alt="1차 가설 세 개 반증, 2차 R5 상수 LR 긍정, 3차 amendment 2~5주 결과" width="100%"></p>
+
+<sub>각 판정의 record와 표는 아래 토글에 있다.</sub>
+
+<details>
+<summary><b>2차 결과 (2026-09-17 종료) — 판정표</b></summary>
+
+| | 질문 | 상태 |
+|---|---|---|
+| R1 | 토크나이저를 안 바꾸고 임베딩 행만 망가뜨려도 65% 가 나오는가 | **부정** — 72.50% vs 치환 50.79% (record `2e97bd4`). 시험한 두 구성의 궤적이 달랐다는 뜻이지, 치환 특유라는 인과 귀속은 아니다 (행 수·노출·토큰화가 함께 다르다) |
+| R2 | 손상 종류에 따라 다른가 | R1 부정으로 전제 상실 -> P3-D 로 재설계 |
+| R3 | 손상 규모 K 에 따라 다른가 | 위와 같다 |
+| R4 | **tie 를 끊으면 달라지는가** | **구별 불가** — ΔR +0.44%p, 효과 크기 바닥 5%p 미달 (record `36c8b5f`) |
+| R5 | 상수 LR 이면 65% 를 넘는가 | **긍정** — 72.42% (T2b 3 seed 평균, 분모는 상수 LR C0 seed42), sigma_R 0.026%p (record `64556e2`) |
+| D1~D3 | T2a 의 한자 토큰 제거가 흔적을 남기는가 | 이 세 측정에서는 **검출되지 않았다** — 예측 적중 (record `855c07b`). seed42 단독, KMMLU 감도가 낮고(C0 가 찍기보다 약 6.5%p 위) 정자 절단 반대 조건은 돌리지 않았다 |
+
+설계와 예측은 [`docs/SPEC_P2.md`](docs/SPEC_P2.md), 일정과 결과는
+[`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md), 판정표는 `reports/tables/`.
+
+**1차의 절대값은 전부 코사인 스케줄 조건부로 읽는다** — C0 도 상수 LR 에서 더 나았다.
+</details>
+
+<details>
+<summary><b>3차 결과 — 외부 비판 감사 뒤 amendment (2026-10-07, 5주차까지)</b></summary>
+
+2026-09-19 감사로 3차 계획을 다시 잡았다 —
+[`docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md).
+원래의 3차 설계([`docs/SPEC_P3.md`](docs/SPEC_P3.md))보다 이것이 우선한다. 잔차
+d = BPB(T2b) − BPB(C0), 한국어 dev, 상수 LR 168.5MB.
+
+| 주 | 질문 | 결과 |
+|---|---|---|
+| 2 | 같은 원문 격차가 seed 42 의 우연인가 | **아니다** — seed 3쌍 d 평균 +0.345679, SD 0.000235 ([seed_pairs.md](reports/tables/seed_pairs.md)) |
+| 3 | 격차가 T2b 가 update 를 덜 받아서인가 | **주로 아니다** — 같은 1,523 update 에서도 d +0.321189, 줄어든 몫 rho 7.2% (예측 적중, [upd_pairs.md](reports/tables/upd_pairs.md)) |
+| 4 | 새 행만 먼저 학습시키면(warm-start) 나은가 | **아니다** — 직접 CPT 보다 0.0117 나쁘다, gate +0.010 미달 (seed 42, [warm_pairs.md](reports/tables/warm_pairs.md)) |
+| 5 | 문서 표본 불확실성은 | 대표 조건 d +0.345564, 문서 95% 구간 [+0.336924, +0.354955] ([doc_bootstrap.md](reports/tables/doc_bootstrap.md)). 제거 토큰이 나온 dev 문서는 434개 중 4개라 노출 층화는 비교 불가 ([exposure_strata.md](reports/tables/exposure_strata.md)) |
+
+seed 불확실성(SD)과 문서 표본 불확실성(구간)은 섞지 않는다. **Final Test 는 아직 열지
+않았다** — 선택 규칙만 먼저 고정했다 ([`docs/PLAN.md`](docs/PLAN.md) "5주차 동결" D).
+수치의 사전 등록과 결과는 PLAN 각 주차 절, 실수와 교정은 [`docs/MISTAKES.md`](docs/MISTAKES.md).
+</details>
+
+<details>
+<summary><b>세 번 가설을 세웠고 세 번 반증했다 — 1차 시점 서술 (원문 보존)</b></summary>
+
+> **1차 시점 서술이다. 2차에서 답했다** — 아래 끝 문단의 tie 가설은 R4 에서
+> 구별 불가 (ΔR +0.44%p, 17.5MB 설정 한정, record `36c8b5f`). 표의 회복률은
+> 코사인 LR · seed42 값이다. 본문은 고치지 않고 남긴다.
+
+| 가설 | 결과 |
+|---|---|
+| 노름 보정이 초기화를 공정하게 만든다 | 한국어 2.3803 → **3.0017**. 영어까지 함께 나빠졌다 |
+| Embedding Alignment 로 예열한다 | 손해 없이 제 일을 하는 lr 이 **없다.** 단계를 폐기 |
+| 노출이 부족해서 못 배웠다 | 노출 4.4배에도 회복률 65.4% → **65.9%** |
+
+셋 다 우리가 세운 가설이고 우리가 무너뜨렸다. 셋 다 `tie_word_embeddings`
+구조를 가리키는데, **아직 검증하지 않았다** — 그것이 2차의 본안이다.
+</details>
+
+> The final test set was never used for tokenizer design, hyperparameter tuning,
+> model selection, or checkpoint selection.
+
+### 참고 측정
+
+<details>
+<summary><b>토크나이저만 놓고 본 참조점 (Level 1, <code>phase1-tokenizer-freeze</code>)</b></summary>
+
+<p align="center"><img src="docs/img/tokenizer_level1.svg" alt="토크나이저 Level 1 비교: 한국어 HCX −24.9%, A.X −39.4%, T2b v2 −30.2%" width="100%"></p>
+
+<sub>HCX·A.X는 참조점이지 인과 비교가 아니다.</sub>
 
 ```
 한국어  Qwen 0.6834 tok/char   HCX -24.9%   A.X -39.4%   T2b v2 -30.2%
@@ -155,8 +244,10 @@ N. [`scripts/run_phase4.sh`](scripts/run_phase4.sh) 가 둘 다 잰다. 예측�
 한국어 압축을 얻는 만큼 코드에서 잃는 것이 보통인데 T2b v2 는 코드 손실이
 거의 없다. 도메인 라벨 신뢰 범위는
 [`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md).
+</details>
 
-### 유효 범위 (Phase 6) — 1차에서 **관측한** 것
+<details>
+<summary><b>유효 범위 (Phase 6) — 1차에서 관측한 것</b></summary>
 
 전부 0.5B 와 1.5B 에서 직접 잰 값이다. 결과표: [phase6.md](reports/tables/phase6.md)
 
@@ -171,8 +262,10 @@ N. [`scripts/run_phase4.sh`](scripts/run_phase4.sh) 가 둘 다 잰다. 예측�
 배치     동시 처리 1.40배, 처리량 1.605배. 배치를 20~28배 늘려도
          처리량은 +1~2% 다 — 시퀀스 하나가 이미 GPU 를 포화시킨다.
 ```
+</details>
 
-### 7B 이상 — **측정하지 않았다. 구조 추론만 있다**
+<details>
+<summary><b>7B 이상 — 측정하지 않았다. 구조 추론만 있다</b></summary>
 
 관측과 추론을 섞지 않기 위해 절을 나눈다. 아래는 `experiments/models.tsv` 의
 config 값이지 우리가 잰 성능이 아니다.
@@ -194,62 +287,14 @@ R4 는 돌렸다. 17.5MB 설정에서 효과 크기 바닥 5%p 에 못 미쳐 �
 (ΔR +0.44%p, record `36c8b5f`), tie 는 더 이상 주 가설이 아니다.
 
 > 위 표의 손상·회복 추세를 7B 로 외삽하지 마라. 이 저장소에 그 근거는 없다.
-
-### 2차 결과 (2026-09-17 종료)
-
-| | 질문 | 상태 |
-|---|---|---|
-| R1 | 토크나이저를 안 바꾸고 임베딩 행만 망가뜨려도 65% 가 나오는가 | **부정** — 72.50% vs 치환 50.79% (record `2e97bd4`). 시험한 두 구성의 궤적이 달랐다는 뜻이지, 치환 특유라는 인과 귀속은 아니다 (행 수·노출·토큰화가 함께 다르다) |
-| R2 | 손상 종류에 따라 다른가 | R1 부정으로 전제 상실 -> P3-D 로 재설계 |
-| R3 | 손상 규모 K 에 따라 다른가 | 위와 같다 |
-| R4 | **tie 를 끊으면 달라지는가** | **구별 불가** — ΔR +0.44%p, 효과 크기 바닥 5%p 미달 (record `36c8b5f`) |
-| R5 | 상수 LR 이면 65% 를 넘는가 | **긍정** — 72.42% (T2b 3 seed 평균, 분모는 상수 LR C0 seed42), sigma_R 0.026%p (record `64556e2`) |
-| D1~D3 | T2a 의 한자 토큰 제거가 흔적을 남기는가 | 이 세 측정에서는 **검출되지 않았다** — 예측 적중 (record `855c07b`). seed42 단독, KMMLU 감도가 낮고(C0 가 찍기보다 약 6.5%p 위) 정자 절단 반대 조건은 돌리지 않았다 |
-
-설계와 예측은 [`docs/SPEC_P2.md`](docs/SPEC_P2.md), 일정과 결과는
-[`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md), 판정표는 `reports/tables/`.
-
-**1차의 절대값은 전부 코사인 스케줄 조건부로 읽는다** — C0 도 상수 LR 에서 더 나았다.
-
-### 3차 결과 — 외부 비판 감사 뒤 amendment (2026-10-07, 5주차까지)
-
-2026-09-19 감사로 3차 계획을 다시 잡았다 —
-[`docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md).
-원래의 3차 설계([`docs/SPEC_P3.md`](docs/SPEC_P3.md))보다 이것이 우선한다. 잔차
-d = BPB(T2b) − BPB(C0), 한국어 dev, 상수 LR 168.5MB.
-
-| 주 | 질문 | 결과 |
-|---|---|---|
-| 2 | 같은 원문 격차가 seed 42 의 우연인가 | **아니다** — seed 3쌍 d 평균 +0.345679, SD 0.000235 ([seed_pairs.md](reports/tables/seed_pairs.md)) |
-| 3 | 격차가 T2b 가 update 를 덜 받아서인가 | **주로 아니다** — 같은 1,523 update 에서도 d +0.321189, 줄어든 몫 rho 7.2% (예측 적중, [upd_pairs.md](reports/tables/upd_pairs.md)) |
-| 4 | 새 행만 먼저 학습시키면(warm-start) 나은가 | **아니다** — 직접 CPT 보다 0.0117 나쁘다, gate +0.010 미달 (seed 42, [warm_pairs.md](reports/tables/warm_pairs.md)) |
-| 5 | 문서 표본 불확실성은 | 대표 조건 d +0.345564, 문서 95% 구간 [+0.336924, +0.354955] ([doc_bootstrap.md](reports/tables/doc_bootstrap.md)). 제거 토큰이 나온 dev 문서는 434개 중 4개라 노출 층화는 비교 불가 ([exposure_strata.md](reports/tables/exposure_strata.md)) |
-
-seed 불확실성(SD)과 문서 표본 불확실성(구간)은 섞지 않는다. **Final Test 는 아직 열지
-않았다** — 선택 규칙만 먼저 고정했다 ([`docs/PLAN.md`](docs/PLAN.md) "5주차 동결" D).
-수치의 사전 등록과 결과는 PLAN 각 주차 절, 실수와 교정은 [`docs/MISTAKES.md`](docs/MISTAKES.md).
-
-### 세 번 가설을 세웠고 세 번 반증했다
-
-> **1차 시점 서술이다. 2차에서 답했다** — 아래 끝 문단의 tie 가설은 R4 에서
-> 구별 불가 (ΔR +0.44%p, 17.5MB 설정 한정, record `36c8b5f`). 표의 회복률은
-> 코사인 LR · seed42 값이다. 본문은 고치지 않고 남긴다.
-
-| 가설 | 결과 |
-|---|---|
-| 노름 보정이 초기화를 공정하게 만든다 | 한국어 2.3803 → **3.0017**. 영어까지 함께 나빠졌다 |
-| Embedding Alignment 로 예열한다 | 손해 없이 제 일을 하는 lr 이 **없다.** 단계를 폐기 |
-| 노출이 부족해서 못 배웠다 | 노출 4.4배에도 회복률 65.4% → **65.9%** |
-
-셋 다 우리가 세운 가설이고 우리가 무너뜨렸다. 셋 다 `tie_word_embeddings`
-구조를 가리키는데, **아직 검증하지 않았다** — 그것이 2차의 본안이다.
-
-> The final test set was never used for tokenizer design, hyperparameter tuning,
-> model selection, or checkpoint selection.
+</details>
 
 ---
 
 ## 시작하기
+
+<details>
+<summary><b>클론 · 환경 구성</b></summary>
 
 ```bash
 git clone <this repo> C:/llm_tokenizer
@@ -266,6 +311,7 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 ./.conda/python.exe -m src.utils.env --check   # 환경이 등록되어 있는지
 ./.conda/python.exe -m pytest tests/ -q
 ```
+</details>
 
 ---
 
@@ -273,6 +319,21 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 
 실험 결과는 **전부 TSV 원장**에 들어가고, 커밋은 **훅이 검사**한다.
 사람이 기억해서 지키는 규칙은 지켜지지 않는다는 전제로 만들었다.
+
+특히:
+
+- **주장할 수 있는 것만 주장한다** — 한국어 내부 도메인 라벨은 감사 정확도
+  ~55% 라 세분화를 보고하지 않는다 ([`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md))
+- **Split first, tokenize later** — 문서 단위 분할이 토크나이저 학습보다 먼저다
+- **Final Test 는 마지막까지 열지 않는다** — 훅이 `final_test` 경로를 하드 차단한다
+- **BPB 로 비교한다** — 토크나이저가 다르면 token-level PPL 은 비교 대상이 아니다
+- **원장은 append-only** — 이미 쓴 행은 고치지 않는다. 실패한 run 도 남긴다
+
+에이전트로 작업한다면: [`CLAUDE.md`](CLAUDE.md) (Claude Code) /
+[`AGENTS.md`](AGENTS.md) (Codex).
+
+<details>
+<summary><b>규칙 · 계획 · 기록 문서 목록</b></summary>
 
 | | |
 |---|---|
@@ -294,8 +355,10 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 | **2차 일정** | [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md) — 일정과 결과, 종료 |
 | **3차 설계** | [`docs/SPEC_P3.md`](docs/SPEC_P3.md) — 스케줄 이후의 질문 |
 | **3차 일정** | [`docs/SCHEDULE_P3.md`](docs/SCHEDULE_P3.md) — W0 부터 |
+</details>
 
-### 결과물
+<details>
+<summary><b>결과물 — 보고서 · 보고표 · 원장</b></summary>
 
 | | |
 |---|---|
@@ -303,22 +366,14 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 | **외부 검토 개요** | [`reports/OVERVIEW.md`](reports/OVERVIEW.md) — 1~3차 요약, 원장에서 생성 (`tools/overview.py`) |
 | **보고표** | [`reports/tables/`](reports/tables/) — 측정마다 하나. 대부분 도구가 쓰고, 각 문서 끝에 **한계** 절이 있다 |
 | **원장** | `experiments/*.tsv` — 모든 숫자의 출처. append-only |
-
-특히:
-
-- **주장할 수 있는 것만 주장한다** — 한국어 내부 도메인 라벨은 감사 정확도
-  ~55% 라 세분화를 보고하지 않는다 ([`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md))
-- **Split first, tokenize later** — 문서 단위 분할이 토크나이저 학습보다 먼저다
-- **Final Test 는 마지막까지 열지 않는다** — 훅이 `final_test` 경로를 하드 차단한다
-- **BPB 로 비교한다** — 토크나이저가 다르면 token-level PPL 은 비교 대상이 아니다
-- **원장은 append-only** — 이미 쓴 행은 고치지 않는다. 실패한 run 도 남긴다
-
-에이전트로 작업한다면: [`CLAUDE.md`](CLAUDE.md) (Claude Code) /
-[`AGENTS.md`](AGENTS.md) (Codex).
+</details>
 
 ---
 
-## 구조
+## 구조 · 하드웨어
+
+<details>
+<summary><b>디렉토리 구조</b></summary>
 
 ```
 configs/      실험 설정 (tokenizer / cpt / evaluation)
@@ -344,10 +399,10 @@ docs/         규칙 · 사전 등록(PLAN) · amendment · 인수인계 · 실�
 외부 모델 원본은 `experiments/models.tsv`, 프로젝트가 만든 토크나이저·체크포인트·
 리포트는 `experiments/artifacts.tsv`에 기록한다. 실험 시각은
 `experiments/clock_checks.tsv`의 외부 HTTPS 대조 결과와 연결된다.
+</details>
 
----
-
-## 하드웨어
+<details>
+<summary><b>하드웨어와 모델 역할</b></summary>
 
 ```
 GPU     NVIDIA GeForce RTX 5070 Ti · 16GB · sm_120
@@ -364,6 +419,7 @@ torch   2.7.1+cu128
 | A.X 4.0 | Qwen 기반 한국어 adaptation 산업 사례 (4-bit 추론 · 토크나이저 분석) |
 
 HCX / A.X 는 **참조**이지 인과 실험이 아니다 ([`docs/RULES.md`](docs/RULES.md) 4번).
+</details>
 
 ---
 

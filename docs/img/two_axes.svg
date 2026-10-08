@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 0 1024 430" width="1024" height="430" role="img" aria-label="T2b vs C0 — 압축·추론 효율은 좋아지고, 언어모델 품질은 나빠졌다: 한국어 토큰 수 −30.2%, prefill −41.3%, KV cache −30%, peak VRAM −17.7%, 한국어 BPB +37.8%, 영어 BPB +0.98%, 코드 BPB +1.84%">
+<title>T2b vs C0 — 압축·추론 효율은 좋아지고, 언어모델 품질은 나빠졌다</title>
+<style>
+  text { font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; fill: #1f2328; }
+  .ink { fill: #1f2328; } .sub { fill: #59636e; } .muted { fill: #818b98; } .lbl { fill: #59636e; }
+  .grid { stroke: #eaeef2; stroke-width: 1; } .base { stroke: #afb8c1; stroke-width: 1; }
+  .s1 { fill: #2a78d6; } .s2 { fill: #eb6834; } .s3 { fill: #1baf7a; } .s4 { fill: #eda100; }
+  .s5 { fill: #e87ba4; } .s6 { fill: #008300; } .s7 { fill: #4a3aa7; } .s8 { fill: #e34948; }
+  .dim { fill: #d0d7de; } .dim2 { fill: #8c959f; }
+  .box  { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1.2; }
+  .em   { fill: #e3eefb; stroke: #2a78d6; stroke-width: 1.6; }
+  .mute { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.2; }
+  .k-auto { fill: #e0f5ec; stroke: #1baf7a; stroke-width: 1.4; }
+  .k-man  { fill: #fdf3d8; stroke: #eda100; stroke-width: 1.4; }
+  .k-todo { fill: none; stroke: #8c959f; stroke-width: 1.2; stroke-dasharray: 5 4; }
+  .grp { fill: none; stroke: #d0d7de; stroke-width: 1; stroke-dasharray: 3 3; }
+  .ln { stroke: #6e7781; stroke-width: 1.4; fill: none; } .ah { fill: #6e7781; }
+  .ln-em { stroke: #2a78d6; stroke-width: 2; fill: none; } .ah-em { fill: #2a78d6; }
+  .dash { stroke-dasharray: 5 4; }
+  @media (prefers-color-scheme: dark) {
+    text, .ink { fill: #e6edf3; } .sub, .lbl { fill: #9198a1; } .muted { fill: #8b949e; }
+    .grid { stroke: #262c36; } .base { stroke: #59636e; }
+    .s1 { fill: #3987e5; } .s2 { fill: #d95926; } .s3 { fill: #199e70; } .s4 { fill: #c98500; }
+    .s5 { fill: #d55181; } .s6 { fill: #008300; } .s7 { fill: #9085e9; } .s8 { fill: #e66767; }
+    .dim { fill: #3d444d; } .dim2 { fill: #6e7681; }
+    .box  { fill: #161b22; stroke: #3d444d; }
+    .em   { fill: #0f2340; stroke: #3987e5; }
+    .mute { fill: #0d1117; stroke: #3d444d; }
+    .k-auto { fill: #0c2a1f; stroke: #199e70; } .k-man { fill: #2e2408; stroke: #c98500; } .k-todo { stroke: #6e7681; }
+    .grp { stroke: #3d444d; }
+    .ln { stroke: #8b949e; } .ah { fill: #8b949e; } .ln-em { stroke: #3987e5; } .ah-em { fill: #3987e5; }
+  }
+</style>
+<text x="0" y="24" font-size="18" font-weight="600" class="ink">T2b vs C0 — 압축·추론 효율은 좋아지고, 언어모델 품질은 나빠졌다</text><text x="0" y="48" font-size="14" class="sub">같은 원문 168.5MB로 CPT한 뒤의 변화율 · 모든 지표가 낮을수록 좋다</text>
+<g transform="translate(0,64)">
+<text x="250" y="18" class="sub" font-size="13" font-weight="600">← 개선</text><text x="990" y="18" class="sub" font-size="13" text-anchor="end" font-weight="600">악화 →</text><line class="grid" x1="324" y1="30" x2="324" y2="296"/><text x="324" y="314" class="muted" font-size="12" text-anchor="middle">−40%</text><line class="grid" x1="472" y1="30" x2="472" y2="296"/><text x="472" y="314" class="muted" font-size="12" text-anchor="middle">−20%</text><line class="grid" x1="620" y1="30" x2="620" y2="296"/><text x="620" y="314" class="muted" font-size="12" text-anchor="middle">0%</text><line class="grid" x1="768" y1="30" x2="768" y2="296"/><text x="768" y="314" class="muted" font-size="12" text-anchor="middle">+20%</text><line class="grid" x1="916" y1="30" x2="916" y2="296"/><text x="916" y="314" class="muted" font-size="12" text-anchor="middle">+40%</text><text x="0" y="47" class="ink" font-size="14">한국어 토큰 수</text><text x="0" y="63" class="muted" font-size="12">같은 원문</text><path class="s1" d="M620,40 H400.52 Q396.52,40 396.52,44 V54 Q396.52,58 400.52,58 H620 Z"/><text x="388.52" y="54" class="ink" font-size="13" text-anchor="end" font-weight="600">−30.2%</text><text x="0" y="85" class="ink" font-size="14">prefill</text><text x="0" y="101" class="muted" font-size="12">40,000자 · 729.5 → 428.5ms</text><path class="s1" d="M620,78 H318.38 Q314.38,78 314.38,82 V92 Q314.38,96 318.38,96 H620 Z"/><text x="306.38" y="92" class="ink" font-size="13" text-anchor="end" font-weight="600">−41.3%</text><text x="0" y="123" class="ink" font-size="14">KV cache</text><text x="0" y="139" class="muted" font-size="12">327.3 → 227.1MB</text><path class="s1" d="M620,116 H402 Q398,116 398,120 V130 Q398,134 402,134 H620 Z"/><text x="390" y="130" class="ink" font-size="13" text-anchor="end" font-weight="600">−30%</text><text x="0" y="161" class="ink" font-size="14">peak VRAM</text><text x="0" y="177" class="muted" font-size="12">40,000자 · 2,264 → 1,864MB</text><path class="s1" d="M620,154 H493.02 Q489.02,154 489.02,158 V168 Q489.02,172 493.02,172 H620 Z"/><text x="481.02" y="168" class="ink" font-size="13" text-anchor="end" font-weight="600">−17.7%</text><line class="base" x1="0" y1="182" x2="1000" y2="182"/><text x="0" y="199" class="ink" font-size="14">한국어 BPB</text><text x="0" y="215" class="muted" font-size="12">1.5671 vs C0 1.1375</text><path class="s8" d="M620,192 H895.72 Q899.72,192 899.72,196 V206 Q899.72,210 895.72,210 H620 Z"/><text x="907.72" y="206" class="ink" font-size="13" font-weight="600">+37.8%</text><text x="0" y="244" class="ink" font-size="14">영어 BPB</text><path class="s8" d="M620,230 H623.626 Q627.252,230 627.252,233.62599999999998 V244.37400000000002 Q627.252,248 623.626,248 H620 Z"/><text x="635.252" y="244" class="ink" font-size="13" font-weight="600">+0.98%</text><text x="0" y="282" class="ink" font-size="14">코드 BPB</text><path class="s8" d="M620,268 H629.616 Q633.616,268 633.616,272 V282 Q633.616,286 629.616,286 H620 Z"/><text x="641.616" y="282" class="ink" font-size="13" font-weight="600">+1.84%</text><line class="base" x1="620" y1="26" x2="620" y2="296" style="stroke-width:1.5"/><text x="0" y="344" class="muted" font-size="13">단일 RTX 5070 Ti 16GB · 배치 1 · seed42 · 코사인 LR. 측정 조건과 한계는 README 「시스템 수치의 측정 조건과 한계」 토글을 본다.</text>
+</g>
+</svg>

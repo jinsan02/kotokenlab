@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 0 1024 368" width="1024" height="368" role="img" aria-label="토크나이저만 비교 — Qwen2.5 대비 토큰 수 변화">
+<title>토크나이저만 비교 — Qwen2.5 대비 토큰 수 변화</title>
+<style>
+  text { font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; fill: #1f2328; }
+  .ink { fill: #1f2328; } .sub { fill: #59636e; } .muted { fill: #818b98; } .lbl { fill: #59636e; }
+  .grid { stroke: #eaeef2; stroke-width: 1; } .base { stroke: #afb8c1; stroke-width: 1; }
+  .s1 { fill: #2a78d6; } .s2 { fill: #eb6834; } .s3 { fill: #1baf7a; } .s4 { fill: #eda100; }
+  .s5 { fill: #e87ba4; } .s6 { fill: #008300; } .s7 { fill: #4a3aa7; } .s8 { fill: #e34948; }
+  .dim { fill: #d0d7de; } .dim2 { fill: #8c959f; }
+  .box  { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1.2; }
+  .em   { fill: #e3eefb; stroke: #2a78d6; stroke-width: 1.6; }
+  .mute { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.2; }
+  .k-auto { fill: #e0f5ec; stroke: #1baf7a; stroke-width: 1.4; }
+  .k-man  { fill: #fdf3d8; stroke: #eda100; stroke-width: 1.4; }
+  .k-todo { fill: none; stroke: #8c959f; stroke-width: 1.2; stroke-dasharray: 5 4; }
+  .grp { fill: none; stroke: #d0d7de; stroke-width: 1; stroke-dasharray: 3 3; }
+  .ln { stroke: #6e7781; stroke-width: 1.4; fill: none; } .ah { fill: #6e7781; }
+  .ln-em { stroke: #2a78d6; stroke-width: 2; fill: none; } .ah-em { fill: #2a78d6; }
+  .dash { stroke-dasharray: 5 4; }
+  @media (prefers-color-scheme: dark) {
+    text, .ink { fill: #e6edf3; } .sub, .lbl { fill: #9198a1; } .muted { fill: #8b949e; }
+    .grid { stroke: #262c36; } .base { stroke: #59636e; }
+    .s1 { fill: #3987e5; } .s2 { fill: #d95926; } .s3 { fill: #199e70; } .s4 { fill: #c98500; }
+    .s5 { fill: #d55181; } .s6 { fill: #008300; } .s7 { fill: #9085e9; } .s8 { fill: #e66767; }
+    .dim { fill: #3d444d; } .dim2 { fill: #6e7681; }
+    .box  { fill: #161b22; stroke: #3d444d; }
+    .em   { fill: #0f2340; stroke: #3987e5; }
+    .mute { fill: #0d1117; stroke: #3d444d; }
+    .k-auto { fill: #0c2a1f; stroke: #199e70; } .k-man { fill: #2e2408; stroke: #c98500; } .k-todo { stroke: #6e7681; }
+    .grp { stroke: #3d444d; }
+    .ln { stroke: #8b949e; } .ah { fill: #8b949e; } .ln-em { stroke: #3987e5; } .ah-em { fill: #3987e5; }
+  }
+</style>
+<text x="0" y="24" font-size="18" font-weight="600" class="ink">토크나이저만 비교 — Qwen2.5 대비 토큰 수 변화</text><text x="0" y="48" font-size="14" class="sub">Level 1 (phase1-tokenizer-freeze) · 같은 corpus · 낮을수록 압축이 좋다</text>
+<g transform="translate(0,64)">
+<rect class="s1" x="0" y="2" width="14" height="14" rx="3"/><text x="22" y="14" class="sub" font-size="13">T2b v2 (이 프로젝트)</text><rect class="dim2" x="187" y="2" width="14" height="14" rx="3"/><text x="209" y="14" class="sub" font-size="13">HyperCLOVA X</text><rect class="dim" x="347" y="2" width="14" height="14" rx="3"/><text x="369" y="14" class="sub" font-size="13">A.X</text><line class="grid" x1="164" y1="34" x2="164" y2="234"/><text x="164" y="252" class="muted" font-size="12" text-anchor="middle">−40%</text><line class="grid" x1="380" y1="34" x2="380" y2="234"/><text x="380" y="252" class="muted" font-size="12" text-anchor="middle">−20%</text><line class="grid" x1="596" y1="34" x2="596" y2="234"/><text x="596" y="252" class="muted" font-size="12" text-anchor="middle">0%</text><line class="grid" x1="812" y1="34" x2="812" y2="234"/><text x="812" y="252" class="muted" font-size="12" text-anchor="middle">+20%</text><text x="0" y="70" class="ink" font-size="14" font-weight="600">한국어</text><path class="s1" d="M596,40 H272.84000000000003 Q269.84000000000003,40 269.84000000000003,43 V51 Q269.84000000000003,54 272.84000000000003,54 H596 Z"/><text x="263.84000000000003" y="52" class="sub" font-size="12" text-anchor="end">−30.2%</text><path class="dim2" d="M596,58 H330.08000000000004 Q327.08000000000004,58 327.08000000000004,61 V69 Q327.08000000000004,72 330.08000000000004,72 H596 Z"/><text x="321.08000000000004" y="70" class="sub" font-size="12" text-anchor="end">−24.9%</text><path class="dim" d="M596,76 H173.48000000000002 Q170.48000000000002,76 170.48000000000002,79 V87 Q170.48000000000002,90 173.48000000000002,90 H596 Z"/><text x="164.48000000000002" y="88" class="sub" font-size="12" text-anchor="end">−39.4%</text><text x="0" y="142" class="ink" font-size="14" font-weight="600">영어</text><path class="s1" d="M596,112 H596.5 Q597,112 597,112.5 V125.5 Q597,126 596.5,126 H596 Z"/><text x="602" y="124" class="sub" font-size="12">0.0%</text><path class="dim2" d="M596,130 H596.5 Q597,130 597,130.5 V143.5 Q597,144 596.5,144 H596 Z"/><text x="602" y="142" class="sub" font-size="12">0.0%</text><path class="dim" d="M596,148 H671.8399999999999 Q674.8399999999999,148 674.8399999999999,151 V159 Q674.8399999999999,162 671.8399999999999,162 H596 Z"/><text x="680.8399999999999" y="160" class="sub" font-size="12">+7.3%</text><text x="0" y="214" class="ink" font-size="14" font-weight="600">코드</text><path class="s1" d="M596,184 H590.36 Q587.36,184 587.36,187 V195 Q587.36,198 590.36,198 H596 Z"/><text x="581.36" y="196" class="sub" font-size="12" text-anchor="end">−0.8%</text><path class="dim2" d="M596,202 H783.08 Q786.08,202 786.08,205 V213 Q786.08,216 783.08,216 H596 Z"/><text x="792.08" y="214" class="sub" font-size="12">+17.6%</text><path class="dim" d="M596,220 H836 Q839,220 839,223 V231 Q839,234 836,234 H596 Z"/><text x="845" y="232" class="sub" font-size="12">+22.5%</text><line class="base" x1="596" y1="34" x2="596" y2="234" style="stroke-width:1.5"/><text x="0" y="282" class="muted" font-size="13">HCX·A.X는 참조점이지 인과 비교가 아니다(RULES 4번) — backbone·사전학습 데이터가 모두 다르다.</text>
+</g>
+</svg>

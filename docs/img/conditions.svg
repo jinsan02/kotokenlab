@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 0 1054 372" width="1054" height="372" role="img" aria-label="C0·T2a·T2b 세 조건을 같은 원문 168.5MB·같은 스케줄로 CPT해 비교했다. T2a는 저하가 검출되지 않았고 T2b는 토큰이 30.2% 줄었지만 한국어 BPB가 37.8% 나빠졌다">
+<title>실험 설계 — 어휘만 바꾸고 나머지는 같게</title>
+<style>
+  text { font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; fill: #1f2328; }
+  .ink { fill: #1f2328; } .sub { fill: #59636e; } .muted { fill: #818b98; } .lbl { fill: #59636e; }
+  .grid { stroke: #eaeef2; stroke-width: 1; } .base { stroke: #afb8c1; stroke-width: 1; }
+  .s1 { fill: #2a78d6; } .s2 { fill: #eb6834; } .s3 { fill: #1baf7a; } .s4 { fill: #eda100; }
+  .s5 { fill: #e87ba4; } .s6 { fill: #008300; } .s7 { fill: #4a3aa7; } .s8 { fill: #e34948; }
+  .dim { fill: #d0d7de; } .dim2 { fill: #8c959f; }
+  .box  { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1.2; }
+  .em   { fill: #e3eefb; stroke: #2a78d6; stroke-width: 1.6; }
+  .mute { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.2; }
+  .k-auto { fill: #e0f5ec; stroke: #1baf7a; stroke-width: 1.4; }
+  .k-man  { fill: #fdf3d8; stroke: #eda100; stroke-width: 1.4; }
+  .k-todo { fill: none; stroke: #8c959f; stroke-width: 1.2; stroke-dasharray: 5 4; }
+  .grp { fill: none; stroke: #d0d7de; stroke-width: 1; stroke-dasharray: 3 3; }
+  .ln { stroke: #6e7781; stroke-width: 1.4; fill: none; } .ah { fill: #6e7781; }
+  .ln-em { stroke: #2a78d6; stroke-width: 2; fill: none; } .ah-em { fill: #2a78d6; }
+  .dash { stroke-dasharray: 5 4; }
+  @media (prefers-color-scheme: dark) {
+    text, .ink { fill: #e6edf3; } .sub, .lbl { fill: #9198a1; } .muted { fill: #8b949e; }
+    .grid { stroke: #262c36; } .base { stroke: #59636e; }
+    .s1 { fill: #3987e5; } .s2 { fill: #d95926; } .s3 { fill: #199e70; } .s4 { fill: #c98500; }
+    .s5 { fill: #d55181; } .s6 { fill: #008300; } .s7 { fill: #9085e9; } .s8 { fill: #e66767; }
+    .dim { fill: #3d444d; } .dim2 { fill: #6e7681; }
+    .box  { fill: #161b22; stroke: #3d444d; }
+    .em   { fill: #0f2340; stroke: #3987e5; }
+    .mute { fill: #0d1117; stroke: #3d444d; }
+    .k-auto { fill: #0c2a1f; stroke: #199e70; } .k-man { fill: #2e2408; stroke: #c98500; } .k-todo { stroke: #6e7681; }
+    .grp { stroke: #3d444d; }
+    .ln { stroke: #8b949e; } .ah { fill: #8b949e; } .ln-em { stroke: #3987e5; } .ah-em { fill: #3987e5; }
+  }
+</style>
+<text x="0" y="24" font-size="18" font-weight="600" class="ink">실험 설계 — 어휘만 바꾸고 나머지는 같게</text><text x="0" y="48" font-size="14" class="sub">C0 · T2a · T2b를 같은 원문 168.5MB · 같은 스케줄로 CPT · 파란 경로 = 주 실험 T2b</text>
+<g transform="translate(0,64)">
+<rect class="box" x="20" y="120" width="140" height="60" rx="8"/>
+<text x="90" y="145" font-size="14" text-anchor="middle" font-weight="600" class="ink">Qwen2.5-0.5B</text>
+<text x="90" y="164" font-size="13" text-anchor="middle" class="sub">원본 어휘</text>
+<rect class="mute" x="520" y="26" width="150" height="248" rx="8"/>
+<text x="595" y="135.5" font-size="14" text-anchor="middle" font-weight="600" class="ink">같은 CPT</text>
+<text x="595" y="154.5" font-size="13" text-anchor="middle" class="sub">원문 168.5MB</text>
+<text x="595" y="173.5" font-size="13" text-anchor="middle" class="sub">같은 스케줄</text>
+<rect class="box" x="220" y="26" width="230" height="64" rx="8"/>
+<text x="335" y="53" font-size="14" text-anchor="middle" font-weight="600" class="ink">C0 · 원본</text>
+<text x="335" y="72" font-size="13" text-anchor="middle" class="sub">어휘 그대로</text>
+<rect class="box" x="740" y="26" width="280" height="64" rx="8"/>
+<text x="880" y="53" font-size="14" text-anchor="middle" font-weight="600" class="ink">한국어 BPB 1.1375</text>
+<text x="880" y="72" font-size="13" text-anchor="middle" class="sub">기준선</text>
+<polyline class="ln" points="160,150 190,150 190,58 211,58"/>
+<polygon class="ah" points="220,58 211,53 211,63"/>
+<polyline class="ln" points="450,58 511,58"/>
+<polygon class="ah" points="520,58 511,53 511,63"/>
+<polyline class="ln" points="670,58 731,58"/>
+<polygon class="ah" points="740,58 731,53 731,63"/>
+<text x="705" y="50" font-size="12.5" class="lbl" text-anchor="middle">측정</text>
+<rect class="box" x="220" y="118" width="230" height="64" rx="8"/>
+<text x="335" y="145" font-size="14" text-anchor="middle" font-weight="600" class="ink">T2a · 제거만</text>
+<text x="335" y="164" font-size="13" text-anchor="middle" class="sub">임베딩 행 30,208개 제거</text>
+<rect class="box" x="740" y="118" width="280" height="64" rx="8"/>
+<text x="880" y="145" font-size="14" text-anchor="middle" font-weight="600" class="ink">BPB −0.064% · KMMLU −0.21%p</text>
+<text x="880" y="164" font-size="13" text-anchor="middle" class="sub">저하 미검출 (95% CI [−1.05, +0.58]%p)</text>
+<polyline class="ln" points="160,150 190,150 190,150 211,150"/>
+<polygon class="ah" points="220,150 211,145 211,155"/>
+<polyline class="ln" points="450,150 511,150"/>
+<polygon class="ah" points="520,150 511,145 511,155"/>
+<polyline class="ln" points="670,150 731,150"/>
+<polygon class="ah" points="740,150 731,145 731,155"/>
+<text x="705" y="142" font-size="12.5" class="lbl" text-anchor="middle">측정</text>
+<rect class="em" x="220" y="210" width="230" height="64" rx="8"/>
+<text x="335" y="237" font-size="14" text-anchor="middle" font-weight="600" class="ink">T2b · 치환</text>
+<text x="335" y="256" font-size="13" text-anchor="middle" class="sub">어휘 30,000개 → 한국어 토큰</text>
+<rect class="em" x="740" y="210" width="280" height="64" rx="8"/>
+<text x="880" y="237" font-size="14" text-anchor="middle" font-weight="600" class="ink">토큰 −30.2% · prefill −41.3%</text>
+<text x="880" y="256" font-size="13" text-anchor="middle" class="sub">한국어 BPB +37.8% (1.5671)</text>
+<polyline class="ln-em" points="160,150 190,150 190,242 211,242"/>
+<polygon class="ah-em" points="220,242 211,237 211,247"/>
+<polyline class="ln-em" points="450,242 511,242"/>
+<polygon class="ah-em" points="520,242 511,237 511,247"/>
+<polyline class="ln-em" points="670,242 731,242"/>
+<polygon class="ah-em" points="740,242 731,237 731,247"/>
+<text x="705" y="234" font-size="12.5" class="lbl" text-anchor="middle">측정</text>
+<text x="335" y="296" font-size="12.5" text-anchor="middle" class="lbl">바꾼 것: 어휘</text>
+<text x="595" y="296" font-size="12.5" text-anchor="middle" class="lbl">같게 둔 것: 원문 · 스케줄</text>
+</g>
+</svg>

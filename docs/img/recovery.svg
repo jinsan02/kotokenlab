@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 0 1024 342" width="1024" height="342" role="img" aria-label="회복률 R — 수술이 벌린 격차 중 CPT가 메운 몫: N=30,000 등원문 R 65.4%, N=10,000 등원문 R 65.9%, N=30,000 등토큰 R 68.2%">
+<title>회복률 R — 수술이 벌린 격차 중 CPT가 메운 몫</title>
+<style>
+  text { font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; fill: #1f2328; }
+  .ink { fill: #1f2328; } .sub { fill: #59636e; } .muted { fill: #818b98; } .lbl { fill: #59636e; }
+  .grid { stroke: #eaeef2; stroke-width: 1; } .base { stroke: #afb8c1; stroke-width: 1; }
+  .s1 { fill: #2a78d6; } .s2 { fill: #eb6834; } .s3 { fill: #1baf7a; } .s4 { fill: #eda100; }
+  .s5 { fill: #e87ba4; } .s6 { fill: #008300; } .s7 { fill: #4a3aa7; } .s8 { fill: #e34948; }
+  .dim { fill: #d0d7de; } .dim2 { fill: #8c959f; }
+  .box  { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1.2; }
+  .em   { fill: #e3eefb; stroke: #2a78d6; stroke-width: 1.6; }
+  .mute { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.2; }
+  .k-auto { fill: #e0f5ec; stroke: #1baf7a; stroke-width: 1.4; }
+  .k-man  { fill: #fdf3d8; stroke: #eda100; stroke-width: 1.4; }
+  .k-todo { fill: none; stroke: #8c959f; stroke-width: 1.2; stroke-dasharray: 5 4; }
+  .grp { fill: none; stroke: #d0d7de; stroke-width: 1; stroke-dasharray: 3 3; }
+  .ln { stroke: #6e7781; stroke-width: 1.4; fill: none; } .ah { fill: #6e7781; }
+  .ln-em { stroke: #2a78d6; stroke-width: 2; fill: none; } .ah-em { fill: #2a78d6; }
+  .dash { stroke-dasharray: 5 4; }
+  @media (prefers-color-scheme: dark) {
+    text, .ink { fill: #e6edf3; } .sub, .lbl { fill: #9198a1; } .muted { fill: #8b949e; }
+    .grid { stroke: #262c36; } .base { stroke: #59636e; }
+    .s1 { fill: #3987e5; } .s2 { fill: #d95926; } .s3 { fill: #199e70; } .s4 { fill: #c98500; }
+    .s5 { fill: #d55181; } .s6 { fill: #008300; } .s7 { fill: #9085e9; } .s8 { fill: #e66767; }
+    .dim { fill: #3d444d; } .dim2 { fill: #6e7681; }
+    .box  { fill: #161b22; stroke: #3d444d; }
+    .em   { fill: #0f2340; stroke: #3987e5; }
+    .mute { fill: #0d1117; stroke: #3d444d; }
+    .k-auto { fill: #0c2a1f; stroke: #199e70; } .k-man { fill: #2e2408; stroke: #c98500; } .k-todo { stroke: #6e7681; }
+    .grp { stroke: #3d444d; }
+    .ln { stroke: #8b949e; } .ah { fill: #8b949e; } .ln-em { stroke: #3987e5; } .ah-em { fill: #3987e5; }
+  }
+</style>
+<text x="0" y="24" font-size="18" font-weight="600" class="ink">회복률 R — 수술이 벌린 격차 중 CPT가 메운 몫</text><text x="0" y="48" font-size="14" class="sub">R = (B0 − Bf) / (B0 − Cf) · 한국어 dev BPB · 코사인 LR · seed42 · C0 = 1.1375</text>
+<g transform="translate(0,64)">
+<line class="grid" x1="230" y1="18" x2="230" y2="170"/><text x="230" y="188" class="muted" font-size="12" text-anchor="middle">1.0</text><line class="grid" x1="456.66666666666663" y1="18" x2="456.66666666666663" y2="170"/><text x="456.66666666666663" y="188" class="muted" font-size="12" text-anchor="middle">1.5</text><line class="grid" x1="683.3333333333333" y1="18" x2="683.3333333333333" y2="170"/><text x="683.3333333333333" y="188" class="muted" font-size="12" text-anchor="middle">2.0</text><line class="grid" x1="910" y1="18" x2="910" y2="170"/><text x="910" y="188" class="muted" font-size="12" text-anchor="middle">2.5</text><text x="910" y="208" class="muted" font-size="12" text-anchor="end">한국어 BPB (낮을수록 좋다)</text><text x="292.3333333333333" y="14" class="sub" font-size="12" text-anchor="middle">C0</text><text x="0" y="48" class="ink" font-size="14">N=30,000 등원문</text><text x="0" y="65" class="muted" font-size="12">2.3803 → 1.5671</text><rect class="s8" x="292.3333333333333" y="42" width="193.75199999999995" height="16" opacity="0.35"/><path class="s1" d="M488.08533333333327,42 H851.736 Q855.736,42 855.736,46 V54 Q855.736,58 851.736,58 H488.08533333333327 Z"/><line class="base" x1="292.3333333333333" y1="37" x2="292.3333333333333" y2="63" style="stroke-width:2"/><text x="865.736" y="55" class="ink" font-size="14" font-weight="600">R 65.4%</text><text x="0" y="96" class="ink" font-size="14">N=10,000 등원문</text><text x="0" y="113" class="muted" font-size="12">2.1918 → 1.4973 · 노출 4.4배</text><rect class="s8" x="292.3333333333333" y="90" width="162.10933333333338" height="16" opacity="0.35"/><path class="s1" d="M456.4426666666667,90 H766.2826666666667 Q770.2826666666667,90 770.2826666666667,94 V102 Q770.2826666666667,106 766.2826666666667,106 H456.4426666666667 Z"/><line class="base" x1="292.3333333333333" y1="85" x2="292.3333333333333" y2="111" style="stroke-width:2"/><text x="780.2826666666667" y="103" class="ink" font-size="14" font-weight="600">R 65.9%</text><text x="0" y="144" class="ink" font-size="14">N=30,000 등토큰</text><text x="0" y="161" class="muted" font-size="12">2.3803 → 1.5322 · 원문 +43.3%</text><rect class="s8" x="292.3333333333333" y="138" width="177.9306666666667" height="16" opacity="0.35"/><path class="s1" d="M472.264,138 H851.736 Q855.736,138 855.736,142 V150 Q855.736,154 851.736,154 H472.264 Z"/><line class="base" x1="292.3333333333333" y1="133" x2="292.3333333333333" y2="159" style="stroke-width:2"/><text x="865.736" y="151" class="ink" font-size="14" font-weight="600">R 68.2%</text><text x="0" y="236" class="muted" font-size="13">파랑 = CPT가 메운 거리, 연한 빨강 = 남은 격차(Bf − Cf). 노출을 4.4배 늘려도 R은 0.5%p 안에서 움직였다.</text><text x="0" y="256" class="muted" font-size="13">2차: 상수 LR은 168.5MB 종점 잔차를 0.429555 → 0.345543 BPB로 줄여 R 72.42% (T2b 3 seed 평균, 분모는 상수 LR C0 seed42).</text>
+</g>
+</svg>

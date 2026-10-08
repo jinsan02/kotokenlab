@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 0 1104 496" width="1104" height="496" role="img" aria-label="데이터를 문서 단위로 먼저 나누고(Final Test 봉인), Qwen2.5-0.5B에 토크나이저 수술·임베딩 초기화·같은 원문 CPT·평가를 거친 뒤 모든 결과를 append-only TSV 원장에 남긴다">
+<title>전체 파이프라인 — 데이터는 먼저 나누고, 숫자는 모두 원장으로</title>
+<style>
+  text { font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; fill: #1f2328; }
+  .ink { fill: #1f2328; } .sub { fill: #59636e; } .muted { fill: #818b98; } .lbl { fill: #59636e; }
+  .grid { stroke: #eaeef2; stroke-width: 1; } .base { stroke: #afb8c1; stroke-width: 1; }
+  .s1 { fill: #2a78d6; } .s2 { fill: #eb6834; } .s3 { fill: #1baf7a; } .s4 { fill: #eda100; }
+  .s5 { fill: #e87ba4; } .s6 { fill: #008300; } .s7 { fill: #4a3aa7; } .s8 { fill: #e34948; }
+  .dim { fill: #d0d7de; } .dim2 { fill: #8c959f; }
+  .box  { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1.2; }
+  .em   { fill: #e3eefb; stroke: #2a78d6; stroke-width: 1.6; }
+  .mute { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.2; }
+  .k-auto { fill: #e0f5ec; stroke: #1baf7a; stroke-width: 1.4; }
+  .k-man  { fill: #fdf3d8; stroke: #eda100; stroke-width: 1.4; }
+  .k-todo { fill: none; stroke: #8c959f; stroke-width: 1.2; stroke-dasharray: 5 4; }
+  .grp { fill: none; stroke: #d0d7de; stroke-width: 1; stroke-dasharray: 3 3; }
+  .ln { stroke: #6e7781; stroke-width: 1.4; fill: none; } .ah { fill: #6e7781; }
+  .ln-em { stroke: #2a78d6; stroke-width: 2; fill: none; } .ah-em { fill: #2a78d6; }
+  .dash { stroke-dasharray: 5 4; }
+  @media (prefers-color-scheme: dark) {
+    text, .ink { fill: #e6edf3; } .sub, .lbl { fill: #9198a1; } .muted { fill: #8b949e; }
+    .grid { stroke: #262c36; } .base { stroke: #59636e; }
+    .s1 { fill: #3987e5; } .s2 { fill: #d95926; } .s3 { fill: #199e70; } .s4 { fill: #c98500; }
+    .s5 { fill: #d55181; } .s6 { fill: #008300; } .s7 { fill: #9085e9; } .s8 { fill: #e66767; }
+    .dim { fill: #3d444d; } .dim2 { fill: #6e7681; }
+    .box  { fill: #161b22; stroke: #3d444d; }
+    .em   { fill: #0f2340; stroke: #3987e5; }
+    .mute { fill: #0d1117; stroke: #3d444d; }
+    .k-auto { fill: #0c2a1f; stroke: #199e70; } .k-man { fill: #2e2408; stroke: #c98500; } .k-todo { stroke: #6e7681; }
+    .grp { stroke: #3d444d; }
+    .ln { stroke: #8b949e; } .ah { fill: #8b949e; } .ln-em { stroke: #3987e5; } .ah-em { fill: #3987e5; }
+  }
+</style>
+<text x="0" y="24" font-size="18" font-weight="600" class="ink">전체 파이프라인 — 데이터는 먼저 나누고, 숫자는 모두 원장으로</text><text x="0" y="48" font-size="14" class="sub">Final Test는 봉인 · 세 조건 모두 같은 원문으로 CPT · 모든 결과는 append-only TSV</text>
+<g transform="translate(0,64)">
+<rect class="grp" x="10" y="14" width="1060" height="124" rx="12"/>
+<text x="24" y="34" font-size="12.5" class="lbl" font-weight="600">데이터 — 문서 단위로 먼저 나눈다</text>
+<rect class="box" x="20" y="56" width="150" height="50" rx="8"/>
+<text x="95" y="76" font-size="14" text-anchor="middle" font-weight="600" class="ink">원문 corpus</text>
+<text x="95" y="95" font-size="13" text-anchor="middle" class="sub">한국어 · 영어 · 코드</text>
+<rect class="box" x="200" y="56" width="150" height="50" rx="8"/>
+<text x="275" y="76" font-size="14" text-anchor="middle" font-weight="600" class="ink">정규화 · dedup</text>
+<text x="275" y="95" font-size="13" text-anchor="middle" class="sub">exact → near</text>
+<rect class="box" x="390" y="56" width="170" height="50" rx="8"/>
+<text x="475" y="76" font-size="14" text-anchor="middle" font-weight="600" class="ink">문서 단위 분할</text>
+<text x="475" y="95" font-size="13" text-anchor="middle" class="sub">split first</text>
+<rect class="box" x="620" y="56" width="100" height="50" rx="8"/>
+<text x="670" y="85.5" font-size="14" text-anchor="middle" font-weight="600" class="ink">Train</text>
+<rect class="box" x="740" y="56" width="100" height="50" rx="8"/>
+<text x="790" y="85.5" font-size="14" text-anchor="middle" font-weight="600" class="ink">Dev</text>
+<rect class="k-todo" x="870" y="56" width="150" height="50" rx="8"/>
+<text x="945" y="76" font-size="14" text-anchor="middle" font-weight="600" class="ink">Final Test</text>
+<text x="945" y="95" font-size="13" text-anchor="middle" class="sub">봉인</text>
+<polyline class="ln" points="170,81 191,81"/>
+<polygon class="ah" points="200,81 191,76 191,86"/>
+<polyline class="ln" points="350,81 381,81"/>
+<polygon class="ah" points="390,81 381,76 381,86"/>
+<polyline class="ln" points="560,81 611,81"/>
+<polygon class="ah" points="620,81 611,76 611,86"/>
+<polyline class="ln" points="560,81 588,81 588,42 790,42 790,47"/>
+<polygon class="ah" points="790,56 795,47 785,47"/>
+<polyline class="ln" points="588,42 945,42 945,47"/>
+<polygon class="ah" points="945,56 950,47 940,47"/>
+<text x="945" y="124" font-size="12.5" text-anchor="middle" class="lbl">훅이 경로를 차단 · 개봉은 태그로 고정</text>
+<rect class="grp" x="10" y="190" width="1060" height="112" rx="12"/>
+<text x="24" y="210" font-size="12.5" class="lbl" font-weight="600">모델 — 세 조건 C0 · T2a · T2b</text>
+<rect class="box" x="30" y="228" width="130" height="56" rx="8"/>
+<text x="95" y="251" font-size="14" text-anchor="middle" font-weight="600" class="ink">Qwen2.5-0.5B</text>
+<text x="95" y="270" font-size="13" text-anchor="middle" class="sub">C0 = 원본</text>
+<rect class="box" x="200" y="228" width="190" height="56" rx="8"/>
+<text x="295" y="251" font-size="14" text-anchor="middle" font-weight="600" class="ink">토크나이저 수술</text>
+<text x="295" y="270" font-size="13" text-anchor="middle" class="sub">T2a 제거 · T2b 치환</text>
+<rect class="box" x="430" y="228" width="150" height="56" rx="8"/>
+<text x="505" y="251" font-size="14" text-anchor="middle" font-weight="600" class="ink">임베딩 초기화</text>
+<text x="505" y="270" font-size="13" text-anchor="middle" class="sub">E0 · E1 · E2</text>
+<rect class="box" x="640" y="228" width="170" height="56" rx="8"/>
+<text x="725" y="251" font-size="14" text-anchor="middle" font-weight="600" class="ink">CPT</text>
+<text x="725" y="270" font-size="13" text-anchor="middle" class="sub">같은 원문 168.5MB</text>
+<rect class="box" x="880" y="228" width="186" height="56" rx="8"/>
+<text x="973" y="251" font-size="14" text-anchor="middle" font-weight="600" class="ink">평가</text>
+<text x="973" y="270" font-size="13" text-anchor="middle" class="sub">BPB · KMMLU · 시스템 벤치</text>
+<polyline class="ln" points="160,256 191,256"/>
+<polygon class="ah" points="200,256 191,251 191,261"/>
+<text x="180" y="248" font-size="12.5" class="lbl" text-anchor="middle">어휘</text>
+<polyline class="ln" points="390,256 421,256"/>
+<polygon class="ah" points="430,256 421,251 421,261"/>
+<text x="410" y="248" font-size="12.5" class="lbl" text-anchor="middle">새 행</text>
+<polyline class="ln" points="580,256 631,256"/>
+<polygon class="ah" points="640,256 631,251 631,261"/>
+<polyline class="ln" points="810,256 871,256"/>
+<polygon class="ah" points="880,256 871,251 871,261"/>
+<text x="845" y="248" font-size="12.5" class="lbl" text-anchor="middle">체크포인트</text>
+<polyline class="ln" points="670,106 670,219"/>
+<polygon class="ah" points="670,228 675,219 665,219"/>
+<text x="678" y="182" font-size="12.5" class="lbl">학습 원문</text>
+<polyline class="ln" points="640,106 640,160 295,160 295,219"/>
+<polygon class="ah" points="295,228 300,219 290,219"/>
+<text x="470" y="154" font-size="12.5" class="lbl" text-anchor="middle">치환 후보 채굴</text>
+<polyline class="ln" points="790,106 790,170 965,170 965,219"/>
+<polygon class="ah" points="965,228 970,219 960,219"/>
+<text x="878" y="164" font-size="12.5" class="lbl" text-anchor="middle">Dev BPB로 선택</text>
+<rect class="grp" x="10" y="316" width="1060" height="100" rx="12"/>
+<text x="24" y="336" font-size="12.5" class="lbl" font-weight="600">기록 — 모든 숫자는 원장에서 나온다</text>
+<rect class="box" x="540" y="352" width="170" height="50" rx="8"/>
+<text x="625" y="372" font-size="14" text-anchor="middle" font-weight="600" class="ink">보고표 · OVERVIEW</text>
+<text x="625" y="391" font-size="13" text-anchor="middle" class="sub">reports/tables</text>
+<rect class="box" x="750" y="352" width="184" height="50" rx="8"/>
+<text x="842" y="372" font-size="14" text-anchor="middle" font-weight="600" class="ink">TSV 원장</text>
+<text x="842" y="391" font-size="13" text-anchor="middle" class="sub">append-only · 실패 run도</text>
+<rect class="box" x="964" y="352" width="100" height="50" rx="8"/>
+<text x="1014" y="372" font-size="14" text-anchor="middle" font-weight="600" class="ink">커밋 훅</text>
+<text x="1014" y="391" font-size="13" text-anchor="middle" class="sub">경로 검사</text>
+<polyline class="ln" points="790,284 790,343"/>
+<polygon class="ah" points="790,352 795,343 785,343"/>
+<text x="798" y="340" font-size="12.5" class="lbl">run</text>
+<polyline class="ln" points="900,284 900,343"/>
+<polygon class="ah" points="900,352 905,343 895,343"/>
+<text x="908" y="340" font-size="12.5" class="lbl">지표</text>
+<polyline class="ln" points="750,377 719,377"/>
+<polygon class="ah" points="710,377 719,382 719,372"/>
+<text x="730" y="369" font-size="12.5" class="lbl" text-anchor="middle">생성</text>
+<polyline class="ln" points="964,377 943,377"/>
+<polygon class="ah" points="934,377 943,382 943,372"/>
+<text x="949" y="369" font-size="12.5" class="lbl" text-anchor="middle">검사</text>
+</g>
+</svg>
