@@ -72,7 +72,7 @@ def gap_rows() -> list:
 
 
 def draw_gap(rows: list) -> str:
-    W, left, right, top, rowh = 1000, 300, 150, 108, 46
+    W, left, right, top, rowh = 820, 240, 96, 108, 46
     xmax = 0.45
     pw = W - left - right
     x = lambda v: left + v / xmax * pw  # noqa: E731
@@ -126,9 +126,9 @@ def wsd_series() -> dict:
 
 def draw_wsd(series: dict) -> str:
     from tools import w6_spec as S
-    W, H = 1000, 420
+    W, H = 820, 420
     panels = (("c0", "C0 (원본 Qwen)", 0), ("t2b", "T2b (어휘 치환)", 1))
-    pw, ph, top, gap = 400, 240, 110, 100
+    pw, ph, top, gap = 330, 240, 110, 80
     o = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" '
          'aria-label="감쇠 구간의 한국어 dev BPB, 상수 LR 과 WSD. '
          + _esc(" · ".join(f"{c} {s} 종점 {p[-1][1]:.4f}" for c, d in series.items() for s, p in d.items()))
