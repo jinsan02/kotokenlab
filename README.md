@@ -15,8 +15,12 @@
 > 설계 [`docs/SPEC_P2.md`](docs/SPEC_P2.md) ·
 > 일정과 결과 [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md)
 >
-> **3차 설계 완료, 실행 전** (2026-09-17). [`docs/SPEC_P3.md`](docs/SPEC_P3.md) ·
-> [`docs/SCHEDULE_P3.md`](docs/SCHEDULE_P3.md) · 사전 등록 [`docs/PLAN.md`](docs/PLAN.md) "P3 확장"
+> **3차 종료 · 프로젝트 종료** (2026-09-19 → 10-19, 태그 `p3-closed`). 외부 비판 감사 뒤
+> amendment 로 다시 짠 7주 계획을 마쳤다. **같은 원문 CPT 뒤 T2b 의 한국어 BPB 가 C0 보다
+> 약 0.35 나쁘다는 결론이 한 번도 쓰지 않은 Final Test 5,067문서에서 확증됐다** (d +0.348637,
+> 95% 문서 구간 [+0.345985, +0.351245]). 같은 update 수 · 신규 행 warm-start · WSD 는 이
+> 격차를 줄이지 못했다. **결과 전체: [`reports/REPORT_P3.md`](reports/REPORT_P3.md)** ·
+> 주장 표 [`reports/tables/core_claims.md`](reports/tables/core_claims.md)
 
 <p align="center"><img src="docs/img/pipeline.svg" alt="KoTokenLab 전체 파이프라인: 문서 단위 분할 → 토크나이저 수술 → 임베딩 초기화 → CPT → 평가 → TSV 원장" width="100%"></p>
 
