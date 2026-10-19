@@ -4,6 +4,7 @@
 
     docs/img/gap_summary.svg   처방별 한국어 잔차 d 와 문서 95% 구간 — Final Test 강조
     docs/img/wsd_curve.svg     감쇠 구간의 한국어 dev BPB — 상수 LR 대 WSD (C0 · T2b)
+    docs/img/recovery.svg      출발점 → CPT 종점의 한국어 BPB 막대 — 코사인 대 상수 LR, 격차 d · 보조 R
 
 색은 dataviz 기본 팔레트의 1 · 2번 슬롯(파랑 · 주황)과 회색 하나다. GitHub 의 밝은 바탕
 (#ffffff)과 어두운 바탕(#0d1117) 모두에서 validate_palette 를 통과했다 (2026-10-19).
@@ -179,10 +180,94 @@ def draw_wsd(series: dict) -> str:
     return "\n".join(o) + "\n"
 
 
+OUT_REC = ROOT / "docs" / "img" / "recovery.svg"
+
+
+def recovery_values() -> dict:
+    """한국어 dev BPB — 출발점 둘(R5 seed42 의 step0)과 CPT 종점 넷 (seed 42)."""
+    from tools.wsd_pairs import bpb_at, lm_rows
+    lm = lm_rows()
+    v = {
+        "u0": bpb_at(lm, "cpt_c0_qwen_r5_seed42", "step0", "ko"),
+        "b0": bpb_at(lm, "cpt_t2b_mean_r5_seed42", "step0", "ko"),
+        "t2b_cos": bpb_at(lm, "cpt_t2b_mean_main_seed42", "final", "ko"),
+        "c0_cos": bpb_at(lm, "cpt_c0_qwen_main_seed42", "final", "ko"),
+        "t2b_const": bpb_at(lm, "cpt_t2b_mean_r5_seed42", "final", "ko"),
+        "c0_const": bpb_at(lm, "cpt_c0_qwen_r5_seed42", "final", "ko"),
+    }
+    if None in v.values():
+        raise SystemExit(f"원장에 없는 값: {[k for k, x in v.items() if x is None]}")
+    return v
+
+
+def draw_recovery(v: dict) -> str:
+    """막대 (0 기준). T2b 파랑 · C0 주황 · 출발점 회색. 묶음마다 격차 d 와 보조 R."""
+    W, left, right, top = 820, 230, 200, 96
+    xmax = 2.5
+    pw = W - left - right
+    X = lambda b: left + b / xmax * pw  # noqa: E731
+    groups = [
+        ("출발점", [("원본 Qwen · CPT 전", v["u0"], "cg"), ("T2b 수술 직후", v["b0"], "cg")], None),
+        ("CPT 168.5MB 뒤 · 1차 코사인 LR", [("T2b", v["t2b_cos"], "c1"), ("C0", v["c0_cos"], "c2")],
+         (v["t2b_cos"], v["c0_cos"])),
+        ("CPT 168.5MB 뒤 · 2차 상수 LR", [("T2b", v["t2b_const"], "c1"), ("C0", v["c0_const"], "c2")],
+         (v["t2b_const"], v["c0_const"])),
+    ]
+    bar, gap, ghead, gsep = 18, 8, 26, 22
+    H = top + sum(ghead + len(g[1]) * (bar + gap) + gsep for g in groups) + 40
+    o = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" '
+         'aria-label="한국어 dev BPB: 원본 ' + f'{v["u0"]:.4f}, T2b 수술 직후 {v["b0"]:.4f}, 코사인 CPT 뒤 T2b '
+         f'{v["t2b_cos"]:.4f} · C0 {v["c0_cos"]:.4f}, 상수 LR CPT 뒤 T2b {v["t2b_const"]:.4f} · C0 {v["c0_const"]:.4f}">',
+         "<title>CPT 는 수술 손상의 대부분을 메웠지만 C0 와의 격차는 남았다</title>", STYLE,
+         '<text x="0" y="26" font-size="18" font-weight="600">CPT 는 손상의 대부분을 메웠지만 격차는 남았다</text>',
+         '<text x="0" y="50" font-size="14" class="sub">한국어 dev BPB (낮을수록 좋다) · seed 42 · '
+         '같은 원문 168.5MB · 상수 LR 이 코사인보다 격차를 줄였다</text>',
+         '<rect class="c1" x="0" y="64" width="12" height="12" rx="2"/><text x="18" y="75" font-size="13">T2b (어휘 치환)</text>'
+         '<rect class="c2" x="140" y="64" width="12" height="12" rx="2"/><text x="158" y="75" font-size="13">C0 (원본 + 같은 CPT)</text>'
+         '<rect class="cg" x="320" y="64" width="12" height="12" rx="2"/><text x="338" y="75" font-size="13">출발점</text>']
+    y = top
+    bottoms = []
+    for title, bars, pair in groups:
+        o.append(f'<text x="0" y="{y + 14}" font-size="13" font-weight="600">{_esc(title)}</text>')
+        y += ghead
+        ys = []
+        for name, b, cls in bars:
+            w = X(b) - left
+            o.append(f'<text x="{left - 10}" y="{y + 13}" font-size="13" text-anchor="end">{_esc(name)}</text>')
+            o.append(f'<path class="{cls}" d="M{left},{y} h{w - 4:.1f} a4,4 0 0 1 4,4 v{bar - 8} '
+                     f'a4,4 0 0 1 -4,4 h{-(w - 4):.1f} z"/>')
+            o.append(f'<text x="{X(b) + 6:.1f}" y="{y + 13}" font-size="12" class="sub">{b:.4f}</text>')
+            ys.append(y)
+            y += bar + gap
+        if pair:
+            t, c = pair
+            r = (v["b0"] - t) / (v["b0"] - c)
+            o.append(f'<text x="{W - right + 30}" y="{ys[0] + 6}" font-size="13">격차 d <tspan font-weight="600">'
+                     f'{t - c:+.4f}</tspan></text>')
+            o.append(f'<text x="{W - right + 30}" y="{ys[0] + 26}" font-size="12" class="muted">회복률 R {r:.1%} (보조)</text>')
+        y += gsep
+        bottoms.append(y)
+    axis_y = y - gsep + 4
+    for t in (0.0, 0.5, 1.0, 1.5, 2.0, 2.5):
+        o.append(f'<line class="{"base" if t == 0 else "grid"}" x1="{X(t):.1f}" y1="{top}" x2="{X(t):.1f}" y2="{axis_y}"/>')
+        o.append(f'<text x="{X(t):.1f}" y="{axis_y + 16}" font-size="11" text-anchor="middle" class="muted">{t:.1f}</text>')
+    o.append(f'<text x="0" y="{H - 8}" font-size="12" class="muted">R = (B0 − Bf)/(B0 − Cf) 는 보조 지표다 — '
+             '1차 지표는 격차 d = Bf − Cf (RULES 14b). 상수 LR 쌍은 R5 seed 42.</text>')
+    # 격자가 막대 뒤로 가게 막대보다 먼저 그려야 하므로 순서를 바꾼다
+    grid = [s for s in o if s.startswith('<line class="grid"') or s.startswith('<line class="base"')]
+    rest = [s for s in o if s not in grid]
+    head = rest[:3]
+    rest = rest[3:]
+    o = head + grid + rest
+    o.append("</svg>")
+    return "\n".join(o) + "\n"
+
+
 def main() -> int:
     OUT_GAP.write_text(draw_gap(gap_rows()), encoding="utf-8", newline="\n")
     OUT_WSD.write_text(draw_wsd(wsd_series()), encoding="utf-8", newline="\n")
-    print(f"썼다 {OUT_GAP.relative_to(ROOT)} · {OUT_WSD.relative_to(ROOT)}")
+    OUT_REC.write_text(draw_recovery(recovery_values()), encoding="utf-8", newline="\n")
+    print(f"썼다 {OUT_GAP.relative_to(ROOT)} · {OUT_WSD.relative_to(ROOT)} · {OUT_REC.relative_to(ROOT)}")
     return 0
 
 
