@@ -73,10 +73,11 @@ def scope_line(path: Path = OUT):
     sus = re.search(rf"그중 덮임 >= {SUSPECT:.0%}\s+([0-9,]+)", text)
     if not (total and sus):
         raise SystemExit(f"{path}: 형식이 바뀌었다 — scope_line 을 고쳐라")
+    # 2026-10-19 외부 검토 ⑩: n-gram 의 단위를 밝힌다 (공백 제거 · NFKC 소문자 뒤 **문자**).
     return (f"오염 검사 범위: 우리 CPT 풀(앞 {total.group(2)}문서)과 질문 본문의 "
-            f"{N}-gram 겹침만 — 덮임 {SUSPECT:.0%} 이상 {sus.group(1)} / "
-            f"{total.group(1)}문항 (`contamination.md`). Qwen 사전학습 · 의역 · "
-            f"{N}자보다 짧은 겹침은 검사하지 않았다.")
+            f"문자 {N}-gram(공백 제거 · NFKC 소문자) 겹침만 — 덮임 {SUSPECT:.0%} 이상 "
+            f"{sus.group(1)} / {total.group(1)}문항 (`contamination.md`). Qwen 사전학습 · 의역 · "
+            f"문자 {N}개보다 짧은 겹침은 검사하지 않았다.")
 
 
 def norm(s: str) -> str:

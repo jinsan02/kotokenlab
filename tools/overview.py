@@ -103,8 +103,11 @@ def amendment_results(w) -> None:
     w("```")
     w(f"2주차  같은 원문 168.5MB   d 평균 {statistics.mean(d168):+.6f} "
       f"(seed 3쌍 SD {statistics.stdev(d168):.6f})")
+    md168 = statistics.mean([k["d_168"] for k in ko])
     w(f"3주차  같은 update 1,523   d 평균 {statistics.mean(dupd):+.6f} "
-      f"(SD {statistics.stdev(dupd):.6f}) · 줄어든 몫 rho {statistics.mean(rho):.1%}")
+      f"(SD {statistics.stdev(dupd):.6f}) · 줄어든 몫 rho {statistics.mean(rho):.1%}"
+      f" (seed 별 rho 의 평균, 분모는 upd run 자신의 168.5MB 지점 d {md168:+.6f}."
+      f" 2주차 d 로 나누면 {(statistics.mean(d168) - statistics.mean(dupd)) / statistics.mean(d168):.2%})")
     w(f"4주차  신규 행 warm-start   d {d_warm:+.6f} vs 직접 {d_direct:+.6f} "
       f"-> delta {d_direct - d_warm:+.6f} (gate +0.010 미달, seed 42)")
     try:
@@ -140,14 +143,21 @@ def amendment_results(w) -> None:
     if all(hdocs.values()) and not HP.validate(hdocs, ok):
         h = D.paired_bootstrap(hdocs["t2b"]["ko"], hdocs["c0"]["ko"], HS.B, HS.RNG_SEED)
         w(f"Final  본 적 없는 {h['n']:,}문서      d {h['diff']:+.6f}  문서 구간 "
-          f"[{h['lo']:+.6f}, {h['hi']:+.6f}] -> {HP.verdict(h['lo'])}")
+          f"[{h['lo']:+.6f}, {h['hi']:+.6f}] -> {HP.verdict(h['lo'])} (seed 42 대표 쌍)")
+        en = D.paired_bootstrap(hdocs["t2b"]["en"], hdocs["c0"]["en"], HS.B, HS.RNG_SEED)
+        cd = D.paired_bootstrap(hdocs["t2b"]["code"], hdocs["c0"]["code"], HS.B, HS.RNG_SEED)
+        w(f"       같은 체크포인트 영어 d {en['diff']:+.6f} · 코드 d {cd['diff']:+.6f}"
+          " (압축은 거의 그대로인데 BPB 는 T2b 가 조금 나쁘다)")
     else:
         w("Final  Final Test             미확인 (평가가 없거나 검증을 통과하지 못했다)")
     w("```")
     w("")
-    w("**같은 update 를 받아도 잔차의 약 93% 가 남는다** — 168.5MB 격차는 계산량 부족이")
-    w("주된 원인이 아니다. 새 행만 먼저 학습시키는 warm-start 는 이 설정에서 직접 CPT")
-    w("보다 나빴고, 시험한 WSD(마지막 20% 감쇠, 바닥 10%) 도 상수 LR 보다 나빴다 (seed 42).")
+    # 2026-10-19 외부 검토 ①: "계산량 부족이 주된 원인이 아니다" 는 인과 비약이라 좁혔다.
+    w("**같은 update 수를 받아도 잔차의 대부분이 남았다** — 시험한 update 보정만으로는")
+    w("같은 원문량 조건의 격차가 해소되지 않았다. 더 큰 예산에서의 회복과 원인별 기여도는")
+    w("확인하지 않았다 (rho 는 감소율이지 원인의 기여율이 아니다). 같은 총예산 안에서 새 행을")
+    w("먼저 학습시키는 배분(warm-start 20%)은 직접 CPT 보다 나빴고, 시험한 WSD(마지막 20% 감쇠,")
+    w("바닥 10%) 도 상수 LR 보다 나빴다 (둘 다 seed 42, 그 recipe 의 결과).")
     w("문서 구간은 dev 문서 표본의 불확실성만 담고, seed 불확실성은 SD 가")
     w("따로 낸다. Final Test 는 선택 규칙을 먼저 고정하고(`docs/PLAN.md` \"5주차 동결\" D)")
     w("대표 둘만 한 번 열었다 — 위 마지막 줄이 그 결과다.")
@@ -298,11 +308,12 @@ def main(argv: list | None = None) -> int:
     w(f"수술 직후 한국어 BPB 는 {b0_t2b:.4f} 였다. 즉 CPT 가 격차의")
     w(f"**{r_cos:.1%}** 를 메웠고(N=10k 는 {r_10k:.1%}), 나머지는 남았다.")
     w("")
-    w("**압축은 설계대로 됐고 품질은 따라오지 못했다.** 그 대신 산 것은 추론")
-    w("비용이다 — prefill -35~41%, KV cache -30%, 같은 문맥 창에 +44% 원문(환산값).")
-    # amendment §1 · §3: 시스템 수치는 품질을 맞춘 서비스 개선이 아니다. 통제축을 붙인다.
-    w("이 셋은 **같은 원문** 을 넣은 비교다 — 토큰 수가 다르고 품질은 맞추지 않았다")
-    w("(같은 CPT 후 한국어 BPB 가 나쁜 모델의 비용이다). +44% 는 평균 토큰화율로 환산한 값이다.")
+    # 2026-10-19 외부 검토 ⑨: "그 대신 산 것은 추론 비용" 이 유리한 교환비로 읽혀 바꿨다.
+    w("**압축은 설계대로 됐고 품질은 따라오지 못했다.** 동일 원문 입력에서 prefill 시간이")
+    w("35~41% 줄고 KV cache 추정 크기(`kv_cache_mb_est`, 실제 할당이 아니다)가 30% 줄었다.")
+    w("다만 비교 모델의 품질이 달라, **동등 품질에서의 추론 효율 개선으로 해석하지 않는다.**")
+    w("같은 16,384 토큰 창에 원문 +44% 는 system bench 40,000자 프롬프트의 실측 토큰 비로 낸")
+    w("환산값이다 (dev 전체 tok/byte 비로는 약 43%). 긴 문맥을 더 잘 쓴다는 결과가 아니다.")
     w("(시스템 수치는 `reports/tables/system_bench` 계열에 있다)")
     w("")
     w("## 4. 2차 결과 — 무엇이 회복을 정하는가")
@@ -313,7 +324,7 @@ def main(argv: list | None = None) -> int:
     w(f"등토큰 {r_eqtok:.1%} · N=10k {r_10k:.1%} 였다. 2차는 그 종점을 무엇이 정하는지")
     w("물었고, **사전 등록한 가설 셋 중 둘이 반증됐다.**")
     w("")
-    w("### R1 — 임베딩 손상 일반의 성질인가 (부정)")
+    w("### R1 — 시험한 두 손상 구성의 회복 궤적은 달랐다")
     w("")
     w("토크나이저를 안 바꾸고 임베딩 **행 40개만** 망가뜨린다. 손상 배율은 T2b 와")
     w("맞췄다 (학습 없는 보정으로 K 를 골랐다).")
@@ -342,13 +353,15 @@ def main(argv: list | None = None) -> int:
       f"차이 {q7_diff_mean*100:+.2f}%p")
     w("```")
     w("")
+    w("seed 별 paired 차이 (untied - tied): "
+      + " · ".join(f"{s} {d * 100:+.3f}%p" for s, d in zip((42, 123, 2026), q7_diff)) + ".")
     w(f"paired seed 차이의 탐색적 t(df=2) 95% CI는 "
       f"[{q7_ci[0]*100:+.3f}, {q7_ci[1]*100:+.3f}]%p다. 사전 등록한 효과 크기")
     w("바닥 ±5%p 안이지만 n=3 정규성 가정의 사후 구간이라 일반적 동등성 증명은 아니다.")
     w("forward 동일성은 시작 함수만 같다는 뜻이다. untie는 파라미터를 27.6% 늘리고")
     w("입력·출력 gradient 공유를 끊으므로 장기 학습 동역학이 같다는 결론은 아니다.")
     w("")
-    w("### R5 — LR 스케줄 때문인가 (긍정)")
+    w("### R5 — 상수 LR 에서 유한 예산 잔차가 줄었다")
     w("")
     w("코사인 대신 **상수 LR** 로 같은 예산을 돌렸다. 감쇠만 빼고 나머지는 같다.")
     w("통제군도 상수 LR 로 다시 돌렸다 (조건이 바뀌면 대조군도 다시 잰다).")
@@ -383,10 +396,16 @@ def main(argv: list | None = None) -> int:
     w("| KMMLU 정확도 (1,900문항) | "
       + " | ".join(f"{a[0]:.4f}" for a in (a_c0, a_t2a, a_t2b)) + " |")
     w("")
-    w(f"T2a 는 BPB {hanja['T2a'] / hanja['C0'] - 1:+.2%}, KMMLU "
-      f"{(a_t2a[0] - a_c0[0]) * 100:+.2f}%p 로 **C0 와 구별되지 않는다**")
-    w("(등록 경계 ±2%p, paired bootstrap). 다만 C0 가 찍기(25%)보다 약")
-    w(f"{(a_c0[0] - 0.25) * 100:.1f}%p 위라 **감도가 낮은 계기** 다.")
+    # 2026-10-19 외부 검토 ③ · ⑧: CI 를 문장에 싣고, 두 측정의 경계를 따로 적는다.
+    from src.evaluation.capability import paired_diff_ci
+    from tools.hanja_probe import _ok_runs, d3
+    p3 = d3(_ok_runs())
+    kd, klo, khi = paired_diff_ci([r[2] for r in p3["T2a"]], [r[2] for r in p3["C0"]])
+    w(f"한자 밀집 BPB 는 T2a {hanja['T2a'] / hanja['C0'] - 1:+.2%} (등록 경계 ±5%, 이 부분집합의")
+    w(f"σ 없음). KMMLU 는 {kd * 100:+.2f}%p, paired 95% CI [{klo * 100:+.2f}, {khi * 100:+.2f}]%p 로")
+    w("**등록한 동등성 경계 ±2%p 안** 이다 — 그 checkpoint · 1,900문항의 판정이고 seed")
+    w(f"불확실성과 지식 손상 부재를 뜻하지 않는다. C0 가 찍기(25%)보다 약 {(a_c0[0] - 0.25) * 100:.1f}%p")
+    w("위라 **측정 감도가 낮을 수 있다는 우려** 가 있다.")
     scope = scope_line()
     if scope:
         w(scope)
@@ -408,7 +427,10 @@ def main(argv: list | None = None) -> int:
     w("")
     w("- **사전 등록.** 예측 · 판정 경계 · 효과 크기 바닥을 돌리기 전에 커밋한다.")
     w("  결과를 보고 경계를 옮기지 않고, 옮겨야 하면 그 사실을 날짜와 함께 적는다")
-    w("- **효과 크기 바닥 5%p + 2σ.** 2σ는 seed SD 기반 등록 휴리스틱이지 95% CI가 아니다")
+    w("- **효과 크기 바닥 + 2σ.** 바닥은 R 에 5%p (Q7) · BPB 에 0.005 (6주차). σ 는 판정 대상의")
+    w("  seed 표본 SD 이고 짝 비교에는 대응 차이의 SD 를 쓴다. 2σ는 등록 휴리스틱이지 95% CI가 아니다")
+    w("- **R 은 보조 지표다.** R = 1 - (Bf-Cf)/(B0-Cf) 는 CPT 후 통제군을 목표로 간격을 얼마나")
+    w("  닫았나이지 초기 손상의 복구율이 아니다 — B0 와 Cf 에 함께 의존한다. 1차 지표는 d = Bf-Cf")
     w("- **조건이 바뀌면 통제군도 같은 조건에서 다시 잰다** (R5 의 상수 LR C0)")
     w("- **결과는 코드가 원장에 쓴다.** 마크다운에 손으로 옮기지 않는다")
     w("- **append-only 원장** — 실패한 run 도 지우지 않는다 (fail · abort 포함)")
@@ -417,7 +439,8 @@ def main(argv: list | None = None) -> int:
     w("## 8. 알려진 한계 (전부 문서에 적혀 있다)")
     w("")
     w("- **0.5B 한 모델.** 1.5B 는 수술 손상만 쟀고 CPT 회복력은 미측정")
-    w("- **seed 42 단독** 인 run 이 많다 (노이즈 플로어와 R5 만 3 seed)")
+    w("- **seed 수가 조건마다 다르다.** 3 seed: 노이즈 플로어 · Q7 · R5 · 상수 LR C0/T2b 쌍 ·")
+    w("  같은 update T2b. seed 42 하나: 1차 코사인 run · R1 · warm-start · WSD · Final Test 체크포인트")
     w("- **dev 가 닳았다.** 초기화도 N 도 dev 에서 골랐다. Final Test 는 2026-10-19 에")
     w("  대표 둘(상수 LR C0 · T2b, seed 42)만 한 번 열었다 (`final-test-opened`)")
     w("- **CPT 코퍼스와 Qwen 사전학습은 모두 Common Crawl 계열일 수 있다.** 실제")
@@ -429,16 +452,20 @@ def main(argv: list | None = None) -> int:
     w("- **도메인 라벨 정확도가 ~55%** 라 도메인별 수치를 인용하지 않는다")
     w("- **ZeTT 를 못 돌렸다.** CPT 행 이식은 몸통-행 상호적응을 깨는 compatibility")
     w("  진단일 뿐, 완벽한 초기화 상한이나 ZeTT 대체 baseline이 아니다")
+    w("- 문서 bootstrap 은 문서 단위 paired 다. 사이트 · 출처 군집은 고려하지 않았다")
+    w("- 수술 코드 경로의 명시적 no-op 대조(아무것도 안 바꾸는 수술)는 하지 않았다")
     w("- 학습 wall-clock 이 오염됐다 (데스크톱이 GPU 를 함께 썼다). 속도 주장에")
     w("  쓰지 않는다. BPB 는 영향 없다")
     w("")
     w("## 9. 초기화 baseline 의 위치")
     w("")
-    w("E1(merge 부품 평균)은 **검증된 범위에서만 FVT와 같다** — standalone")
-    w("재토큰화가 정의되는 25,821개에서 100% 일치했다. 나머지 4,179개(13.9%)는 표면형이 유효")
-    w("UTF-8 이 아니라 FVT 를 적용할 수 없는 경우이고, 거기서는 merge 계보로")
-    w("확장한다. 그 확장분이 바이트 단위 평균과 얼마나 다른지도 쟀다 (중앙값 코사인")
-    w("0.520 으로, FVT 가 정의되는 구간의 0.171 보다 오히려 가깝다).")
+    w("E1(merge 부품 평균)은 **검증된 범위에서만 FVT와 같다** — 표면형을 원본 토크나이저로")
+    w("다시 토큰화하면 정확히 그 merge 부품 두 id 가 나오는 25,821개에서 100% 일치했다 (같은 두")
+    w("원본 행의 평균이므로 벡터가 같다). 나머지 4,179개(13.9%, **어휘 항목 비율이지 실제 출현")
+    w("비율이 아니다** — 출현 비율은 미확인)는 표면형이 유효 UTF-8 이 아니라 **우리의 standalone")
+    w("재토큰화 경로에서** FVT 가 정의되지 않는 경우이고, 거기서는 merge 계보로 확장한다.")
+    w("바이트 단위 평균과의 중앙값 코사인 0.520 · 0.171 은 서로 다른 토큰 집합의 값이라 초기화의")
+    w("우열을 뜻하지 않는다.")
     w("")
     w("E2(역빈도 가중)는 **FOCUS 가 아니다** — 가중치 출처가 유사도가 아니라 빈도다.")
     w("")

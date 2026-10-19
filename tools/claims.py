@@ -63,7 +63,7 @@ def claim_system() -> dict:
 
 def claim_gap_seeds(lm) -> dict:
     d = [_fin(lm, f"cpt_t2b_mean_r5_seed{s}") - _fin(lm, f"cpt_c0_qwen_r5_seed{s}") for s in SEEDS]
-    return {"id": "C3", "claim": "같은 원문 CPT 후 T2b 의 한국어 BPB 가 C0 보다 나쁘다 (잔차 d)",
+    return {"id": "C3", "claim": "같은 원문 168.5MB CPT 후 T2b 의 한국어 dev BPB 가 C0 보다 나쁘다 (잔차 d)",
             "value": f"d 평균 {statistics.mean(d):+.6f} · seed SD {statistics.stdev(d):.6f} (3쌍)",
             "axis": "같은 원문 168.5MB · 상수 LR · 같은 seed 짝 (compute 는 다르다)",
             "unc": "학습 seed (n=3)", "status": "dev 재현", "src": "seed_pairs.md"}
@@ -74,7 +74,8 @@ def claim_heldout() -> dict:
     from tools.heldout_pairs import _tsv, LEDGER, validate, verdict
     ok = {r["run_id"]: r for r in _tsv(LEDGER) if r["status"] == "ok"}
     docs = {n: D.load_docs_run(H.doc_run_id(n)) for n in H.CHECKPOINTS}
-    base = {"id": "C4", "claim": "C3 이 본 적 없는 문서에서도 성립한다 (Final Test)",
+    # 2026-10-19 외부 검토 ③: 확증의 목적어를 좁힌다 — seed 42 대표 쌍 하나다.
+    base = {"id": "C4", "claim": "사전에 고른 seed 42 대표 쌍에서, 처음 보는 한국어 문서에도 양의 잔차가 있다 (Final Test)",
             "axis": "C3 과 같다 · 대표 체크포인트 seed 42 둘", "unc": "문서 표본 (seed 는 C3 의 SD)",
             "src": "heldout.md"}
     if not all(docs.values()) or validate(docs, ok):
@@ -100,8 +101,10 @@ def claim_update() -> dict:
     ko = [U.per_seed(s, lm)["ko"] for s in SEEDS]
     rho = [k["rho"] for k in ko]
     du = [k["d_upd"] for k in ko]
-    return {"id": "C6", "claim": "격차는 주로 T2b 가 update 를 덜 받아서가 아니다",
-            "value": f"같은 update 에서 d {statistics.mean(du):+.6f} · 줄어든 몫 rho {statistics.mean(rho):.1%}",
+    # 2026-10-19 외부 검토 ①: "update 부족이 원인이 아니다" 는 인과 비약이라 관측으로 좁혔다.
+    return {"id": "C6", "claim": "시험한 update 보정(같은 1,523 update)만으로는 격차가 해소되지 않았다",
+            "value": f"같은 update 에서 d {statistics.mean(du):+.6f} · 줄어든 몫 rho {statistics.mean(rho):.1%}"
+                     " (seed 별 평균, 원인의 기여율이 아니다)",
             "axis": "같은 optimizer update 수 (compute proxy, FLOPs 동일 아님)",
             "unc": "학습 seed (n=3)", "status": "dev 판정 (예측 적중)", "src": "upd_pairs.md"}
 
@@ -110,7 +113,7 @@ def claim_warm(lm) -> dict:
     cf = _fin(lm, "cpt_c0_qwen_r5_seed42")
     dd = _fin(lm, "cpt_t2b_mean_r5_seed42") - cf
     dw = _fin(lm, "cpt_t2b_mean_warm_seed42") - cf
-    return {"id": "C7", "claim": "신규 행을 먼저 학습시키는 warm-start 는 직접 CPT 보다 낫지 않다",
+    return {"id": "C7", "claim": "같은 총예산 안에서 새 행을 먼저 학습시키는 배분(첫 20%)은 직접 CPT 보다 낫지 않았다",
             "value": f"delta {dd - dw:+.6f} (gate +0.010 미달)", "axis": "총 원문 168.5MB (준비 비용 포함)",
             "unc": "학습 seed (seed 42 하나)", "status": "dev 판정 (예측 적중)", "src": "warm_pairs.md"}
 
