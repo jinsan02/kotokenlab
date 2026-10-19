@@ -68,7 +68,12 @@ def reproduced(note: str, lang: str):
 
 def load_docs(name: str) -> dict:
     """lang -> [(doc, nll, bytes, raw_bytes)] (문서 번호 순). 파일이 없으면 빈 dict."""
-    p = RUNS / S.doc_run_id(name) / "doc_nll.tsv"
+    return load_docs_run(S.doc_run_id(name))
+
+
+def load_docs_run(eval_run_id: str) -> dict:
+    """load_docs 와 같다. 평가 run_id 를 직접 받는다 (6주차 wsd_pairs 가 쓴다)."""
+    p = RUNS / eval_run_id / "doc_nll.tsv"
     if not p.exists():
         return {}
     out: dict = {}
@@ -132,7 +137,12 @@ def reproduction(name: str, docs: dict) -> dict:
     --source-run 끝에 '\\r' 이 붙어 대조 기록이 빠진 run 들을 "기록 없음" 으로 막았다.
     평가 자체는 맞았으므로 note 를 거치지 않고 여기서 다시 잰다.
     """
-    want = ledger_final(S.CHECKPOINTS[name][1])
+    return reproduction_run(S.CHECKPOINTS[name][1], docs)
+
+
+def reproduction_run(train_run_id: str, docs: dict) -> dict:
+    """reproduction 과 같다. 학습 run_id 를 직접 받는다."""
+    want = ledger_final(train_run_id)
     out: dict = {}
     for lang in LANGS:
         rows = docs.get(lang)
