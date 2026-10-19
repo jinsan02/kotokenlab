@@ -2,6 +2,8 @@
 
 **Korean Tokenizer Surgery & LLM Adaptation on a Single RTX 5070 Ti 16GB**
 
+한국어 어휘 3만 개 치환은 토큰을 30% 줄였지만, 같은 원문 CPT 뒤 한국어 BPB 격차 0.35 가 남았다 — Qwen2.5-0.5B · 단일 RTX 5070 Ti 16GB · 사전 등록과 Final Test 1회로 확증
+
 > **프로젝트 종료 (2026-10-19, 태그 `p3-closed`).** Qwen2.5-0.5B 의 한국어 어휘 30,000개를
 > 크기 보존 치환(T2b)하면 한국어 토큰이 **30% 줄지만**, 같은 원문 168.5MB 로 CPT 한 뒤에도
 > 한국어 BPB 가 원본(C0)보다 **약 0.35 나쁘다.** 이 격차는 seed 3쌍에서 재현됐고, 사전에 고른
@@ -25,9 +27,8 @@
 
 <sub>데이터를 문서 단위로 먼저 나누고 Final Test는 마지막에 한 번만 연다. 세 조건의 모델은 같은 원문으로 CPT한 뒤 평가하고, 모든 숫자는 append-only TSV 원장에 남긴다.</sub>
 
-> Embedding Alignment 단계는 스펙에 있었으나 **폐기했다.** 손해를 안 내면서
-> 제 일을 하는 lr 이 없다는 것을 3라운드 탐침으로 확인했다
-> ([`docs/DESIGN_DELTA.md`](docs/DESIGN_DELTA.md) 1-5).
+<details>
+<summary><b>이 프로젝트는 무엇을 하나 — 목표와 범위</b></summary>
 
 한국어 특화 토크나이저가 LLM 의 언어 모델링 품질, 학습 효율, 시퀀스 길이,
 Attention 연산량, KV Cache, 추론 지연에 미치는 영향을 **통제된 실험**으로 분석한다.
@@ -36,7 +37,12 @@ Attention 연산량, KV Cache, 추론 지연에 미치는 영향을 **통제된 
 `Tokenizer → Embedding → Transformer → Training → Evaluation → GPU Systems` 를
 하나의 재현 가능한 파이프라인으로 연결하는 것이 목표다.
 
+Embedding Alignment 단계는 스펙에 있었으나 **폐기했다.** 손해를 안 내면서
+제 일을 하는 lr 이 없다는 것을 3라운드 탐침으로 확인했다
+([`docs/DESIGN_DELTA.md`](docs/DESIGN_DELTA.md) 1-5).
+
 전체 연구 설계: [`docs/SPEC_KoTokenLab.md`](docs/SPEC_KoTokenLab.md)
+</details>
 
 ---
 
@@ -119,9 +125,12 @@ decode      **미검증.** total_ms_std/mean 이 5.7~17.5% 이고 배치별로 �
 
 ### 회복률 — 수술이 벌린 격차를 CPT가 얼마나 메웠나
 
-<p align="center"><img src="docs/img/recovery.svg" alt="회복률 R: N=30,000 등원문 65.4%, N=10,000 등원문 65.9%, N=30,000 등토큰 68.2% (코사인 LR · seed42)" width="100%"></p>
+<p align="center"><img src="docs/img/recovery.svg" alt="한국어 dev BPB: 원본 1.1569, T2b 수술 직후 2.3803, 코사인 CPT 뒤 T2b 1.5671 · C0 1.1375 (격차 0.4296, R 65.4%), 상수 LR CPT 뒤 T2b 1.4730 · C0 1.1274 (격차 0.3456, R 72.4%)" width="100%"></p>
 
-<sub>R 정의는 <a href="docs/RULES.md">RULES</a> 14b. 1차 절대값은 전부 코사인 스케줄 조건부로 읽는다.</sub>
+<sub>R 정의는 <a href="docs/RULES.md">RULES</a> 14b — 보조 지표다. 1차 지표는 격차 d. 그림은 <code>tools/readme_figures.py</code>.</sub>
+
+<details>
+<summary><b>1차 서술 — 회복률과 T2a(제거만)의 결과</b></summary>
 
 **토크나이저 수술은 설계대로 작동했다. 못 따라온 것은 언어모델이다.**
 T2b 는 수술 직후 BPB 2.3803 에서 출발해 1.5671 까지 왔지만 C0 는 1.1375 다 —
@@ -135,6 +144,7 @@ T2b 는 수술 직후 BPB 2.3803 에서 출발해 1.5671 까지 왔지만 C0 는
 Qwen 사전학습 · 의역 · 짧은 겹침은 미검사 — [contamination.md](reports/tables/contamination.md)). prefill 차이는
 2% 미만은 주장하지 않는 기준 안이다 ([system_bench.md](reports/tables/system_bench.md)). "수술을 받았는가" 가 아니라
 **"수술로 손상됐는가"** 가 결과를 가른다.
+</details>
 
 <details>
 <summary><b>1차 시점 서술 — 병목 가설과 열린 질문 (원문 보존)</b></summary>
@@ -195,7 +205,7 @@ N. [`scripts/run_phase4.sh`](scripts/run_phase4.sh) 가 둘 다 잰다. 예측�
 
 <sub>6주차 WSD: 학습률이 약 2e-6 아래로 내려간 마지막 구간에서 거의 배우지 않았다. 손해는 아직 빨리 배우는 T2b 쪽이 크다 (seed 42, 결과를 본 뒤의 해석이라 탐색적).</sub>
 
-<details open>
+<details>
 <summary><b>3차 판정표 — amendment 2~6주차 + Final Test</b></summary>
 
 2026-09-19 감사로 3차 계획을 다시 잡았다 —
@@ -332,7 +342,8 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 실험 결과는 **전부 TSV 원장**에 들어가고, 커밋은 **훅이 검사**한다.
 사람이 기억해서 지키는 규칙은 지켜지지 않는다는 전제로 만들었다.
 
-특히:
+<details>
+<summary><b>지키는 규칙 다섯</b></summary>
 
 - **주장할 수 있는 것만 주장한다** — 한국어 내부 도메인 라벨은 감사 정확도
   ~55% 라 세분화를 보고하지 않는다 ([`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md))
@@ -340,6 +351,7 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 - **Final Test 는 마지막까지 열지 않는다** — 훅이 `final_test` 경로를 하드 차단한다. 2026-10-19 에 규칙대로 한 번 열었다 (`final-test-opened`)
 - **BPB 로 비교한다** — 토크나이저가 다르면 token-level PPL 은 비교 대상이 아니다
 - **원장은 append-only** — 이미 쓴 행은 고치지 않는다. 실패한 run 도 남긴다
+</details>
 
 에이전트로 작업한다면: [`CLAUDE.md`](CLAUDE.md) (Claude Code) /
 [`AGENTS.md`](AGENTS.md) (Codex).
@@ -439,6 +451,10 @@ HCX / A.X 는 **참조**이지 인과 실험이 아니다 ([`docs/RULES.md`](doc
 ## 이 저장소가 실제로 잡아낸 것
 
 규율이 값을 한 자리들이다. 하나라도 안 잡혔으면 보고서에 틀린 숫자가 들어갔다.
+3차의 실수와 교정은 [`docs/MISTAKES.md`](docs/MISTAKES.md).
+
+<details>
+<summary><b>1차에서 잡은 것 여섯</b></summary>
 
 - **BPB 분모가 한국어에서 2배였다** — ByteLevel 토큰의 바이트 길이는
   `len(token)` 이지 `len(token.encode())` 가 아니다
@@ -455,3 +471,4 @@ HCX / A.X 는 **참조**이지 인과 실험이 아니다 ([`docs/RULES.md`](doc
 
 실패한 run 도 원장에 남아 있다 (`fail` 9건 · `abort` 5건). 지우지 않는 이유는
 무엇이 왜 깨졌는지가 규칙의 근거이기 때문이다.
+</details>
