@@ -13,11 +13,13 @@
 
 <sub>그림은 <code>tools/readme_figures.py</code> 가 원장에서 그린다. 수치표는 <a href="reports/tables/core_claims.md">core_claims.md</a>.</sub>
 
-| 단계 | 기간 · 태그 | 한 줄 | 보고서 |
-|---|---|---|---|
-| 1차 | 08-29 → 09-02 · `p1-closed` | 압축 · 추론 효율은 성공, 한국어 품질은 악화. 세 가설(노름 보정 · 정렬 예열 · 노출 부족) 반증 | [`FINAL_REPORT.md`](reports/FINAL_REPORT.md) |
-| 2차 | → 09-17 | 상수 LR 이 168.5MB 종점 격차를 0.4296 → 0.3455 로 줄였다. tie · 임베딩 손상 가설은 지지 안 됨. T2a 의 한자 제거 흔적 미검출 | [`SCHEDULE_P2.md`](docs/SCHEDULE_P2.md) |
-| 3차 | 09-19 → 10-19 · `final-test-opened` · `p3-closed` | 외부 비판 감사 뒤 7주 계획. seed 재현 · update 보정 · warm-start · WSD · 문서 구간 · **Final Test 확증** | [`REPORT_P3.md`](reports/REPORT_P3.md) |
+| 단계 | 결과 |
+|---|---|
+| **1차** (08-29 → 09-02) | 압축 · 추론 효율은 성공, 한국어 품질은 악화. 우리가 세운 가설 셋(노름 보정 · 정렬 예열 · 노출 부족) 반증 — [`FINAL_REPORT.md`](reports/FINAL_REPORT.md) |
+| **2차** (→ 09-17) | 상수 LR 이 168.5MB 종점 격차를 0.4296 → 0.3455 로 줄였다. tie · 임베딩 손상 가설은 지지 안 됨 — [`SCHEDULE_P2.md`](docs/SCHEDULE_P2.md) |
+| **3차** (09-19 → 10-19) | 외부 비판 감사 뒤 7주 계획. seed 재현 · update 보정 · warm-start · WSD · 문서 구간 · **Final Test 확증** — [`REPORT_P3.md`](reports/REPORT_P3.md) |
+
+<sub>태그: <code>p1-closed</code> · <code>eval-freeze-v1</code> · <code>final-test-opened</code> · <code>p3-closed</code></sub>
 
 <p align="center"><img src="docs/img/pipeline.svg" alt="KoTokenLab 전체 파이프라인: 문서 단위 분할 → 토크나이저 수술 → 임베딩 초기화 → CPT → 평가 → TSV 원장" width="100%"></p>
 
