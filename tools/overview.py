@@ -96,7 +96,7 @@ def amendment_results(w) -> None:
     rho = [k["rho"] for k in ko]
     d_direct = d168[0]
     d_warm = bpb("cpt_t2b_mean_warm_seed42") - cf[42]
-    w("### 3차 결과 (amendment 2~5주차, 2026-10-07)")
+    w("### 3차 결과 (amendment 2~6주차, 2026-10-19)")
     w("")
     w("잔차 d = BPB(T2b) - BPB(C0), 한국어 dev, 상수 LR. 같은 seed 끼리 짝짓는다.")
     w("")
@@ -118,11 +118,28 @@ def amendment_results(w) -> None:
             w("5주차  대표 조건 문서 구간    미확인 (문서별 평가가 원장을 재현하지 않았다)")
     except ImportError:
         w("5주차  대표 조건 문서 구간    미확인 (numpy 없음)")
+    # 6주차 판정은 wsd_pairs 의 함수로 다시 낸다 (검증을 통과하지 못하면 미확인).
+    from tools import wsd_pairs as P, w6_spec as W6
+    ok = {r["run_id"]: r for r in P._tsv(P.LEDGER) if r["status"] == "ok"}
+    lmd = P.lm_rows()
+    good = all(not P.validate(W6.WSD[k], ok) and P.predecay_repro(lmd, W6.WSD[k], W6.BASE[k])[0]
+               for k in ("c0", "t2b"))
+    if good:
+        sg = P.sigmas(lmd)
+        fin = {k: {s: P.bpb_at(lmd, run, "final", "ko") for s, run in
+                   (("const", W6.BASE[k]), ("wsd", W6.WSD[k]))} for k in ("c0", "t2b")}
+        db = fin["t2b"]["wsd"] - fin["t2b"]["const"]
+        dd = db - (fin["c0"]["wsd"] - fin["c0"]["const"])
+        w(f"6주차  WSD(마지막 20% 감쇠)   T2b {db:+.6f} ({P.verdict(db, P.bound(sg['sigma_b']))}) · "
+          f"잔차 {dd:+.6f} ({P.verdict(dd, P.bound(sg['sigma_d']))}), seed 42")
+    else:
+        w("6주차  WSD                    미확인 (run 이 없거나 검증을 통과하지 못했다)")
     w("```")
     w("")
     w("**같은 update 를 받아도 잔차의 약 93% 가 남는다** — 168.5MB 격차는 계산량 부족이")
     w("주된 원인이 아니다. 새 행만 먼저 학습시키는 warm-start 는 이 설정에서 직접 CPT")
-    w("보다 나빴다. 문서 구간은 dev 문서 표본의 불확실성만 담고, seed 불확실성은 SD 가")
+    w("보다 나빴고, 시험한 WSD(마지막 20% 감쇠, 바닥 10%) 도 상수 LR 보다 나빴다 (seed 42).")
+    w("문서 구간은 dev 문서 표본의 불확실성만 담고, seed 불확실성은 SD 가")
     w("따로 낸다. **Final Test 는 아직 열지 않았다** — 선택 규칙만 먼저 고정했다")
     w("(`docs/PLAN.md` \"5주차 동결\" D).")
 
