@@ -20,6 +20,9 @@ Raw Documents → Normalize → Exact Dedup → Near Dedup
 
 ## final_test/
 
+> **2026-10-19 개봉.** PLAN "5주차 동결" D 대로 대표 체크포인트 둘을 한 번 평가했다
+> (`final-test-opened` 태그, 결과 `reports/tables/heldout.md`). 이후 이 집합으로 무엇도 고르지 않는다.
+
 이 디렉토리는 프로젝트 마지막까지 열지 않는다. 토크나이저 vocabulary 설계,
 merge rule, pruning threshold, 하이퍼파라미터, learning rate, checkpoint 선택,
 모델 구조 선택 어디에도 쓰지 않는다. checkpoint 선택은 Dev BPB 로 한다.

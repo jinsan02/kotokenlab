@@ -20,7 +20,7 @@
 
 <p align="center"><img src="docs/img/pipeline.svg" alt="KoTokenLab 전체 파이프라인: 문서 단위 분할 → 토크나이저 수술 → 임베딩 초기화 → CPT → 평가 → TSV 원장" width="100%"></p>
 
-<sub>데이터를 문서 단위로 먼저 나누고 Final Test는 열지 않는다. 세 조건의 모델은 같은 원문으로 CPT한 뒤 평가하고, 모든 숫자는 append-only TSV 원장에 남긴다.</sub>
+<sub>데이터를 문서 단위로 먼저 나누고 Final Test는 마지막에 한 번만 연다. 세 조건의 모델은 같은 원문으로 CPT한 뒤 평가하고, 모든 숫자는 append-only TSV 원장에 남긴다.</sub>
 
 > Embedding Alignment 단계는 스펙에 있었으나 **폐기했다.** 손해를 안 내면서
 > 제 일을 하는 lr 이 없다는 것을 3라운드 탐침으로 확인했다
@@ -187,7 +187,7 @@ N. [`scripts/run_phase4.sh`](scripts/run_phase4.sh) 가 둘 다 잰다. 예측�
 </details>
 
 <details>
-<summary><b>3차 결과 — 외부 비판 감사 뒤 amendment (2026-10-19, 6주차까지)</b></summary>
+<summary><b>3차 결과 — 외부 비판 감사 뒤 amendment + Final Test (2026-10-19)</b></summary>
 
 2026-09-19 감사로 3차 계획을 다시 잡았다 —
 [`docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md).
@@ -201,10 +201,12 @@ d = BPB(T2b) − BPB(C0), 한국어 dev, 상수 LR 168.5MB.
 | 4 | 새 행만 먼저 학습시키면(warm-start) 나은가 | **아니다** — 직접 CPT 보다 0.0117 나쁘다, gate +0.010 미달 (seed 42, [warm_pairs.md](reports/tables/warm_pairs.md)) |
 | 5 | 문서 표본 불확실성은 | 대표 조건 d +0.345564, 문서 95% 구간 [+0.336924, +0.354955] ([doc_bootstrap.md](reports/tables/doc_bootstrap.md)). 제거 토큰이 나온 dev 문서는 434개 중 4개라 노출 층화는 비교 불가 ([exposure_strata.md](reports/tables/exposure_strata.md)) |
 | 6 | 끝에서 학습률을 낮추면(WSD) 나은가 | **아니다** — 마지막 20% 감쇠가 상수 LR 보다 T2b +0.010403 · 잔차 +0.009184 나쁘다, 경계 0.005 (예측 빗나감, seed 42, [wsd_pairs.md](reports/tables/wsd_pairs.md)) |
+| **FT** | **격차가 본 적 없는 문서에서도 성립하는가** | **확증** — Final Test 5,067문서에서 d +0.348637, 95% 문서 구간 [+0.345985, +0.351245] (기준: 하한 > 0, 예측 적중, [heldout.md](reports/tables/heldout.md)). 압축은 한국어 −30.27% 로 dev 와 같다 |
 
-seed 불확실성(SD)과 문서 표본 불확실성(구간)은 섞지 않는다. **Final Test 는 아직 열지
-않았다** — 선택 규칙만 먼저 고정했다 ([`docs/PLAN.md`](docs/PLAN.md) "5주차 동결" D).
-수치의 사전 등록과 결과는 PLAN 각 주차 절, 실수와 교정은 [`docs/MISTAKES.md`](docs/MISTAKES.md).
+seed 불확실성(SD)과 문서 표본 불확실성(구간)은 섞지 않는다. **Final Test 는 선택 규칙을
+13일 먼저 고정하고([`docs/PLAN.md`](docs/PLAN.md) "5주차 동결" D) 대표 둘만 한 번 열었다**
+(`final-test-opened`). 주장 전체는 [core_claims.md](reports/tables/core_claims.md), 서술은
+[REPORT_P3.md](reports/REPORT_P3.md). 실수와 교정은 [`docs/MISTAKES.md`](docs/MISTAKES.md).
 </details>
 
 <details>
@@ -326,7 +328,7 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 - **주장할 수 있는 것만 주장한다** — 한국어 내부 도메인 라벨은 감사 정확도
   ~55% 라 세분화를 보고하지 않는다 ([`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md))
 - **Split first, tokenize later** — 문서 단위 분할이 토크나이저 학습보다 먼저다
-- **Final Test 는 마지막까지 열지 않는다** — 훅이 `final_test` 경로를 하드 차단한다
+- **Final Test 는 마지막까지 열지 않는다** — 훅이 `final_test` 경로를 하드 차단한다. 2026-10-19 에 규칙대로 한 번 열었다 (`final-test-opened`)
 - **BPB 로 비교한다** — 토크나이저가 다르면 token-level PPL 은 비교 대상이 아니다
 - **원장은 append-only** — 이미 쓴 행은 고치지 않는다. 실패한 run 도 남긴다
 
@@ -364,6 +366,7 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 | | |
 |---|---|
 | **최종 보고서** | [`reports/FINAL_REPORT.md`](reports/FINAL_REPORT.md) — 1차 전체 |
+| **3차 보고서** | [`reports/REPORT_P3.md`](reports/REPORT_P3.md) — amendment 2~6주차 + Final Test. 주장 표 [`core_claims.md`](reports/tables/core_claims.md) (`tools/claims.py`) |
 | **외부 검토 개요** | [`reports/OVERVIEW.md`](reports/OVERVIEW.md) — 1~3차 요약, 원장에서 생성 (`tools/overview.py`) |
 | **보고표** | [`reports/tables/`](reports/tables/) — 측정마다 하나. 대부분 도구가 쓰고, 각 문서 끝에 **한계** 절이 있다 |
 | **원장** | `experiments/*.tsv` — 모든 숫자의 출처. append-only |

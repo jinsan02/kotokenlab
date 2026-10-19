@@ -4,8 +4,9 @@
 > [`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)에
 > 한 문서로 정리했다. 아래의 과거 P3 실행 순서보다 amendment를 우선한다.
 
-최종 갱신 2026-10-19 (**amendment 6주차 완료 — 남은 것은 Final Test 개봉 결정 · 7주차 집필**).
-지금 할 일은 "지금 — amendment 6주차 완료" 절이다.
+최종 갱신 2026-10-19 (**3차 종료 — Final Test 확증, 3차 보고서 완료, `p3-closed`**).
+3차 전체는 [`../reports/REPORT_P3.md`](../reports/REPORT_P3.md), 주장 표는
+[`../reports/tables/core_claims.md`](../reports/tables/core_claims.md).
 1차 결과 전체는
 [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md).
 규칙은 [`RULES.md`](RULES.md), 범위와 종료 조건은
@@ -24,11 +25,13 @@ Gate 이원화, 도메인 2분류, 인접쌍 채굴, pretokenizer 경계 함정,
 같은 update 를 줘도 약 93% 가 남으며(3주차), 신규 행 warm-start 는 직접 CPT 보다 나빴다
 (4주차, gate 미달). 5주차에 문서 단위 구간 · 노출 층화 · 문구를 확정하고 Final Test
 선택 규칙을 고정했다. 6주차 WSD(마지막 20% 감쇠)는 상수 LR 보다 T2b 절대 +0.0104 ·
-잔차 +0.0092 로 둘 다 악화했다 (예측 빗나감, 후속 없음). **Final Test 는 열지 않았다.**
+잔차 +0.0092 로 둘 다 악화했다 (예측 빗나감, 후속 없음). **Final Test (2026-10-19, 1회)
+에서 격차가 확증됐다** — 5,067문서 d +0.348637 [+0.345985, +0.351245].
 수치는 [`PLAN.md`](PLAN.md) 각 주차 결과 절, 표는 `reports/tables/{seed,upd,warm,wsd}_pairs.md`
 · `doc_bootstrap.md`.
 
-남은 것: Final Test 개봉 여부(사용자 결정) → 7주차 표 재생성 · 집필. amendment 의 GPU 실험은 끝났다.
+3차는 닫혔다 (`p3-closed`). 열린 질문은 REPORT_P3 §7 "미확인 목록" — 새로 하려면 새 사전
+등록이 필요하다. **Final Test 는 이미 열렸다** — 이후 그 집합으로 무엇도 고르지 않는다.
 
 이전 상태: 2차 종료 (2026-09-17) — R1·Q7 부정, R5 긍정, 한자 프로브 D1~D3 "T2a = C0".
 
@@ -164,7 +167,7 @@ R5  LR 스케줄 때문이다                        긍정 (168.5MB 종점, 벽
 **논문 헤드라인이 바뀐다.** 그리고 1차의 절대값은 전부 코사인 조건부다 —
 C0 도 상수 LR 에서 더 나았다.
 
-### 지금 — amendment 6주차 완료 (2026-10-19). 3·4주차 결과부터
+### 3차 종료 (2026-10-19). 3·4·5·6주차와 Final Test 결과
 
 **3주차 판정: 예측 적중.** 설정·예측은 [`PLAN.md`](PLAN.md) "3주차 run 설정 동결"
 (`b471c36`), 결과 절도 같은 곳에 있다. 표는 [`upd_pairs.md`](../reports/tables/upd_pairs.md).
@@ -240,8 +243,7 @@ dev 격차 T2b - C0 (재학습) +0.345564 [+0.336924, +0.354955]. 노출 층화�
 남은 일:
 
 ```
-Final Test 개봉 여부 (사용자 결정) — 열면 eval-freeze-v1 태그 · 평가 도구 커밋 · final-test-opened 태그 순
-7주차  표 재생성 · core claim 표 · 반증 · 한계 · related work · 미확인 목록 (GPU 0h)
+(끝났다) Final Test 5f00941 · 7주차 REPORT_P3 · core_claims · 표 재생성 diff 0
 ```
 
 연쇄 스크립트에 run_id 를 넘길 때 (2026-10-07 에 겪었다): Windows python 이 쓴 파일은
@@ -679,8 +681,8 @@ N=10,000 에서 이미 1.4973 이다. 첫 1만 개가 손상의 84% 를 낸다. 
 `--out` 이 없다. 지금 상태로 돌리면 `reports/tables/resource_probe.md` 의
 1차 기록을 덮어쓴다.
 
-**Final Test 는 아직 열지 않았다.** 열려면 별도 결정과 `final-test-opened`
-태그가 필요하다 (스펙 §10).
+**Final Test 는 2026-10-19 에 한 번 열렸다** (`final-test-opened`, 결과
+`reports/tables/heldout.md`). 이후 그 집합으로 조건 · 체크포인트를 고르지 않는다 (스펙 §10).
 
 시작 전에 `nvidia-smi` 로 GPU 여유를 확인하고 사용자에게 알린다. 장시간 run 은
 `tools/watch_run.py` 로 감시를 건다.
