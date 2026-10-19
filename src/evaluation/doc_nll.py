@@ -12,6 +12,11 @@ BPB 와 문서별 합으로 다시 낸 BPB 를 대조해 차이를 원장 note �
 같은 계산이므로 같아야 한다 — 다르면 문서별 값으로 낸 bootstrap 을 믿을 수 없다.
 
 판정하지 않는다. 비교는 `tools/doc_bootstrap.py` 가 한다.
+
+**`--split heldout`** (Final Test, 개봉 뒤에만): 평가 파일 · 언어별 예산 · 태그를
+`tools/heldout_spec.py` 의 상수로 고정한다 (PLAN "5주차 동결" D). 비교할 원장 값이 없으므로
+원장 대조는 하지 않고, lm_metrics 의 split 은 `final_test` 로 적는다. 판정은
+`tools/heldout_pairs.py` 가 한다.
 """
 
 from __future__ import annotations
@@ -33,6 +38,37 @@ DEV = (("ko", "dev.jsonl"),
        ("en", "dev_control_english.jsonl"),
        ("code", "dev_control_code.jsonl"))
 COLUMNS = ("lang", "doc", "nll", "bytes", "tokens", "raw_bytes")
+
+
+def _heldout():
+    from tools import heldout_spec
+    return heldout_spec
+
+
+def plan_files(split: str, max_bytes: int) -> tuple:
+    """(lang, 파일 이름, 원문 예산) 목록과 lm_metrics 의 split 값.
+
+    dev 는 지금까지와 같다 (세 언어 모두 --max-bytes). heldout 은 spec 의 고정값만 쓴다 —
+    --max-bytes 로 바꿀 수 없다.
+    """
+    if split == "dev":
+        return [(lang, f, max_bytes) for lang, f in DEV], "dev"
+    h = _heldout()
+    return list(h.FILES), h.SPLIT_LABEL
+
+
+def heldout_guard(args) -> None:
+    """개봉 태그가 없으면 열지 않는다. 설정이 spec 과 다르면 멈춘다 (PLAN D 의 6)."""
+    import subprocess
+    h = _heldout()
+    tag = subprocess.run(["git", "tag", "--list", "final-test-opened"], cwd=str(ROOT),
+                         capture_output=True, text=True).stdout.strip()
+    if not tag:
+        raise SystemExit("final-test-opened 태그가 없다 — 개봉 결정 · 태그 전에는 열지 않는다")
+    if args.tag != h.TAG or args.seq_len != h.SEQ_LEN:
+        raise SystemExit(f"heldout 은 태그 {h.TAG} · seq_len {h.SEQ_LEN} 로 고정이다")
+    if args.model not in {p for p, _ in h.CHECKPOINTS.values()}:
+        raise SystemExit(f"{args.model} 은 대표 체크포인트가 아니다 (PLAN D 의 1)")
 
 
 def ledger_final_bpb(run_id: str) -> dict:
@@ -67,9 +103,15 @@ def main(argv: list | None = None) -> int:
     ap.add_argument("--max-bytes", type=int, default=2_000_000,
                     help="언어별 dev 원문 예산 (CPT 의 --eval-budget 과 같게)")
     ap.add_argument("--seq-len", type=int, default=2048)
-    ap.add_argument("--tag", default="dev2mb")
+    ap.add_argument("--tag", default=None, help="기본 dev2mb (heldout 은 spec 의 태그)")
+    ap.add_argument("--split", choices=("dev", "heldout"), default="dev")
     ap.add_argument("--skip-env-check", action="store_true")
     args = ap.parse_args(argv)
+    files, split_label = plan_files(args.split, args.max_bytes)
+    if args.tag is None:
+        args.tag = "dev2mb" if args.split == "dev" else _heldout().TAG
+    if args.split == "heldout":
+        heldout_guard(args)
     # 2026-10-07: CRLF 작업 목록에서 읽은 run_id 끝에 '\r' 이 붙어 원장을 못 찾았다.
     if args.source_run:
         args.source_run = args.source_run.strip()
@@ -94,12 +136,16 @@ def main(argv: list | None = None) -> int:
             total += v
         return total
 
-    config = {"model": args.model, "split": "dev", "max_bytes": args.max_bytes,
+    config = {"model": args.model, "split": split_label,
+              "max_bytes": args.max_bytes if args.split == "dev" else None,
               "seq_len": args.seq_len, "source_run": args.source_run,
               "purpose": "doc_nll"}
+    if args.split == "heldout":
+        config["budgets"] = {lang: b for lang, _, b in files}
     run_id = make_run_id("eval", "docnll", name, args.tag)
-    want = ledger_final_bpb(args.source_run) if args.source_run else {}
-    if args.source_run and not want:
+    # heldout 에는 대조할 원장 값이 없다 — 대조하지 않는다는 사실을 note 에 남긴다.
+    want = ledger_final_bpb(args.source_run) if args.source_run and args.split == "dev" else {}
+    if args.source_run and args.split == "dev" and not want:
         # 조용히 대조를 건너뛰지 않는다 — 그러면 "재현 확인" 이 빠진 채 결과가 남는다.
         raise SystemExit(f"--source-run {args.source_run!r} 의 원장 최종 dev BPB 가 없다 "
                          "(run_id 오타 · 공백 · 아직 안 끝난 run 인지 확인)")
@@ -110,15 +156,15 @@ def main(argv: list | None = None) -> int:
         all_rows: list = []
         notes = []
         with sdpa_kernel(backends):
-            for lang, fname in DEV:
+            for lang, fname, budget in files:
                 docs: list = []
-                m = evaluate(model, tokenizer, dev_dir / fname, args.max_bytes,
+                m = evaluate(model, tokenizer, dev_dir / fname, budget,
                              args.seq_len, device, byte_len_fn, docs_out=docs)
                 re_bpb = bpb_from_docs(docs)
                 for d in docs:
                     all_rows.append({"lang": lang, **d})
                 run.log("lm_metrics", checkpoint="docnll", tokens_seen=0, raw_bytes_seen=0,
-                        split="dev", domain=lang, n_bytes=m["n_bytes"],
+                        split=split_label, domain=lang, n_bytes=m["n_bytes"],
                         total_nll=round(m["total_nll"], 4), bpb=round(m["bpb"], 6),
                         bpc=round(m["bpc"], 6), token_ppl=round(m["token_ppl"], 4))
                 line = f"{lang} {len(docs)}문서 BPB {m['bpb']:.6f} (문서합 {re_bpb:.6f})"
@@ -134,6 +180,8 @@ def main(argv: list | None = None) -> int:
             for r in all_rows:
                 fh.write("\t".join([r["lang"], str(r["doc"]), repr(r["nll"]), str(r["bytes"]),
                                     str(r["tokens"]), str(r["raw_bytes"])]) + "\n")
+        if args.split == "heldout":
+            notes.append("ledger_check=none(heldout)")
         run.note = f"doc_nll {len(all_rows)}행 source={args.source_run} " + " ".join(notes)
         print(f"  썼다 {out.relative_to(ROOT)}")
     return 0
