@@ -4,8 +4,8 @@
 > [`CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](CRITICAL_REVIEW_AMENDMENT_2026-09-19.md)에
 > 한 문서로 정리했다. 아래의 과거 P3 실행 순서보다 amendment를 우선한다.
 
-최종 갱신 2026-10-07 (**amendment 5주차 완료 — 남은 것은 Final Test 개봉 결정 · 6·7주차**).
-지금 할 일은 "지금 — amendment 5주차 완료" 절이다.
+최종 갱신 2026-10-19 (**amendment 6주차 완료 — 남은 것은 Final Test 개봉 결정 · 7주차 집필**).
+지금 할 일은 "지금 — amendment 6주차 완료" 절이다.
 1차 결과 전체는
 [`../reports/FINAL_REPORT.md`](../reports/FINAL_REPORT.md).
 규칙은 [`RULES.md`](RULES.md), 범위와 종료 조건은
@@ -20,13 +20,15 @@ Gate 이원화, 도메인 2분류, 인접쌍 채굴, pretokenizer 경계 함정,
 
 ## 한 줄 상태
 
-**3차(amendment) 5주차까지 완료 (2026-10-07).** 같은 원문 잔차는 seed 3쌍에서 재현됐고,
+**3차(amendment) 6주차까지 완료 (2026-10-19).** 같은 원문 잔차는 seed 3쌍에서 재현됐고,
 같은 update 를 줘도 약 93% 가 남으며(3주차), 신규 행 warm-start 는 직접 CPT 보다 나빴다
 (4주차, gate 미달). 5주차에 문서 단위 구간 · 노출 층화 · 문구를 확정하고 Final Test
-선택 규칙을 고정했다. **Final Test 는 열지 않았다.** 수치는 [`PLAN.md`](PLAN.md) 각
-주차 결과 절, 표는 `reports/tables/{seed,upd,warm}_pairs.md` · `doc_bootstrap.md`.
+선택 규칙을 고정했다. 6주차 WSD(마지막 20% 감쇠)는 상수 LR 보다 T2b 절대 +0.0104 ·
+잔차 +0.0092 로 둘 다 악화했다 (예측 빗나감, 후속 없음). **Final Test 는 열지 않았다.**
+수치는 [`PLAN.md`](PLAN.md) 각 주차 결과 절, 표는 `reports/tables/{seed,upd,warm,wsd}_pairs.md`
+· `doc_bootstrap.md`.
 
-남은 것: Final Test 개봉 여부(사용자 결정) → 6주차 WSD(선택) → 7주차 표 재생성 · 집필.
+남은 것: Final Test 개봉 여부(사용자 결정) → 7주차 표 재생성 · 집필. amendment 의 GPU 실험은 끝났다.
 
 이전 상태: 2차 종료 (2026-09-17) — R1·Q7 부정, R5 긍정, 한자 프로브 D1~D3 "T2a = C0".
 
@@ -162,7 +164,7 @@ R5  LR 스케줄 때문이다                        긍정 (168.5MB 종점, 벽
 **논문 헤드라인이 바뀐다.** 그리고 1차의 절대값은 전부 코사인 조건부다 —
 C0 도 상수 LR 에서 더 나았다.
 
-### 지금 — amendment 5주차 완료 (2026-10-07). 3·4주차 결과부터
+### 지금 — amendment 6주차 완료 (2026-10-19). 3·4주차 결과부터
 
 **3주차 판정: 예측 적중.** 설정·예측은 [`PLAN.md`](PLAN.md) "3주차 run 설정 동결"
 (`b471c36`), 결과 절도 같은 곳에 있다. 표는 [`upd_pairs.md`](../reports/tables/upd_pairs.md).
@@ -200,7 +202,19 @@ warm-start(첫 33.7MB 새 행만 + 134.8MB 전체)가 직접 CPT 보다 한국�
 (`75d955c`), GPU 시험 실행이 8비트 옵티마이저가 gradient 0 인 옛 행을 움직이는 것을 잡았다
 — 매 step 되돌리기로 바꿨다 (`062f4b4`).
 
-**지금: amendment 5주차 완료 (2026-10-07).**
+**amendment 6주차 — WSD: 두 판정 모두 악화, 예측 빗나감 (2026-10-19).** PLAN "6주차 동결"과
+그 결과 절. 표는 [`wsd_pairs.md`](../reports/tables/wsd_pairs.md).
+
+```
+도구 ec15c55 · 동결 34b1e0d · 시험 실행 0ce43fc · C0 95fd567 · T2b b9f6fdd · 판정 3cea4ba
+T2b 절대 1.472959 -> 1.483362 (+0.010403)   잔차 +0.345564 -> +0.354748 (+0.009184)   경계 0.005
+```
+
+감쇠 전 구간 재현은 통과했다 (T2b 최대 +0.000967 — 폭 ±0.001 에 가까웠다. T2b 는 학습 중반
+GPU 비결정성이 C0 보다 크다). 학습률이 약 2e-6 아래로 내려간 마지막 구간에서 WSD 는 거의
+배우지 않았다. 처방은 "이 예산에서는 상수 LR" 로 남는다. Final Test 대표 조건은 그대로다.
+
+**5주차 완료 (2026-10-07).**
 PLAN "5주차 동결" A~D 와 그 결과 절.
 
 ```
@@ -226,8 +240,8 @@ dev 격차 T2b - C0 (재학습) +0.345564 [+0.336924, +0.354955]. 노출 층화�
 남은 일:
 
 ```
-Final Test 개봉 여부 (사용자 결정)
-6주차  여유가 있으면 WSD C0/T2b seed42, 아니면 분석·집필 (amendment §8)
+Final Test 개봉 여부 (사용자 결정) — 열면 eval-freeze-v1 태그 · 평가 도구 커밋 · final-test-opened 태그 순
+7주차  표 재생성 · core claim 표 · 반증 · 한계 · related work · 미확인 목록 (GPU 0h)
 ```
 
 연쇄 스크립트에 run_id 를 넘길 때 (2026-10-07 에 겪었다): Windows python 이 쓴 파일은

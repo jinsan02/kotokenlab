@@ -187,7 +187,7 @@ N. [`scripts/run_phase4.sh`](scripts/run_phase4.sh) 가 둘 다 잰다. 예측�
 </details>
 
 <details>
-<summary><b>3차 결과 — 외부 비판 감사 뒤 amendment (2026-10-07, 5주차까지)</b></summary>
+<summary><b>3차 결과 — 외부 비판 감사 뒤 amendment (2026-10-19, 6주차까지)</b></summary>
 
 2026-09-19 감사로 3차 계획을 다시 잡았다 —
 [`docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md).
@@ -200,6 +200,7 @@ d = BPB(T2b) − BPB(C0), 한국어 dev, 상수 LR 168.5MB.
 | 3 | 격차가 T2b 가 update 를 덜 받아서인가 | **주로 아니다** — 같은 1,523 update 에서도 d +0.321189, 줄어든 몫 rho 7.2% (예측 적중, [upd_pairs.md](reports/tables/upd_pairs.md)) |
 | 4 | 새 행만 먼저 학습시키면(warm-start) 나은가 | **아니다** — 직접 CPT 보다 0.0117 나쁘다, gate +0.010 미달 (seed 42, [warm_pairs.md](reports/tables/warm_pairs.md)) |
 | 5 | 문서 표본 불확실성은 | 대표 조건 d +0.345564, 문서 95% 구간 [+0.336924, +0.354955] ([doc_bootstrap.md](reports/tables/doc_bootstrap.md)). 제거 토큰이 나온 dev 문서는 434개 중 4개라 노출 층화는 비교 불가 ([exposure_strata.md](reports/tables/exposure_strata.md)) |
+| 6 | 끝에서 학습률을 낮추면(WSD) 나은가 | **아니다** — 마지막 20% 감쇠가 상수 LR 보다 T2b +0.010403 · 잔차 +0.009184 나쁘다, 경계 0.005 (예측 빗나감, seed 42, [wsd_pairs.md](reports/tables/wsd_pairs.md)) |
 
 seed 불확실성(SD)과 문서 표본 불확실성(구간)은 섞지 않는다. **Final Test 는 아직 열지
 않았다** — 선택 규칙만 먼저 고정했다 ([`docs/PLAN.md`](docs/PLAN.md) "5주차 동결" D).
