@@ -2119,6 +2119,25 @@ peak 1e-5 는 이미 작은 학습률이라 이 예산의 끝에서 모델이 **
 않는다** (5주차 D). 6주차로 amendment 의 GPU 실험은 끝났다 — 남은 것은 Final Test 개봉
 여부(사용자)와 7주차 집필이다.
 
+### Final Test 개봉 — 2026-10-19 (사용자 결정, 열기 전)
+
+5주차 D 를 **그대로** 집행한다. 새 결정 · 새 경계 · 새 체크포인트는 없다. 도구는
+`e59d515` (`heldout_spec` · `doc_nll --split heldout` · `heldout_pairs` · `heldout_preflight`),
+결과를 보기 전에 만들었다.
+
+```
+1. heldout_preflight 전부 통과
+2. eval-freeze-v1 태그 — 원 기획 Step 9(스펙 §107). 본 실험 전에 달았어야 했는데 빠졌다.
+   평가 코드(bpb.evaluate)는 3bfba96 이후 바뀌지 않았다. 늦게 단 태그임을 메시지에 적는다
+3. final-test-opened 태그 — 이 절의 커밋에. 이후 D 의 조건 · 경계 · 체크포인트 · 평가량을
+   바꾸지 않는다
+4. doc_nll --split heldout: C0 -> T2b (각 약 18분, VRAM 약 3GB)
+5. heldout_pairs -> record. 결과와 무관하게 그대로 보고한다
+```
+
+**예측 (D 에 적은 것 그대로):** 확증 (d 의 문서 구간 하한 > 0). 크기는 dev(+0.3456)보다
+작아질 수 있다.
+
 ## 2026-09-19 외부 비판 검토 amendment
 
 위 사전 등록과 과거 결과는 역사적 기록으로 보존한다. 아직 실행하지 않은 P3의
