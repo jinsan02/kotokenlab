@@ -96,7 +96,7 @@ def amendment_results(w) -> None:
     rho = [k["rho"] for k in ko]
     d_direct = d168[0]
     d_warm = bpb("cpt_t2b_mean_warm_seed42") - cf[42]
-    w("### 3차 결과 (amendment 2~6주차, 2026-10-19)")
+    w("### 3차 결과 (amendment 2~6주차 + Final Test, 2026-10-19)")
     w("")
     w("잔차 d = BPB(T2b) - BPB(C0), 한국어 dev, 상수 LR. 같은 seed 끼리 짝짓는다.")
     w("")
@@ -134,14 +134,23 @@ def amendment_results(w) -> None:
           f"잔차 {dd:+.6f} ({P.verdict(dd, P.bound(sg['sigma_d']))}), seed 42")
     else:
         w("6주차  WSD                    미확인 (run 이 없거나 검증을 통과하지 못했다)")
+    # Final Test 는 heldout_pairs 의 검증을 통과해야 싣는다.
+    from tools import doc_bootstrap as D, heldout_pairs as HP, heldout_spec as HS
+    hdocs = {n: D.load_docs_run(HS.doc_run_id(n)) for n in HS.CHECKPOINTS}
+    if all(hdocs.values()) and not HP.validate(hdocs, ok):
+        h = D.paired_bootstrap(hdocs["t2b"]["ko"], hdocs["c0"]["ko"], HS.B, HS.RNG_SEED)
+        w(f"Final  본 적 없는 {h['n']:,}문서      d {h['diff']:+.6f}  문서 구간 "
+          f"[{h['lo']:+.6f}, {h['hi']:+.6f}] -> {HP.verdict(h['lo'])}")
+    else:
+        w("Final  Final Test             미확인 (평가가 없거나 검증을 통과하지 못했다)")
     w("```")
     w("")
     w("**같은 update 를 받아도 잔차의 약 93% 가 남는다** — 168.5MB 격차는 계산량 부족이")
     w("주된 원인이 아니다. 새 행만 먼저 학습시키는 warm-start 는 이 설정에서 직접 CPT")
     w("보다 나빴고, 시험한 WSD(마지막 20% 감쇠, 바닥 10%) 도 상수 LR 보다 나빴다 (seed 42).")
     w("문서 구간은 dev 문서 표본의 불확실성만 담고, seed 불확실성은 SD 가")
-    w("따로 낸다. **Final Test 는 아직 열지 않았다** — 선택 규칙만 먼저 고정했다")
-    w("(`docs/PLAN.md` \"5주차 동결\" D).")
+    w("따로 낸다. Final Test 는 선택 규칙을 먼저 고정하고(`docs/PLAN.md` \"5주차 동결\" D)")
+    w("대표 둘만 한 번 열었다 — 위 마지막 줄이 그 결과다.")
 
 
 def main(argv: list | None = None) -> int:
@@ -409,8 +418,8 @@ def main(argv: list | None = None) -> int:
     w("")
     w("- **0.5B 한 모델.** 1.5B 는 수술 손상만 쟀고 CPT 회복력은 미측정")
     w("- **seed 42 단독** 인 run 이 많다 (노이즈 플로어와 R5 만 3 seed)")
-    w("- **dev 가 닳았다.** 초기화도 N 도 dev 에서 골랐다. Final Test 는 한 번도")
-    w("  열지 않았다")
+    w("- **dev 가 닳았다.** 초기화도 N 도 dev 에서 골랐다. Final Test 는 2026-10-19 에")
+    w("  대표 둘(상수 LR C0 · T2b, seed 42)만 한 번 열었다 (`final-test-opened`)")
     w("- **CPT 코퍼스와 Qwen 사전학습은 모두 Common Crawl 계열일 수 있다.** 실제")
     w("  중복률과 편향 방향은 측정하지 않아 알 수 없다")
     # "상용구 겹침이 대부분" 은 잰 적이 없어 뺐다 (2026-10-07). 숫자는 표에서 읽는다.
