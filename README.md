@@ -17,9 +17,9 @@
 >
 > **3차 종료 · 프로젝트 종료** (2026-09-19 → 10-19, 태그 `p3-closed`). 외부 비판 감사 뒤
 > amendment 로 다시 짠 7주 계획을 마쳤다. **같은 원문 CPT 뒤 T2b 의 한국어 BPB 가 C0 보다
-> 약 0.35 나쁘다는 결론이 한 번도 쓰지 않은 Final Test 5,067문서에서 확증됐다** (d +0.348637,
-> 95% 문서 구간 [+0.345985, +0.351245]). 같은 update 수 · 신규 행 warm-start · WSD 는 이
-> 격차를 줄이지 못했다. **결과 전체: [`reports/REPORT_P3.md`](reports/REPORT_P3.md)** ·
+> 약 0.35 나쁘다는 결론이 한 번도 쓰지 않은 Final Test 5,067문서에서 확증됐다** (seed 42 대표 쌍, d +0.348637,
+> 95% 문서 구간 [+0.345985, +0.351245]). 시험한 update 수 보정 · 신규 행 warm-start · WSD
+> recipe 는 이 격차를 해소하지 못했다. **결과 전체: [`reports/REPORT_P3.md`](reports/REPORT_P3.md)** ·
 > 주장 표 [`reports/tables/core_claims.md`](reports/tables/core_claims.md)
 
 <p align="center"><img src="docs/img/pipeline.svg" alt="KoTokenLab 전체 파이프라인: 문서 단위 분할 → 토크나이저 수술 → 임베딩 초기화 → CPT → 평가 → TSV 원장" width="100%"></p>
@@ -201,11 +201,11 @@ d = BPB(T2b) − BPB(C0), 한국어 dev, 상수 LR 168.5MB.
 | 주 | 질문 | 결과 |
 |---|---|---|
 | 2 | 같은 원문 격차가 seed 42 의 우연인가 | **아니다** — seed 3쌍 d 평균 +0.345679, SD 0.000235 ([seed_pairs.md](reports/tables/seed_pairs.md)) |
-| 3 | 격차가 T2b 가 update 를 덜 받아서인가 | **주로 아니다** — 같은 1,523 update 에서도 d +0.321189, 줄어든 몫 rho 7.2% (예측 적중, [upd_pairs.md](reports/tables/upd_pairs.md)) |
+| 3 | update 수를 맞추면 격차가 해소되는가 | **해소되지 않았다** — 같은 1,523 update 에서도 d +0.321189, 줄어든 몫 rho 7.2% (원인의 기여율이 아니다. 예측 적중, [upd_pairs.md](reports/tables/upd_pairs.md)) |
 | 4 | 새 행만 먼저 학습시키면(warm-start) 나은가 | **아니다** — 직접 CPT 보다 0.0117 나쁘다, gate +0.010 미달 (seed 42, [warm_pairs.md](reports/tables/warm_pairs.md)) |
 | 5 | 문서 표본 불확실성은 | 대표 조건 d +0.345564, 문서 95% 구간 [+0.336924, +0.354955] ([doc_bootstrap.md](reports/tables/doc_bootstrap.md)). 제거 토큰이 나온 dev 문서는 434개 중 4개라 노출 층화는 비교 불가 ([exposure_strata.md](reports/tables/exposure_strata.md)) |
 | 6 | 끝에서 학습률을 낮추면(WSD) 나은가 | **아니다** — 마지막 20% 감쇠가 상수 LR 보다 T2b +0.010403 · 잔차 +0.009184 나쁘다, 경계 0.005 (예측 빗나감, seed 42, [wsd_pairs.md](reports/tables/wsd_pairs.md)) |
-| **FT** | **격차가 본 적 없는 문서에서도 성립하는가** | **확증** — Final Test 5,067문서에서 d +0.348637, 95% 문서 구간 [+0.345985, +0.351245] (기준: 하한 > 0, 예측 적중, [heldout.md](reports/tables/heldout.md)). 압축은 한국어 −30.27% 로 dev 와 같다 |
+| **FT** | **seed 42 대표 쌍의 격차가 처음 보는 문서에서도 양인가** | **확증** — Final Test 5,067문서에서 d +0.348637, 95% 문서 구간 [+0.345985, +0.351245] (기준: 하한 > 0, 예측 적중, [heldout.md](reports/tables/heldout.md)). 압축은 한국어 −30.27% 로 dev 와 같다 |
 
 seed 불확실성(SD)과 문서 표본 불확실성(구간)은 섞지 않는다. **Final Test 는 선택 규칙을
 13일 먼저 고정하고([`docs/PLAN.md`](docs/PLAN.md) "5주차 동결" D) 대표 둘만 한 번 열었다**
