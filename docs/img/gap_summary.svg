@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 448" width="820" height="448" role="img" aria-label="처방별 한국어 잔차 d = BPB(T2b) - BPB(C0) 와 문서 95% 구간. 1차 코사인 LR +0.4296 · 상수 LR +0.3456 · 같은 update 1,523 +0.3210 · 신규 행 warm-start +0.3573 · WSD 마지막 20% 감쇠 +0.3547 · Final Test +0.3486">
-<title>어느 처방도 격차를 0 쪽으로 옮기지 못했다 — 처음 보는 문서에서도 그대로다</title>
+<title>처방별 한국어 잔차 d</title>
 <style>
   text { font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, -apple-system, sans-serif; fill: #1f2328; }
   .sub { fill: #59636e; } .muted { fill: #818b98; }
@@ -18,7 +18,7 @@
     .ring { stroke: #0d1117; } .band { fill: #161b22; }
   }
 </style>
-<text x="0" y="26" font-size="18" font-weight="600">어느 처방도 격차를 0 쪽으로 옮기지 못했다</text>
+<text x="0" y="26" font-size="18" font-weight="600">처방별 한국어 잔차 d</text>
 <text x="0" y="50" font-size="14" class="sub">한국어 잔차 d = BPB(T2b) − BPB(C0), 같은 원문 168.5MB CPT 뒤. 0 이면 격차 없음.</text>
 <text x="0" y="70" font-size="14" class="sub">점 = 값, 가로선 = 문서 단위 paired bootstrap 95% 구간 (대부분 점보다 짧다).</text>
 <line class="base" x1="240.0" y1="98" x2="240.0" y2="378"/>

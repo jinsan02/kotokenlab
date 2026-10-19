@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 0 1104 610" width="1104" height="610" role="img" aria-label="1차에서 세운 세 가설은 모두 반증됐고, 2차에서 상수 LR만 회복률을 72.42%로 올렸으며, 3차 amendment에서 격차는 seed 3쌍에서 재현되고 update 보정·warm-start·WSD로 해소되지 않았으며 Final Test에서 확증됐다">
-<title>연구의 흐름 — 가설을 세우고 반증한 순서</title>
+<title>연구 흐름</title>
 <style>
   text { font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; fill: #1f2328; }
   .ink { fill: #1f2328; } .sub { fill: #59636e; } .muted { fill: #818b98; } .lbl { fill: #59636e; }
@@ -31,7 +31,7 @@
     .ln { stroke: #8b949e; } .ah { fill: #8b949e; } .ln-em { stroke: #3987e5; } .ah-em { fill: #3987e5; }
   }
 </style>
-<text x="0" y="24" font-size="18" font-weight="600" class="ink">연구의 흐름 — 가설을 세우고 반증한 순서</text><text x="0" y="48" font-size="14" class="sub">1차 → 2차 → 3차 amendment · 파란 카드 = 회복률을 실제로 올린 유일한 변경 · 초록 카드 = Final Test 확증</text>
+<text x="0" y="24" font-size="18" font-weight="600" class="ink">연구 흐름</text><text x="0" y="48" font-size="14" class="sub">1차 → 2차 → 3차 amendment · 파란 카드 = 회복률을 실제로 올린 유일한 변경 · 초록 카드 = Final Test 확증</text>
 <g transform="translate(0,64)">
 <text x="14" y="30" font-size="13" class="ink" font-weight="600">1차 · 2026-08-29 → 09-02</text>
 <rect class="box" x="10" y="46" width="340" height="62" rx="8"/>

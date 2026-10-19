@@ -81,8 +81,8 @@ def draw_gap(rows: list) -> str:
     o = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" '
          'aria-label="처방별 한국어 잔차 d = BPB(T2b) - BPB(C0) 와 문서 95% 구간. '
          + _esc(" · ".join(f"{r[0]} {r[2]:+.4f}" for r in rows)) + '">',
-         "<title>어느 처방도 격차를 0 쪽으로 옮기지 못했다 — 처음 보는 문서에서도 그대로다</title>", STYLE,
-         '<text x="0" y="26" font-size="18" font-weight="600">어느 처방도 격차를 0 쪽으로 옮기지 못했다</text>',
+         "<title>처방별 한국어 잔차 d</title>", STYLE,
+         '<text x="0" y="26" font-size="18" font-weight="600">처방별 한국어 잔차 d</text>',
          '<text x="0" y="50" font-size="14" class="sub">한국어 잔차 d = BPB(T2b) − BPB(C0), 같은 원문 168.5MB CPT 뒤. '
          '0 이면 격차 없음.</text>',
          '<text x="0" y="70" font-size="14" class="sub">점 = 값, 가로선 = 문서 단위 paired bootstrap 95% 구간 '
@@ -133,8 +133,8 @@ def draw_wsd(series: dict) -> str:
     o = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" '
          'aria-label="감쇠 구간의 한국어 dev BPB, 상수 LR 과 WSD. '
          + _esc(" · ".join(f"{c} {s} 종점 {p[-1][1]:.4f}" for c, d in series.items() for s, p in d.items()))
-         + '">', "<title>마지막 감쇠는 끝에서 학습을 멈추게 했다 — 손해는 T2b 가 더 크다</title>", STYLE,
-         '<text x="0" y="26" font-size="18" font-weight="600">마지막 감쇠는 끝에서 학습을 멈추게 했다</text>',
+         + '">', "<title>감쇠 구간의 한국어 BPB</title>", STYLE,
+         '<text x="0" y="26" font-size="18" font-weight="600">감쇠 구간의 한국어 BPB</text>',
          '<text x="0" y="50" font-size="14" class="sub">한국어 dev BPB (낮을수록 좋다), 원문 100MB 이후 · '
          f'회색 띠 = WSD 감쇠 구간 ({S.DECAY_START / 1e6:.1f}MB~, 끝 학습률 1e-6) · seed 42</text>']
     # 범례 (2 계열 — 범례 + 끝점 직접 라벨)
@@ -218,8 +218,8 @@ def draw_recovery(v: dict) -> str:
     o = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" '
          'aria-label="한국어 dev BPB: 원본 ' + f'{v["u0"]:.4f}, T2b 수술 직후 {v["b0"]:.4f}, 코사인 CPT 뒤 T2b '
          f'{v["t2b_cos"]:.4f} · C0 {v["c0_cos"]:.4f}, 상수 LR CPT 뒤 T2b {v["t2b_const"]:.4f} · C0 {v["c0_const"]:.4f}">',
-         "<title>CPT 는 수술 손상의 대부분을 메웠지만 C0 와의 격차는 남았다</title>", STYLE,
-         '<text x="0" y="26" font-size="18" font-weight="600">CPT 는 손상의 대부분을 메웠지만 격차는 남았다</text>',
+         "<title>CPT 전후 한국어 BPB</title>", STYLE,
+         '<text x="0" y="26" font-size="18" font-weight="600">CPT 전후 한국어 BPB</text>',
          '<text x="0" y="50" font-size="14" class="sub">한국어 dev BPB (낮을수록 좋다) · seed 42 · '
          '같은 원문 168.5MB · 상수 LR 이 코사인보다 격차를 줄였다</text>',
          '<rect class="c1" x="0" y="64" width="12" height="12" rx="2"/><text x="18" y="75" font-size="13">T2b (어휘 치환)</text>'

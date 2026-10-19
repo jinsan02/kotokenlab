@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 0 1054 372" width="1054" height="372" role="img" aria-label="C0·T2a·T2b 세 조건을 같은 원문 168.5MB·같은 스케줄로 CPT해 비교했다. T2a는 저하가 검출되지 않았고 T2b는 토큰이 30.2% 줄었지만 한국어 BPB가 37.8% 나빠졌다">
-<title>실험 설계 — 어휘만 바꾸고 나머지는 같게</title>
+<title>실험 조건</title>
 <style>
   text { font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; fill: #1f2328; }
   .ink { fill: #1f2328; } .sub { fill: #59636e; } .muted { fill: #818b98; } .lbl { fill: #59636e; }
@@ -31,7 +31,7 @@
     .ln { stroke: #8b949e; } .ah { fill: #8b949e; } .ln-em { stroke: #3987e5; } .ah-em { fill: #3987e5; }
   }
 </style>
-<text x="0" y="24" font-size="18" font-weight="600" class="ink">실험 설계 — 어휘만 바꾸고 나머지는 같게</text><text x="0" y="48" font-size="14" class="sub">C0 · T2a · T2b를 같은 원문 168.5MB · 같은 스케줄로 CPT · 파란 경로 = 주 실험 T2b</text>
+<text x="0" y="24" font-size="18" font-weight="600" class="ink">실험 조건</text><text x="0" y="48" font-size="14" class="sub">C0 · T2a · T2b를 같은 원문 168.5MB · 같은 스케줄로 CPT · 파란 경로 = 주 실험 T2b</text>
 <g transform="translate(0,64)">
 <rect class="box" x="20" y="120" width="140" height="60" rx="8"/>
 <text x="90" y="145" font-size="14" text-anchor="middle" font-weight="600" class="ink">Qwen2.5-0.5B</text>

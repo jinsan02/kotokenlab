@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 0 1104 496" width="1104" height="496" role="img" aria-label="데이터를 문서 단위로 먼저 나누고(Final Test는 끝까지 봉인했다가 2026-10-19에 한 번 개봉), Qwen2.5-0.5B에 토크나이저 수술·임베딩 초기화·같은 원문 CPT·평가를 거친 뒤 모든 결과를 append-only TSV 원장에 남긴다">
-<title>전체 파이프라인 — 데이터는 먼저 나누고, 숫자는 모두 원장으로</title>
+<title>파이프라인</title>
 <style>
   text { font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; fill: #1f2328; }
   .ink { fill: #1f2328; } .sub { fill: #59636e; } .muted { fill: #818b98; } .lbl { fill: #59636e; }
@@ -31,7 +31,7 @@
     .ln { stroke: #8b949e; } .ah { fill: #8b949e; } .ln-em { stroke: #3987e5; } .ah-em { fill: #3987e5; }
   }
 </style>
-<text x="0" y="24" font-size="18" font-weight="600" class="ink">전체 파이프라인 — 데이터는 먼저 나누고, 숫자는 모두 원장으로</text><text x="0" y="48" font-size="14" class="sub">Final Test는 끝까지 봉인 → 2026-10-19 한 번 개봉 · 세 조건 모두 같은 원문으로 CPT · 모든 결과는 append-only TSV</text>
+<text x="0" y="24" font-size="18" font-weight="600" class="ink">파이프라인</text><text x="0" y="48" font-size="14" class="sub">Final Test는 끝까지 봉인 → 2026-10-19 한 번 개봉 · 세 조건 모두 같은 원문으로 CPT · 모든 결과는 append-only TSV</text>
 <g transform="translate(0,64)">
 <rect class="grp" x="10" y="14" width="1060" height="124" rx="12"/>
 <text x="24" y="34" font-size="12.5" class="lbl" font-weight="600">데이터 — 문서 단위로 먼저 나눈다</text>

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 420" width="820" height="420" role="img" aria-label="감쇠 구간의 한국어 dev BPB, 상수 LR 과 WSD. c0 상수 LR 종점 1.1274 · c0 WSD 종점 1.1286 · t2b 상수 LR 종점 1.4730 · t2b WSD 종점 1.4834">
-<title>마지막 감쇠는 끝에서 학습을 멈추게 했다 — 손해는 T2b 가 더 크다</title>
+<title>감쇠 구간의 한국어 BPB</title>
 <style>
   text { font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, -apple-system, sans-serif; fill: #1f2328; }
   .sub { fill: #59636e; } .muted { fill: #818b98; }
@@ -18,7 +18,7 @@
     .ring { stroke: #0d1117; } .band { fill: #161b22; }
   }
 </style>
-<text x="0" y="26" font-size="18" font-weight="600">마지막 감쇠는 끝에서 학습을 멈추게 했다</text>
+<text x="0" y="26" font-size="18" font-weight="600">감쇠 구간의 한국어 BPB</text>
 <text x="0" y="50" font-size="14" class="sub">한국어 dev BPB (낮을수록 좋다), 원문 100MB 이후 · 회색 띠 = WSD 감쇠 구간 (134.8MB~, 끝 학습률 1e-6) · seed 42</text>
 <line class="l1" x1="0" y1="78" x2="22" y2="78"/><circle class="c1" cx="11" cy="78" r="4"/><text x="30" y="83" font-size="13">상수 LR</text><line class="l2" x1="110" y1="78" x2="132" y2="78"/><circle class="c2" cx="121" cy="78" r="4"/><text x="140" y="83" font-size="13">WSD</text>
 <text x="40" y="100" font-size="14" font-weight="600">C0 (원본 Qwen)</text>

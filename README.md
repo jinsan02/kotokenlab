@@ -9,7 +9,7 @@
 > 한국어 BPB 가 원본(C0)보다 **약 0.35 나쁘다.** 이 격차는 seed 3쌍에서 재현됐고, 사전에 고른
 > seed 42 대표 쌍을 한 번도 쓰지 않은 **Final Test 5,067문서에서 확증**됐다 (d +0.348637,
 > 95% 문서 구간 [+0.345985, +0.351245]). 시험한 update 수 보정 · 신규 행 warm-start · WSD
-> recipe 는 격차를 해소하지 못했다. 압축이 산 prefill −35~41% 는 품질이 나쁜 모델의 비용이다.
+> recipe 는 격차를 해소하지 못했다. 압축으로 prefill 이 −35~41% 줄었지만, 품질이 더 나쁜 모델에서 잰 값이다.
 
 <p align="center"><img src="docs/img/gap_summary.svg" alt="처방별 한국어 잔차 d와 문서 95% 구간: 1차 코사인 +0.4296, 상수 LR +0.3456, 같은 update +0.3210, warm-start +0.3573, WSD +0.3547, Final Test +0.3486 — 모두 0에서 멀다" width="100%"></p>
 
@@ -28,7 +28,7 @@
 <sub>데이터를 문서 단위로 먼저 나누고 Final Test는 마지막에 한 번만 연다. 세 조건의 모델은 같은 원문으로 CPT한 뒤 평가하고, 모든 숫자는 append-only TSV 원장에 남긴다.</sub>
 
 <details>
-<summary><b>이 프로젝트는 무엇을 하나 — 목표와 범위</b></summary>
+<summary><b>목표와 범위</b></summary>
 
 한국어 특화 토크나이저가 LLM 의 언어 모델링 품질, 학습 효율, 시퀀스 길이,
 Attention 연산량, KV Cache, 추론 지연에 미치는 영향을 **통제된 실험**으로 분석한다.
@@ -48,7 +48,7 @@ Embedding Alignment 단계는 스펙에 있었으나 **폐기했다.** 손해를
 
 ## 결과
 
-### 1차 — 압축과 추론 효율은 성공, 언어모델 품질은 악화 (2026-09-02)
+### 1차 결과 (2026-09-02)
 
 두 결과를 함께 읽어야 한다. 하나만 떼면 프로젝트를 잘못 이해하게 된다.
 
@@ -67,7 +67,7 @@ Qwen2.5-0.5B 에 T2b(크기 보존 치환, n=30,000) 수술을 하고 세 조건
 > 품질 개선을 뜻하지 않는다. 두 표를 함께 보지 않으면 결론이 뒤집힌다.
 
 <details>
-<summary><b>① 성공한 축 · ② 악화한 축 — 수치표와 출처</b></summary>
+<summary><b>수치표와 출처</b></summary>
 
 **① 성공한 축 — 압축과 추론 효율**
 
@@ -99,7 +99,7 @@ Qwen2.5-0.5B 에 T2b(크기 보존 치환, n=30,000) 수술을 하고 세 조건
 | 등토큰 조건에서도 (C0 와 같은 토큰수) | +34.7% (1.5322) | [phase4.md](reports/tables/phase4.md) |
 </details>
 
-<details><summary><b>시스템 수치의 측정 조건과 한계</b> — 인용 전에 반드시 본다</summary>
+<details><summary><b>시스템 수치의 측정 조건</b></summary>
 
 ```
 하드웨어    단일 RTX 5070 Ti 16GB (sm_120) · torch 2.7.1+cu128 · Windows
@@ -123,14 +123,14 @@ decode      **미검증.** total_ms_std/mean 이 5.7~17.5% 이고 배치별로 �
 [`docs/results_provenance.md`](docs/results_provenance.md).
 </details>
 
-### 회복률 — 수술이 벌린 격차를 CPT가 얼마나 메웠나
+### CPT 전후 한국어 BPB
 
 <p align="center"><img src="docs/img/recovery.svg" alt="한국어 dev BPB: 원본 1.1569, T2b 수술 직후 2.3803, 코사인 CPT 뒤 T2b 1.5671 · C0 1.1375 (격차 0.4296, R 65.4%), 상수 LR CPT 뒤 T2b 1.4730 · C0 1.1274 (격차 0.3456, R 72.4%)" width="100%"></p>
 
 <sub>R 정의는 <a href="docs/RULES.md">RULES</a> 14b — 보조 지표다. 1차 지표는 격차 d. 그림은 <code>tools/readme_figures.py</code>.</sub>
 
 <details>
-<summary><b>1차 서술 — 회복률과 T2a(제거만)의 결과</b></summary>
+<summary><b>회복률과 T2a</b></summary>
 
 **토크나이저 수술은 설계대로 작동했다. 못 따라온 것은 언어모델이다.**
 T2b 는 수술 직후 BPB 2.3803 에서 출발해 1.5671 까지 왔지만 C0 는 1.1375 다 —
@@ -147,7 +147,7 @@ Qwen 사전학습 · 의역 · 짧은 겹침은 미검사 — [contamination.md]
 </details>
 
 <details>
-<summary><b>1차 시점 서술 — 병목 가설과 열린 질문 (원문 보존)</b></summary>
+<summary><b>병목 가설 (1차 시점, 원문 보존)</b></summary>
 
 **병목이 무엇인지는 아직 모른다.** 처음에는 노출 부족으로 봤다 — 새 토큰
 30,000개의 중앙값 발화가 168.5MB 전체에서 143회뿐이었다. 그래서 새 토큰을
@@ -175,14 +175,14 @@ N. [`scripts/run_phase4.sh`](scripts/run_phase4.sh) 가 둘 다 잰다. 예측�
 
 ---
 
-## 연구의 흐름 — 가설을 세우고 반증한 순서
+## 연구 흐름
 
 <p align="center"><img src="docs/img/research_flow.svg" alt="1차 가설 세 개 반증, 2차 R5 상수 LR 긍정, 3차 amendment 2~6주 결과와 Final Test 확증" width="100%"></p>
 
 <sub>각 판정의 record와 표는 아래 토글에 있다.</sub>
 
 <details>
-<summary><b>2차 결과 (2026-09-17 종료) — 판정표</b></summary>
+<summary><b>2차 판정표 (2026-09-17)</b></summary>
 
 | | 질문 | 상태 |
 |---|---|---|
@@ -199,14 +199,14 @@ N. [`scripts/run_phase4.sh`](scripts/run_phase4.sh) 가 둘 다 잰다. 예측�
 **1차의 절대값은 전부 코사인 스케줄 조건부로 읽는다** — C0 도 상수 LR 에서 더 나았다.
 </details>
 
-### 3차 — 격차를 줄이려는 처방과 Final Test (2026-09-19 → 10-19)
+### 3차 결과 (2026-09-19 → 10-19)
 
 <p align="center"><img src="docs/img/wsd_curve.svg" alt="감쇠 구간의 한국어 dev BPB: 상수 LR은 끝까지 내려가고 WSD는 160MB 이후 거의 멈춘다. 종점 WSD − 상수 LR = C0 +0.0012, T2b +0.0104" width="100%"></p>
 
 <sub>6주차 WSD: 학습률이 약 2e-6 아래로 내려간 마지막 구간에서 거의 배우지 않았다. 손해는 아직 빨리 배우는 T2b 쪽이 크다 (seed 42, 결과를 본 뒤의 해석이라 탐색적).</sub>
 
 <details>
-<summary><b>3차 판정표 — amendment 2~6주차 + Final Test</b></summary>
+<summary><b>3차 판정표</b></summary>
 
 2026-09-19 감사로 3차 계획을 다시 잡았다 —
 [`docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md).
@@ -229,7 +229,7 @@ seed 불확실성(SD)과 문서 표본 불확실성(구간)은 섞지 않는다.
 </details>
 
 <details>
-<summary><b>세 번 가설을 세웠고 세 번 반증했다 — 1차 시점 서술 (원문 보존)</b></summary>
+<summary><b>1차 가설 셋 (원문 보존)</b></summary>
 
 > **1차 시점 서술이다. 2차에서 답했다** — 아래 끝 문단의 tie 가설은 R4 에서
 > 구별 불가 (ΔR +0.44%p, 17.5MB 설정 한정, record `36c8b5f`). 표의 회복률은
@@ -251,11 +251,11 @@ seed 불확실성(SD)과 문서 표본 불확실성(구간)은 섞지 않는다.
 ### 참고 측정
 
 <details>
-<summary><b>토크나이저만 놓고 본 참조점 (Level 1, <code>phase1-tokenizer-freeze</code>)</b></summary>
+<summary><b>토크나이저 비교 (Level 1)</b></summary>
 
 <p align="center"><img src="docs/img/tokenizer_level1.svg" alt="토크나이저 Level 1 비교: 한국어 HCX −24.9%, A.X −39.4%, T2b v2 −30.2%" width="100%"></p>
 
-<sub>HCX·A.X는 참조점이지 인과 비교가 아니다.</sub>
+<sub>HCX·A.X는 참조점이지 인과 비교가 아니다. 태그 <code>phase1-tokenizer-freeze</code>.</sub>
 
 ```
 한국어  Qwen 0.6834 tok/char   HCX -24.9%   A.X -39.4%   T2b v2 -30.2%
@@ -269,7 +269,7 @@ seed 불확실성(SD)과 문서 표본 불확실성(구간)은 섞지 않는다.
 </details>
 
 <details>
-<summary><b>유효 범위 (Phase 6) — 1차에서 관측한 것</b></summary>
+<summary><b>유효 범위 (Phase 6)</b></summary>
 
 전부 0.5B 와 1.5B 에서 직접 잰 값이다. 결과표: [phase6.md](reports/tables/phase6.md)
 
@@ -287,7 +287,7 @@ seed 불확실성(SD)과 문서 표본 불확실성(구간)은 섞지 않는다.
 </details>
 
 <details>
-<summary><b>7B 이상 — 측정하지 않았다. 구조 추론만 있다</b></summary>
+<summary><b>7B 이상 (미측정)</b></summary>
 
 관측과 추론을 섞지 않기 위해 절을 나눈다. 아래는 `experiments/models.tsv` 의
 config 값이지 우리가 잰 성능이 아니다.
@@ -337,13 +337,13 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 
 ---
 
-## 이 저장소가 지키는 것
+## 규칙
 
 실험 결과는 **전부 TSV 원장**에 들어가고, 커밋은 **훅이 검사**한다.
 사람이 기억해서 지키는 규칙은 지켜지지 않는다는 전제로 만들었다.
 
 <details>
-<summary><b>지키는 규칙 다섯</b></summary>
+<summary><b>주요 규칙</b></summary>
 
 - **주장할 수 있는 것만 주장한다** — 한국어 내부 도메인 라벨은 감사 정확도
   ~55% 라 세분화를 보고하지 않는다 ([`docs/DOMAIN_LABELS.md`](docs/DOMAIN_LABELS.md))
@@ -357,7 +357,7 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 [`AGENTS.md`](AGENTS.md) (Codex).
 
 <details>
-<summary><b>규칙 · 계획 · 기록 문서 목록</b></summary>
+<summary><b>문서 목록</b></summary>
 
 | | |
 |---|---|
@@ -382,7 +382,7 @@ C:/Miniconda3/Scripts/conda.exe create -p ./.conda python=3.11 -y
 </details>
 
 <details>
-<summary><b>결과물 — 보고서 · 보고표 · 원장</b></summary>
+<summary><b>보고서와 원장</b></summary>
 
 | | |
 |---|---|
@@ -417,8 +417,8 @@ reports/      FINAL_REPORT.md · OVERVIEW.md · tables/ · figures/
 docs/         규칙 · 사전 등록(PLAN) · amendment · 인수인계 · 실수 기록
 ```
 
-`alignment.py` 와 `align` phase 는 **폐기했지만 지운다 하지 않았다** — 그
-측정을 재현할 수 있어야 왜 뺐는지가 남는다. 되살리기 전에
+`alignment.py` 와 `align` phase 는 **폐기했지만 지우지 않았다.** 그
+측정을 재현할 수 있어야 뺀 이유도 남는다. 되살리기 전에
 [`reports/tables/alignment_probe.md`](reports/tables/alignment_probe.md) 를 읽어라.
 
 외부 모델 원본은 `experiments/models.tsv`, 프로젝트가 만든 토크나이저·체크포인트·
@@ -448,13 +448,13 @@ HCX / A.X 는 **참조**이지 인과 실험이 아니다 ([`docs/RULES.md`](doc
 
 ---
 
-## 이 저장소가 실제로 잡아낸 것
+## 잡아낸 오류
 
-규율이 값을 한 자리들이다. 하나라도 안 잡혔으면 보고서에 틀린 숫자가 들어갔다.
+규칙을 지킨 덕에 잡아낸 것들이다. 하나라도 놓쳤으면 보고서에 틀린 숫자가 들어갔다.
 3차의 실수와 교정은 [`docs/MISTAKES.md`](docs/MISTAKES.md).
 
 <details>
-<summary><b>1차에서 잡은 것 여섯</b></summary>
+<summary><b>1차</b></summary>
 
 - **BPB 분모가 한국어에서 2배였다** — ByteLevel 토큰의 바이트 길이는
   `len(token)` 이지 `len(token.encode())` 가 아니다
@@ -469,6 +469,6 @@ HCX / A.X 는 **참조**이지 인과 실험이 아니다 ([`docs/RULES.md`](doc
 - **OOM 을 정지 조건으로 쓴 설계가 Windows 에서 성립하지 않았다** — WDDM
   드라이버가 시스템 RAM 으로 흘려 죽지 않고 느려지기만 한다
 
-실패한 run 도 원장에 남아 있다 (`fail` 9건 · `abort` 5건). 지우지 않는 이유는
-무엇이 왜 깨졌는지가 규칙의 근거이기 때문이다.
+실패한 run 도 원장에 남아 있다 (`fail` 9건 · `abort` 5건). 무엇이 왜 깨졌는지가
+규칙의 근거이므로 지우지 않는다.
 </details>
