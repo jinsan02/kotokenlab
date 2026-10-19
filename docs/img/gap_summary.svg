@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 448" width="1000" height="448" role="img" aria-label="처방별 한국어 잔차 d = BPB(T2b) - BPB(C0) 와 문서 95% 구간. 1차 코사인 LR +0.4296 · 상수 LR +0.3456 · 같은 update 1,523 +0.3210 · 신규 행 warm-start +0.3573 · WSD 마지막 20% 감쇠 +0.3547 · Final Test +0.3486">
+<title>어느 처방도 격차를 0 쪽으로 옮기지 못했다 — 처음 보는 문서에서도 그대로다</title>
+<style>
+  text { font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, -apple-system, sans-serif; fill: #1f2328; }
+  .sub { fill: #59636e; } .muted { fill: #818b98; }
+  .grid { stroke: #eaeef2; stroke-width: 1; } .base { stroke: #afb8c1; stroke-width: 1; }
+  .c1 { fill: #2a78d6; } .l1 { stroke: #2a78d6; stroke-width: 2; fill: none; }
+  .c2 { fill: #eb6834; } .l2 { stroke: #eb6834; stroke-width: 2; fill: none; }
+  .cg { fill: #8c959f; } .lg { stroke: #8c959f; stroke-width: 2; fill: none; }
+  .ring { stroke: #ffffff; stroke-width: 2; }
+  .band { fill: #f6f8fa; }
+  @media (prefers-color-scheme: dark) {
+    text { fill: #e6edf3; } .sub { fill: #9198a1; } .muted { fill: #8b949e; }
+    .grid { stroke: #262c36; } .base { stroke: #59636e; }
+    .c1 { fill: #3987e5; } .l1 { stroke: #3987e5; }
+    .c2 { fill: #d95926; } .l2 { stroke: #d95926; }
+    .cg { fill: #6e7681; } .lg { stroke: #6e7681; }
+    .ring { stroke: #0d1117; } .band { fill: #161b22; }
+  }
+</style>
+<text x="0" y="26" font-size="18" font-weight="600">어느 처방도 격차를 0 쪽으로 옮기지 못했다</text>
+<text x="0" y="50" font-size="14" class="sub">한국어 잔차 d = BPB(T2b) − BPB(C0), 같은 원문 168.5MB CPT 뒤. 0 이면 격차 없음.</text>
+<text x="0" y="70" font-size="14" class="sub">점 = 값, 가로선 = 문서 단위 paired bootstrap 95% 구간 (대부분 점보다 짧다).</text>
+<line class="base" x1="300.0" y1="98" x2="300.0" y2="378"/>
+<text x="300.0" y="398" font-size="12" text-anchor="middle" class="muted">0.0</text>
+<line class="grid" x1="422.2" y1="98" x2="422.2" y2="378"/>
+<text x="422.2" y="398" font-size="12" text-anchor="middle" class="muted">0.1</text>
+<line class="grid" x1="544.4" y1="98" x2="544.4" y2="378"/>
+<text x="544.4" y="398" font-size="12" text-anchor="middle" class="muted">0.2</text>
+<line class="grid" x1="666.7" y1="98" x2="666.7" y2="378"/>
+<text x="666.7" y="398" font-size="12" text-anchor="middle" class="muted">0.3</text>
+<line class="grid" x1="788.9" y1="98" x2="788.9" y2="378"/>
+<text x="788.9" y="398" font-size="12" text-anchor="middle" class="muted">0.4</text>
+<text x="306.0" y="102" font-size="12" class="muted">격차 없음</text>
+<text x="0" y="123.0" font-size="14">1차 코사인 LR</text>
+<text x="0" y="140.0" font-size="12" class="muted">dev · seed 42</text>
+<line class="lg" x1="813.0" y1="125.0" x2="838.4" y2="125.0"/>
+<circle class="cg ring" cx="825.0" cy="125.0" r="5"/>
+<text x="864.0" y="130.0" font-size="13" class="sub">+0.4296</text>
+<text x="0" y="169.0" font-size="14">상수 LR</text>
+<text x="0" y="186.0" font-size="12" class="muted">dev · seed 42 재학습</text>
+<line class="lg" x1="711.8" y1="171.0" x2="733.8" y2="171.0"/>
+<circle class="cg ring" cx="722.4" cy="171.0" r="5"/>
+<text x="864.0" y="176.0" font-size="13" class="sub">+0.3456</text>
+<text x="0" y="215.0" font-size="14">같은 update 1,523</text>
+<text x="0" y="232.0" font-size="12" class="muted">dev · seed 42 · C0 는 상수 LR</text>
+<line class="lg" x1="682.5" y1="217.0" x2="702.9" y2="217.0"/>
+<circle class="cg ring" cx="692.4" cy="217.0" r="5"/>
+<text x="864.0" y="222.0" font-size="13" class="sub">+0.3210</text>
+<text x="0" y="261.0" font-size="14">신규 행 warm-start</text>
+<text x="0" y="278.0" font-size="12" class="muted">dev · seed 42 · C0 는 상수 LR</text>
+<line class="lg" x1="725.9" y1="263.0" x2="748.7" y2="263.0"/>
+<circle class="cg ring" cx="736.8" cy="263.0" r="5"/>
+<text x="864.0" y="268.0" font-size="13" class="sub">+0.3573</text>
+<text x="0" y="307.0" font-size="14">WSD 마지막 20% 감쇠</text>
+<text x="0" y="324.0" font-size="12" class="muted">dev · seed 42 · C0 도 WSD</text>
+<line class="lg" x1="722.9" y1="309.0" x2="745.3" y2="309.0"/>
+<circle class="cg ring" cx="733.6" cy="309.0" r="5"/>
+<text x="864.0" y="314.0" font-size="13" class="sub">+0.3547</text>
+<text x="0" y="353.0" font-size="14" font-weight="600">Final Test</text>
+<text x="0" y="370.0" font-size="12" class="muted">처음 보는 5,067문서 · 상수 LR 대표 쌍</text>
+<line class="l1" x1="722.9" y1="355.0" x2="729.3" y2="355.0"/>
+<circle class="c1 ring" cx="726.1" cy="355.0" r="6"/>
+<text x="864.0" y="360.0" font-size="13" font-weight="600">+0.3486</text>
+<text x="0" y="438" font-size="12" class="muted">구간은 문서 표본의 불확실성만 담는다 — 학습 seed 불확실성(상수 LR seed 3쌍 SD 0.0002)은 따로다. 축은 BPB.</text>
+</svg>

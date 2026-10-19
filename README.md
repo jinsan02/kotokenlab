@@ -2,25 +2,22 @@
 
 **Korean Tokenizer Surgery & LLM Adaptation on a Single RTX 5070 Ti 16GB**
 
-> **1차 종료** (2026-08-29 → 09-02, 태그 `p1-closed`). 사전 등록 질문 Q1~Q6 와
-> 유효 범위 Phase 6 이 모두 닫혔다. **결과 전체:
-> [`reports/FINAL_REPORT.md`](reports/FINAL_REPORT.md)**
->
-> **2차 종료** (2026-09-17). R1·Q7 부정, R5 긍정 — **상수 LR 은 168.5MB 종점
-> 잔차 `Bf−Cf` 를 0.429555 → 0.345543 BPB 로 줄였다** (회복률 R 65.44% → 72.42%,
-> T2b 3 seed 평균, 분모는 상수 LR C0 seed42. R 정의는
-> [`docs/RULES.md`](docs/RULES.md) 14b). 점근선이나 "벽" 은 식별하지 않았다.
-> 한자 프로브는 사전 등록한 세 측정(tok/byte · 한자 밀집 BPB · KMMLU 6과목)에서
-> T2a−C0 차이를 검출하지 못했다 (seed42 단독, 등록 경계 안).
-> 설계 [`docs/SPEC_P2.md`](docs/SPEC_P2.md) ·
-> 일정과 결과 [`docs/SCHEDULE_P2.md`](docs/SCHEDULE_P2.md)
->
-> **3차 종료 · 프로젝트 종료** (2026-09-19 → 10-19, 태그 `p3-closed`). 외부 비판 감사 뒤
-> amendment 로 다시 짠 7주 계획을 마쳤다. **같은 원문 CPT 뒤 T2b 의 한국어 BPB 가 C0 보다
-> 약 0.35 나쁘다는 결론이 한 번도 쓰지 않은 Final Test 5,067문서에서 확증됐다** (seed 42 대표 쌍, d +0.348637,
+> **프로젝트 종료 (2026-10-19, 태그 `p3-closed`).** Qwen2.5-0.5B 의 한국어 어휘 30,000개를
+> 크기 보존 치환(T2b)하면 한국어 토큰이 **30% 줄지만**, 같은 원문 168.5MB 로 CPT 한 뒤에도
+> 한국어 BPB 가 원본(C0)보다 **약 0.35 나쁘다.** 이 격차는 seed 3쌍에서 재현됐고, 사전에 고른
+> seed 42 대표 쌍을 한 번도 쓰지 않은 **Final Test 5,067문서에서 확증**됐다 (d +0.348637,
 > 95% 문서 구간 [+0.345985, +0.351245]). 시험한 update 수 보정 · 신규 행 warm-start · WSD
-> recipe 는 이 격차를 해소하지 못했다. **결과 전체: [`reports/REPORT_P3.md`](reports/REPORT_P3.md)** ·
-> 주장 표 [`reports/tables/core_claims.md`](reports/tables/core_claims.md)
+> recipe 는 격차를 해소하지 못했다. 압축이 산 prefill −35~41% 는 품질이 나쁜 모델의 비용이다.
+
+<p align="center"><img src="docs/img/gap_summary.svg" alt="처방별 한국어 잔차 d와 문서 95% 구간: 1차 코사인 +0.4296, 상수 LR +0.3456, 같은 update +0.3210, warm-start +0.3573, WSD +0.3547, Final Test +0.3486 — 모두 0에서 멀다" width="100%"></p>
+
+<sub>그림은 <code>tools/readme_figures.py</code> 가 원장에서 그린다. 수치표는 <a href="reports/tables/core_claims.md">core_claims.md</a>.</sub>
+
+| 단계 | 기간 · 태그 | 한 줄 | 보고서 |
+|---|---|---|---|
+| 1차 | 08-29 → 09-02 · `p1-closed` | 압축 · 추론 효율은 성공, 한국어 품질은 악화. 세 가설(노름 보정 · 정렬 예열 · 노출 부족) 반증 | [`FINAL_REPORT.md`](reports/FINAL_REPORT.md) |
+| 2차 | → 09-17 | 상수 LR 이 168.5MB 종점 격차를 0.4296 → 0.3455 로 줄였다. tie · 임베딩 손상 가설은 지지 안 됨. T2a 의 한자 제거 흔적 미검출 | [`SCHEDULE_P2.md`](docs/SCHEDULE_P2.md) |
+| 3차 | 09-19 → 10-19 · `final-test-opened` · `p3-closed` | 외부 비판 감사 뒤 7주 계획. seed 재현 · update 보정 · warm-start · WSD · 문서 구간 · **Final Test 확증** | [`REPORT_P3.md`](reports/REPORT_P3.md) |
 
 <p align="center"><img src="docs/img/pipeline.svg" alt="KoTokenLab 전체 파이프라인: 문서 단위 분할 → 토크나이저 수술 → 임베딩 초기화 → CPT → 평가 → TSV 원장" width="100%"></p>
 
@@ -43,7 +40,7 @@ Attention 연산량, KV Cache, 추론 지연에 미치는 영향을 **통제된 
 
 ## 결과
 
-**1차 종료 (2026-09-02) — 압축과 추론 효율은 성공, 언어모델 품질은 악화.**
+### 1차 — 압축과 추론 효율은 성공, 언어모델 품질은 악화 (2026-09-02)
 
 두 결과를 함께 읽어야 한다. 하나만 떼면 프로젝트를 잘못 이해하게 된다.
 
@@ -168,7 +165,7 @@ N. [`scripts/run_phase4.sh`](scripts/run_phase4.sh) 가 둘 다 잰다. 예측�
 
 ## 연구의 흐름 — 가설을 세우고 반증한 순서
 
-<p align="center"><img src="docs/img/research_flow.svg" alt="1차 가설 세 개 반증, 2차 R5 상수 LR 긍정, 3차 amendment 2~5주 결과" width="100%"></p>
+<p align="center"><img src="docs/img/research_flow.svg" alt="1차 가설 세 개 반증, 2차 R5 상수 LR 긍정, 3차 amendment 2~6주 결과와 Final Test 확증" width="100%"></p>
 
 <sub>각 판정의 record와 표는 아래 토글에 있다.</sub>
 
@@ -190,8 +187,14 @@ N. [`scripts/run_phase4.sh`](scripts/run_phase4.sh) 가 둘 다 잰다. 예측�
 **1차의 절대값은 전부 코사인 스케줄 조건부로 읽는다** — C0 도 상수 LR 에서 더 나았다.
 </details>
 
-<details>
-<summary><b>3차 결과 — 외부 비판 감사 뒤 amendment + Final Test (2026-10-19)</b></summary>
+### 3차 — 격차를 줄이려는 처방과 Final Test (2026-09-19 → 10-19)
+
+<p align="center"><img src="docs/img/wsd_curve.svg" alt="감쇠 구간의 한국어 dev BPB: 상수 LR은 끝까지 내려가고 WSD는 160MB 이후 거의 멈춘다. 종점 WSD − 상수 LR = C0 +0.0012, T2b +0.0104" width="100%"></p>
+
+<sub>6주차 WSD: 학습률이 약 2e-6 아래로 내려간 마지막 구간에서 거의 배우지 않았다. 손해는 아직 빨리 배우는 T2b 쪽이 크다 (seed 42, 결과를 본 뒤의 해석이라 탐색적).</sub>
+
+<details open>
+<summary><b>3차 판정표 — amendment 2~6주차 + Final Test</b></summary>
 
 2026-09-19 감사로 3차 계획을 다시 잡았다 —
 [`docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md`](docs/CRITICAL_REVIEW_AMENDMENT_2026-09-19.md).

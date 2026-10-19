@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 0 1104 456" width="1104" height="456" role="img" aria-label="1차에서 세운 세 가설은 모두 반증됐고, 2차에서 상수 LR만 회복률을 72.42%로 올렸으며, 3차 amendment에서 격차가 seed 우연·update 부족·warm-start로 설명되지 않음을 확인했다">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 0 1104 610" width="1104" height="610" role="img" aria-label="1차에서 세운 세 가설은 모두 반증됐고, 2차에서 상수 LR만 회복률을 72.42%로 올렸으며, 3차 amendment에서 격차는 seed 3쌍에서 재현되고 update 보정·warm-start·WSD로 해소되지 않았으며 Final Test에서 확증됐다">
 <title>연구의 흐름 — 가설을 세우고 반증한 순서</title>
 <style>
   text { font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; fill: #1f2328; }
@@ -31,7 +31,7 @@
     .ln { stroke: #8b949e; } .ah { fill: #8b949e; } .ln-em { stroke: #3987e5; } .ah-em { fill: #3987e5; }
   }
 </style>
-<text x="0" y="24" font-size="18" font-weight="600" class="ink">연구의 흐름 — 가설을 세우고 반증한 순서</text><text x="0" y="48" font-size="14" class="sub">1차 → 2차 → 3차 amendment · 파란 카드 = 회복률을 실제로 올린 유일한 변경</text>
+<text x="0" y="24" font-size="18" font-weight="600" class="ink">연구의 흐름 — 가설을 세우고 반증한 순서</text><text x="0" y="48" font-size="14" class="sub">1차 → 2차 → 3차 amendment · 파란 카드 = 회복률을 실제로 올린 유일한 변경 · 초록 카드 = Final Test 확증</text>
 <g transform="translate(0,64)">
 <text x="14" y="30" font-size="13" class="ink" font-weight="600">1차 · 2026-08-29 → 09-02</text>
 <rect class="box" x="10" y="46" width="340" height="62" rx="8"/>
@@ -60,19 +60,25 @@
 <text x="540" y="319" font-size="13" text-anchor="middle" class="sub">세 측정에서 검출 안 됨 (seed42 단독)</text>
 <polyline class="ln" points="710,77 721,77"/>
 <polygon class="ah" points="730,77 721,72 721,82"/>
-<text x="734" y="30" font-size="13" class="ink" font-weight="600">3차 amendment · 09-19 → 10-07</text>
+<text x="734" y="30" font-size="13" class="ink" font-weight="600">3차 amendment · 09-19 → 10-19</text>
 <rect class="box" x="730" y="46" width="340" height="62" rx="8"/>
 <text x="900" y="72" font-size="14" text-anchor="middle" font-weight="600" class="ink">2주 · 격차가 seed 42의 우연인가</text>
 <text x="900" y="91" font-size="13" text-anchor="middle" class="sub">아니다 — 3쌍 d +0.345679, SD 0.000235</text>
 <rect class="box" x="730" y="122" width="340" height="62" rx="8"/>
-<text x="900" y="148" font-size="14" text-anchor="middle" font-weight="600" class="ink">3주 · update를 덜 받아서인가</text>
-<text x="900" y="167" font-size="13" text-anchor="middle" class="sub">주로 아니다 — 같은 update에서 d +0.321189</text>
+<text x="900" y="148" font-size="14" text-anchor="middle" font-weight="600" class="ink">3주 · update 수를 맞추면 해소되나</text>
+<text x="900" y="167" font-size="13" text-anchor="middle" class="sub">해소 안 됨 — 같은 update에서 d +0.321189</text>
 <rect class="box" x="730" y="198" width="340" height="62" rx="8"/>
 <text x="900" y="224" font-size="14" text-anchor="middle" font-weight="600" class="ink">4주 · 새 행만 먼저 학습하면 나은가</text>
 <text x="900" y="243" font-size="13" text-anchor="middle" class="sub">아니다 — 직접 CPT보다 0.0117 나쁨</text>
 <rect class="box" x="730" y="274" width="340" height="62" rx="8"/>
 <text x="900" y="300" font-size="14" text-anchor="middle" font-weight="600" class="ink">5주 · 문서 표본 불확실성은</text>
 <text x="900" y="319" font-size="13" text-anchor="middle" class="sub">d +0.345564 · 95% [+0.336924, +0.354955]</text>
-<text x="10" y="374" font-size="12" class="lbl">잔차 d = BPB(T2b) − BPB(C0), 한국어 dev, 상수 LR 168.5MB. Final Test는 아직 열지 않았다.</text>
+<rect class="box" x="730" y="350" width="340" height="62" rx="8"/>
+<text x="900" y="376" font-size="14" text-anchor="middle" font-weight="600" class="ink">6주 · 끝에서 학습률을 낮추면(WSD) 나은가</text>
+<text x="900" y="395" font-size="13" text-anchor="middle" class="sub">아니다 — T2b +0.010403 · 잔차 +0.009184</text>
+<rect class="k-auto" x="730" y="426" width="340" height="62" rx="8"/>
+<text x="900" y="452" font-size="14" text-anchor="middle" font-weight="600" class="ink">Final Test · 처음 보는 5,067문서</text>
+<text x="900" y="471" font-size="13" text-anchor="middle" class="sub">확증 — d +0.348637 · 95% [+0.345985, +0.351245]</text>
+<text x="10" y="526" font-size="12" class="lbl">잔차 d = BPB(T2b) − BPB(C0), 한국어, 상수 LR 168.5MB. 2~6주는 dev, Final Test는 seed 42 대표 쌍을 2026-10-19에 한 번 평가했다.</text>
 </g>
 </svg>

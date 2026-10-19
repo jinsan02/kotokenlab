@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 420" width="1000" height="420" role="img" aria-label="감쇠 구간의 한국어 dev BPB, 상수 LR 과 WSD. c0 상수 LR 종점 1.1274 · c0 WSD 종점 1.1286 · t2b 상수 LR 종점 1.4730 · t2b WSD 종점 1.4834">
+<title>마지막 감쇠는 끝에서 학습을 멈추게 했다 — 손해는 T2b 가 더 크다</title>
+<style>
+  text { font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, -apple-system, sans-serif; fill: #1f2328; }
+  .sub { fill: #59636e; } .muted { fill: #818b98; }
+  .grid { stroke: #eaeef2; stroke-width: 1; } .base { stroke: #afb8c1; stroke-width: 1; }
+  .c1 { fill: #2a78d6; } .l1 { stroke: #2a78d6; stroke-width: 2; fill: none; }
+  .c2 { fill: #eb6834; } .l2 { stroke: #eb6834; stroke-width: 2; fill: none; }
+  .cg { fill: #8c959f; } .lg { stroke: #8c959f; stroke-width: 2; fill: none; }
+  .ring { stroke: #ffffff; stroke-width: 2; }
+  .band { fill: #f6f8fa; }
+  @media (prefers-color-scheme: dark) {
+    text { fill: #e6edf3; } .sub { fill: #9198a1; } .muted { fill: #8b949e; }
+    .grid { stroke: #262c36; } .base { stroke: #59636e; }
+    .c1 { fill: #3987e5; } .l1 { stroke: #3987e5; }
+    .c2 { fill: #d95926; } .l2 { stroke: #d95926; }
+    .cg { fill: #6e7681; } .lg { stroke: #6e7681; }
+    .ring { stroke: #0d1117; } .band { fill: #161b22; }
+  }
+</style>
+<text x="0" y="26" font-size="18" font-weight="600">마지막 감쇠는 끝에서 학습을 멈추게 했다</text>
+<text x="0" y="50" font-size="14" class="sub">한국어 dev BPB (낮을수록 좋다), 원문 100MB 이후 · 회색 띠 = WSD 감쇠 구간 (134.8MB~, 끝 학습률 1e-6) · seed 42</text>
+<line class="l1" x1="0" y1="78" x2="22" y2="78"/><circle class="c1" cx="11" cy="78" r="4"/><text x="30" y="83" font-size="13">상수 LR</text><line class="l2" x1="110" y1="78" x2="132" y2="78"/><circle class="c2" cx="121" cy="78" r="4"/><text x="140" y="83" font-size="13">WSD</text>
+<text x="40" y="100" font-size="14" font-weight="600">C0 (원본 Qwen)</text>
+<rect class="band" x="238.9" y="110" width="192.6" height="240"/>
+<line class="grid" x1="40" y1="350.0" x2="440" y2="350.0"/>
+<text x="34" y="354.0" font-size="11" text-anchor="end" class="muted">1.127</text>
+<line class="grid" x1="40" y1="290.0" x2="440" y2="290.0"/>
+<text x="34" y="294.0" font-size="11" text-anchor="end" class="muted">1.129</text>
+<line class="grid" x1="40" y1="230.0" x2="440" y2="230.0"/>
+<text x="34" y="234.0" font-size="11" text-anchor="end" class="muted">1.131</text>
+<line class="grid" x1="40" y1="170.0" x2="440" y2="170.0"/>
+<text x="34" y="174.0" font-size="11" text-anchor="end" class="muted">1.133</text>
+<line class="grid" x1="40" y1="110.0" x2="440" y2="110.0"/>
+<text x="34" y="114.0" font-size="11" text-anchor="end" class="muted">1.135</text>
+<line class="base" x1="40" y1="350" x2="440" y2="350"/>
+<text x="40.0" y="368" font-size="11" text-anchor="middle" class="muted">100MB</text>
+<text x="154.3" y="368" font-size="11" text-anchor="middle" class="muted">120MB</text>
+<text x="268.6" y="368" font-size="11" text-anchor="middle" class="muted">140MB</text>
+<text x="382.9" y="368" font-size="11" text-anchor="middle" class="muted">160MB</text>
+<polyline class="l1" points="40.5,133.2 154.3,194.2 268.6,254.1 383.1,310.0 431.8,326.8"/>
+<circle class="c1 ring" cx="40.5" cy="133.2" r="4"/>
+<circle class="c1 ring" cx="154.3" cy="194.2" r="4"/>
+<circle class="c1 ring" cx="268.6" cy="254.1" r="4"/>
+<circle class="c1 ring" cx="383.1" cy="310.0" r="4"/>
+<circle class="c1 ring" cx="431.8" cy="326.8" r="4"/>
+<polyline class="l2" points="40.5,133.7 154.3,194.9 268.6,253.9 383.1,289.5 431.8,289.8"/>
+<circle class="c2 ring" cx="40.5" cy="133.7" r="4"/>
+<circle class="c2 ring" cx="154.3" cy="194.9" r="4"/>
+<circle class="c2 ring" cx="268.6" cy="253.9" r="4"/>
+<circle class="c2 ring" cx="383.1" cy="289.5" r="4"/>
+<circle class="c2 ring" cx="431.8" cy="289.8" r="4"/>
+<text x="439.8" y="293.8" font-size="12" class="sub">1.1286</text>
+<text x="439.8" y="330.8" font-size="12" class="sub">1.1274</text>
+<text x="40" y="394" font-size="13">종점 WSD − 상수 LR = <tspan font-weight="600">+0.0012</tspan></text>
+<text x="540" y="100" font-size="14" font-weight="600">T2b (어휘 치환)</text>
+<rect class="band" x="738.9" y="110" width="192.6" height="240"/>
+<line class="grid" x1="540" y1="350.0" x2="940" y2="350.0"/>
+<text x="534" y="354.0" font-size="11" text-anchor="end" class="muted">1.467</text>
+<line class="grid" x1="540" y1="290.0" x2="940" y2="290.0"/>
+<text x="534" y="294.0" font-size="11" text-anchor="end" class="muted">1.482</text>
+<line class="grid" x1="540" y1="230.0" x2="940" y2="230.0"/>
+<text x="534" y="234.0" font-size="11" text-anchor="end" class="muted">1.496</text>
+<line class="grid" x1="540" y1="170.0" x2="940" y2="170.0"/>
+<text x="534" y="174.0" font-size="11" text-anchor="end" class="muted">1.511</text>
+<line class="grid" x1="540" y1="110.0" x2="940" y2="110.0"/>
+<text x="534" y="114.0" font-size="11" text-anchor="end" class="muted">1.525</text>
+<line class="base" x1="540" y1="350" x2="940" y2="350"/>
+<text x="540.0" y="368" font-size="11" text-anchor="middle" class="muted">100MB</text>
+<text x="654.3" y="368" font-size="11" text-anchor="middle" class="muted">120MB</text>
+<text x="768.6" y="368" font-size="11" text-anchor="middle" class="muted">140MB</text>
+<text x="882.9" y="368" font-size="11" text-anchor="middle" class="muted">160MB</text>
+<polyline class="l1" points="540.3,134.7 654.4,209.4 769.4,267.2 883.3,311.1 931.4,326.8"/>
+<circle class="c1 ring" cx="540.3" cy="134.7" r="4"/>
+<circle class="c1 ring" cx="654.4" cy="209.4" r="4"/>
+<circle class="c1 ring" cx="769.4" cy="267.2" r="4"/>
+<circle class="c1 ring" cx="883.3" cy="311.1" r="4"/>
+<circle class="c1 ring" cx="931.4" cy="326.8" r="4"/>
+<polyline class="l2" points="540.3,133.2 654.4,207.9 769.4,265.0 883.3,283.0 931.4,283.4"/>
+<circle class="c2 ring" cx="540.3" cy="133.2" r="4"/>
+<circle class="c2 ring" cx="654.4" cy="207.9" r="4"/>
+<circle class="c2 ring" cx="769.4" cy="265.0" r="4"/>
+<circle class="c2 ring" cx="883.3" cy="283.0" r="4"/>
+<circle class="c2 ring" cx="931.4" cy="283.4" r="4"/>
+<text x="939.4" y="287.4" font-size="12" class="sub">1.4834</text>
+<text x="939.4" y="330.8" font-size="12" class="sub">1.4730</text>
+<text x="540" y="394" font-size="13">종점 WSD − 상수 LR = <tspan font-weight="600">+0.0104</tspan></text>
+</svg>
