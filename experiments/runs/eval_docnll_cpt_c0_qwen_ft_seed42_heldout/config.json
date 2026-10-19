@@ -1,0 +1,13 @@
+{
+  "budgets": {
+    "code": 2000000,
+    "en": 2000000,
+    "ko": 20000000
+  },
+  "max_bytes": null,
+  "model": "artifacts/models/cpt_c0_qwen_ft_seed42",
+  "purpose": "doc_nll",
+  "seq_len": 2048,
+  "source_run": "cpt_c0_qwen_ft_seed42",
+  "split": "final_test"
+}
